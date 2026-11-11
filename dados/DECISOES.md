@@ -71,6 +71,18 @@ Compromissos aceitos: o hub é ponto único de falha para os dados comuns; mudan
 - **Ligações pessoa ↔ organização** (atuações): "encerrar" grava `ate` (a pessoa saiu; a ligação fica no histórico); "tirar" arquiva (ligação feita por engano).
 - **Dados pessoais** continuam só no vendas, abertos sob pedido na ficha ("Mostrar dados pessoais"), e cada leitura entra no histórico.
 
+## Projetos, etapas e horas (migração 0004, casa: ferramenta Projetos)
+
+- **Código AAAA-NNN, recomeçando a cada ano** (decisão do Cid): sequência `projetos-<ano>` em `sequencias`. Os códigos de 2026 já tinham ido até 051 fora do Universo (pastas e contratos), então a 0004 deixa `projetos-2026` em 51 e o primeiro projeto do Universo é 2026-052. Em 2027 a sequência nasce sozinha e começa do 001. O ano é o da assinatura do contrato (ou o do início, no cadastro manual). Códigos nunca se repetem, nem entre arquivados.
+- **Projeto nasce da assinatura do contrato principal**: `contratos` com `situacao = 'assinado'` (na criação ou num PATCH) cria, no mesmo lote, o projeto, as etapas, o local do imóvel e os co-clientes, marca a proposta como aceita e a oportunidade como ganha. Cliente, núcleo e co-clientes vêm da oportunidade; o vendas manda em `projeto` o que só ele sabe ler do cálculo (nomes e semanas das etapas, endereço do imóvel, tipologia, área). Cada comando do lote se guarda pela versão nova do contrato: se outra pessoa salvou antes (409), nada é criado. Índice único em `projetos.contrato_id` impede dois projetos para o mesmo contrato. Aditivo assinado não cria projeto: aponta para um que existe. `projeto_existente` liga o contrato a um projeto já cadastrado à mão.
+- **Cadastro manual** (só a ferramenta Projetos e a máquina): para projetos anteriores ao Universo, com o código que já tinham (`codigo: '2026-031'`); a sequência do ano sobe até ele, então o próximo automático nunca repete um código antigo.
+- **Prazos das etapas** seguem o cronograma da proposta: dias corridos, `semanas × 7`, cada etapa começa no dia em que a anterior termina. `percentual_pagamento` fica nulo por ora: a proposta cobra entrada + parcelas, não por etapa (entra com o financeiro).
+- **Local do imóvel** (`projetos_local`, mesmo id do projeto): endereço exato, só vendas e Projetos. Bairro, cidade e UF ficam no projeto (aparecem em listas e no site). O endereço da etapa 1 do orçamento vai para cá na assinatura.
+- **Horas**: a etapa precisa ser do mesmo projeto, conferido pela API e por gatilho no banco (`horas_etapa_do_projeto_*`). A exportação do D1 leva os gatilhos (conferido).
+- **Equipe**: `POST producao/equipe { nome, email, papel }` usa a pessoa que já existe (algo bate e nada conflita) ou cria a pessoa; a ferramenta Projetos só lê contatos, então essa é a única pessoa que ela cria.
+- **Marketing** vê do projeto só o que é público (código, nome, nome público, núcleo, tipologia, área, bairro, cidade, situação, datas, publicável) e só muda o `nome_publico` (`editaveis_por` no esquema).
+- **Telas por leitura juntada** (`producao.js`): `producao/painel` (projetos com cliente, co-clientes, etapa atual, horas totais e dos últimos 30 dias, e a equipe), `producao/projetos/:id` (ficha completa) e `producao/horas?de=&ate=`. Exigem leitura de projetos e do comercial (o marketing não vê clientes). O painel do funil passou a devolver o `projeto` de cada oportunidade.
+
 ## Como mudar a estrutura
 
 1. Nova migração em `dados/migracoes/NNNN_nome.sql` (nunca editar uma já aplicada).

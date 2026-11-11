@@ -24,6 +24,10 @@
 //   GET    comercial/painel                   -> oportunidades abertas com cliente, co-clientes, última proposta e próxima ação
 //   GET    comercial/contatos[?arquivados=1]  -> pessoas e organizações com ligações e contagem de oportunidades
 //   GET    comercial/contatos/:id             -> ficha: registro, atuações, oportunidades (titular/co-cliente/contato), interações
+//   GET    producao/painel | producao/projetos/:id | producao/horas?de=&ate=   (ver producao.js)
+//   POST   producao/equipe { nome, email, papel }  -> cadastra na equipe (usa a pessoa que já existe)
+// projetos: POST numera AAAA-NNN (ou aceita { codigo } de projeto antigo) e aceita { etapas, local, coclientes }.
+// contratos: situacao 'assinado' no principal cria o projeto (ver regras.js: assinar).
 //   GET    propostas/numeracao                -> { valor } último número usado (null = ainda não ajustada)
 //   POST   propostas/numeracao  { minimo }    -> leva a numeração até pelo menos `minimo` (nunca volta)
 // propostas: POST normal numera sozinho; { revisao_de } cria a revisão seguinte; { importada_de, numero,
@@ -32,6 +36,7 @@
 
 import { TABELAS, ROTAS, PREFIXOS, COMUNS } from './esquema.js';
 import { novoId, prefixoDe, agoraISO, normalizar, limpar } from './util.js';
+import { painelProducao, fichaProjeto, horasPeriodo } from './producao.js';
 import { ErroApi, REGRAS, proximoNumero, ajustarSequencia, valorSequencia, painelComercial, listaContatos, fichaContato } from './regras.js';
 
 export { proximoNumero };
@@ -100,8 +105,12 @@ function traduzirErro(e) {
   }
   if (/FOREIGN KEY constraint failed/.test(m)) return new ErroApi(422, 'um dos registros ligados não existe');
   if (/CHECK constraint failed/.test(m)) return new ErroApi(422, 'valor fora do permitido', { detalhe: m });
+  if (/etapa de outro projeto/.test(m)) return new ErroApi(422, 'Etapa: precisa ser uma etapa deste projeto');
   return e;
 }
+
+// Ferramentas das regras (regras.js) que precisam validar e gravar registros filhos no mesmo lote.
+const AUX = { validar: (...a) => validar(...a), novoId, sqlBusca };
 
 async function buscarLinha(env, tabela, id) {
   return env.DB.prepare(`SELECT * FROM ${tabela} WHERE id = ?`).bind(id).first();
@@ -213,8 +222,8 @@ async function ler(env, ferramenta, tabela, id) {
   return visivel(tabela, ferramenta, linha);
 }
 
-async function criar(env, ferramenta, tabela, corpo) {
-  exigir(tabela, ferramenta, 'E');
+async function criar(env, ferramenta, tabela, corpo, { semPermissao = false } = {}) {
+  if (!semPermissao) exigir(tabela, ferramenta, 'E');
   const def = TABELAS[tabela];
   if (def.so_leitura_na_criacao) throw new ErroApi(405, 'estes registros são criados pelo próprio Universo');
   const valores = { ...(def.padroes || {}), ...validar(tabela, corpo) };
@@ -255,7 +264,7 @@ async function criar(env, ferramenta, tabela, corpo) {
   }
 
   // regras da tabela (numeração, funil…): podem completar os valores e acrescentar comandos ao lote
-  const extras = REGRAS[tabela]?.criar ? await REGRAS[tabela].criar(env, ferramenta, valores, corpo) : [];
+  const extras = REGRAS[tabela]?.criar ? await REGRAS[tabela].criar(env, ferramenta, valores, corpo, id, AUX) : [];
 
   const agora = agoraISO();
   const linha = {
@@ -288,7 +297,7 @@ async function criar(env, ferramenta, tabela, corpo) {
 
 // Monta e executa um UPDATE com trava de versão. `mudancas` = { campo: novoValor }.
 // Tudo num lote só (transação): histórico, versão e busca só entram se o UPDATE pegou.
-async function gravar(env, ferramenta, tabela, atual, mudancas, acao, { versaoForcada = false } = {}) {
+async function gravar(env, ferramenta, tabela, atual, mudancas, acao, { versaoForcada = false, extras = [] } = {}) {
   const def = TABELAS[tabela];
   const agora = agoraISO();
   const nova = { ...atual, ...mudancas, versao: atual.versao + 1, atualizado_em: agora, atualizado_por: ferramenta };
@@ -312,6 +321,8 @@ async function gravar(env, ferramenta, tabela, atual, mudancas, acao, { versaoFo
   }
   const b = sqlBusca(tabela, atual.id, nova, true);
   if (b) stmts.push(prep(env, b));
+  // comandos das regras (ex.: assinar contrato cria o projeto); cada um se guarda pela versão nova
+  stmts.push(...extras);
   if (def.versoes) {
     stmts.push(env.DB.prepare(
       `DELETE FROM versoes WHERE registro_id = ? AND id NOT IN
@@ -331,8 +342,9 @@ async function gravar(env, ferramenta, tabela, atual, mudancas, acao, { versaoFo
   return nova;
 }
 
-async function carregarParaEditar(env, ferramenta, tabela, id, corpo) {
-  exigir(tabela, ferramenta, 'E');
+async function carregarParaEditar(env, ferramenta, tabela, id, corpo, { soCampos = false } = {}) {
+  // ferramenta que só lê, mas pode mudar alguns campos (marketing: nome público do projeto)
+  if (!(soCampos && TABELAS[tabela].editaveis_por?.[ferramenta])) exigir(tabela, ferramenta, 'E');
   const atual = await buscarLinha(env, tabela, id);
   if (!atual) throw new ErroApi(404, 'não encontrado');
   const versao = Number(corpo?.versao);
@@ -342,8 +354,13 @@ async function carregarParaEditar(env, ferramenta, tabela, id, corpo) {
 }
 
 async function alterar(env, ferramenta, tabela, id, corpo) {
-  const atual = await carregarParaEditar(env, ferramenta, tabela, id, corpo);
+  const atual = await carregarParaEditar(env, ferramenta, tabela, id, corpo, { soCampos: true });
   if (atual.arquivado_em) throw new ErroApi(409, 'registro arquivado: restaure antes de editar');
+  const soEstes = permissao(tabela, ferramenta) === 'E' ? null : TABELAS[tabela].editaveis_por?.[ferramenta];
+  if (soEstes) {
+    const fora = Object.keys(TABELAS[tabela].campos).filter((k) => k in corpo && !soEstes.includes(k));
+    if (fora.length) throw new ErroApi(403, `esta ferramenta só pode mudar: ${soEstes.join(', ')}`);
+  }
   const valores = validar(tabela, corpo, { parcial: true, atual });
   // campos obrigatórios não podem ser esvaziados
   for (const [k, c] of Object.entries(TABELAS[tabela].campos)) {
@@ -353,9 +370,9 @@ async function alterar(env, ferramenta, tabela, id, corpo) {
   for (const [k, v] of Object.entries(valores)) if (v !== atual[k]) mudancas[k] = v;
   if (tabela === 'revisoes' && 'situacao' in mudancas) mudancas.decidido_em = mudancas.situacao === 'pendente' ? null : agoraISO();
   if (!Object.keys(mudancas).length) return { registro: visivel(tabela, ferramenta, atual), semMudanca: true };
-  if (REGRAS[tabela]?.alterar) await REGRAS[tabela].alterar(env, ferramenta, atual, mudancas);
   await conferirReferencias(env, tabela, mudancas);
-  const nova = await gravar(env, ferramenta, tabela, atual, mudancas, 'alterar');
+  const extras = REGRAS[tabela]?.alterar ? (await REGRAS[tabela].alterar(env, ferramenta, atual, mudancas, corpo, AUX)) || [] : [];
+  const nova = await gravar(env, ferramenta, tabela, atual, mudancas, 'alterar', { extras });
   return { registro: visivel(tabela, ferramenta, nova) };
 }
 
@@ -567,6 +584,25 @@ async function resolverRevisao(env, ferramenta, id, corpo) {
   return { ok: true, situacao: 'mesmo', manter, juntado: outro, completados: Object.keys(comp), outras_resolvidas: resolvidas };
 }
 
+// ---------------------------------------------------------------- equipe
+// Cadastra alguém na equipe a partir do nome: usa a pessoa que já existe (mesmo e-mail ou nome, sem
+// conflito) ou cria a pessoa. A ferramenta Projetos só lê contatos; aqui ela cria só o necessário.
+async function novaPessoaNaEquipe(env, ferramenta, corpo) {
+  exigir('equipe', ferramenta, 'E');
+  const papel = corpo?.papel || 'arquiteto';
+  let pessoaId = corpo?.pessoa_id || null;
+  if (!pessoaId) {
+    const dados = validar('pessoas', { nome: corpo?.nome, email: corpo?.email || null });
+    const cands = (await procurarDuplicados(env, 'pessoas', dados))
+      .filter((c) => Object.values(c.campos).includes('bate') && !Object.values(c.campos).includes('conflito'));
+    if (cands.length) pessoaId = cands[0].registro.id;
+    else pessoaId = (await criar(env, ferramenta, 'pessoas', { ...dados, confirmar_novo: true }, { semPermissao: true })).registro.id;
+  }
+  const ja = await env.DB.prepare('SELECT * FROM equipe WHERE pessoa_id = ? AND arquivado_em IS NULL').bind(pessoaId).first();
+  if (ja) return { registro: ja, ja_estava: true };
+  return criar(env, ferramenta, 'equipe', { pessoa_id: pessoaId, papel });
+}
+
 // ---------------------------------------------------------------- arquivos (conteúdo no R2)
 
 const chaveR2 = (id, variante) => `arq/${id}${VARIANTES[variante]}`;
@@ -701,6 +737,18 @@ export async function api(env, ferramenta, request, url, cors) {
       const linha = await buscarLinha(env, tabelaC, acao);
       if (!linha) throw new ErroApi(404, 'contato não encontrado');
       return json(await fichaContato(env, acao, tabelaC, visivel(tabelaC, ferramenta, linha)));
+    }
+    // produção: telas da ferramenta Projetos (quem lê projetos e o comercial: o marketing não vê clientes)
+    if (rota === 'producao') {
+      exigir('projetos', ferramenta, 'L');
+      exigir('oportunidades', ferramenta, 'L');
+      if (id === 'painel' && m === 'GET') return json(await painelProducao(env, url));
+      if (id === 'projetos' && acao && m === 'GET') {
+        return json(await fichaProjeto(env, acao, { verLocal: !!permissao('projetos_local', ferramenta) }));
+      }
+      if (id === 'horas' && m === 'GET') { exigir('horas', ferramenta, 'L'); return json(await horasPeriodo(env, url)); }
+      if (id === 'equipe' && m === 'POST') return json(await novaPessoaNaEquipe(env, ferramenta, corpo), 201);
+      throw new ErroApi(404, 'rota não encontrada');
     }
     if (rota === 'propostas' && id === 'numeracao') {
       if (m === 'GET') {

@@ -22,6 +22,9 @@ export const PREFIXOS = {
   opo: 'oportunidades',
   ppt: 'propostas',
   ctr: 'contratos',
+  prj: 'projetos',
+  eta: 'etapas',
+  hor: 'horas',
 };
 
 // Ferramentas que podem chamar a API. 'hub' = o próprio Universo (senha da equipe);
@@ -31,8 +34,17 @@ export const FERRAMENTAS = ['hub', 'vendas', 'projetos', 'fornecedores', 'market
 const NUCLEOS = ['estudio', 'arquitetos', 'objetos', 'elaia'];
 export const ETAPAS_FUNIL = ['lead', 'contato', 'briefing', 'proposta', 'negociacao', 'ganha', 'perdida'];
 export const SITUACOES_PROPOSTA = ['rascunho', 'enviada', 'aceita', 'recusada', 'expirada', 'substituida'];
+export const SITUACOES_PROJETO = ['ativo', 'pausado', 'concluido', 'cancelado'];
+export const SITUACOES_ETAPA = ['prevista', 'em_andamento', 'em_aprovacao', 'concluida'];
 // Comercial: casa no vendas; o hub e o Projetos leem.
 const COMERCIAL = { hub: 'L', vendas: 'E', projetos: 'L', maquina: 'E' };
+
+// Produção (0004): casa na ferramenta Projetos (producao.odisse); o vendas cria o projeto ao
+// registrar o contrato assinado (regras.js), sem precisar de permissão de edição aqui.
+const PRODUCAO = { hub: 'L', vendas: 'L', projetos: 'E', fornecedores: 'L', marketing: 'L', maquina: 'E' };
+// o que o marketing enxerga de um projeto (nada de cliente, valores ou observações internas)
+const PROJETO_PUBLICO = ['codigo', 'nome', 'nome_publico', 'nucleo_id', 'tipologia', 'area_m2', 'bairro', 'cidade', 'uf',
+  'situacao', 'inicio', 'fim', 'publicavel'];
 
 const TODOS_E = { hub: 'E', vendas: 'E', projetos: 'E', fornecedores: 'E', marketing: 'E', maquina: 'E' };
 
@@ -289,6 +301,96 @@ export const TABELAS = {
     ordem: 'numero DESC',
     busca: (r) => ({ titulo: r.codigo, partes: [r.codigo, r.observacoes] }),
   },
+
+  // ---------------------------------------------------------------- produção (0004)
+  // codigo, ano e numero são gravados pela API (regras.js): AAAA-NNN, recomeçando a cada ano.
+  projetos: {
+    prefixo: 'prj',
+    campos: {
+      nome: T('texto', { obrig: true, max: 160, rotulo: 'Nome' }),
+      nome_publico: T('texto', { max: 160, rotulo: 'Nome público' }),
+      nucleo_id: T('lista', { valores: NUCLEOS, rotulo: 'Núcleo' }),
+      cliente_id: T('ref', { prefixos: ['org', 'pes'], rotulo: 'Cliente (titular)' }),
+      oportunidade_id: T('ref', { prefixos: ['opo'], rotulo: 'Oportunidade' }),
+      servico: T('texto', { max: 120, rotulo: 'Serviço' }),
+      tipologia: T('texto', { max: 200, rotulo: 'Tipologia' }),
+      area_m2: T('real', { rotulo: 'Área (m²)' }),
+      bairro: T('texto', { max: 80, rotulo: 'Bairro' }),
+      cidade: T('texto', { max: 80, rotulo: 'Cidade' }),
+      uf: T('uf', { rotulo: 'UF' }),
+      situacao: T('lista', { valores: SITUACOES_PROJETO, rotulo: 'Situação' }),
+      inicio: T('data', { rotulo: 'Início' }),
+      previsao_fim: T('data', { rotulo: 'Previsão de fim' }),
+      fim: T('data', { rotulo: 'Fim' }),
+      responsavel_id: T('ref', { prefixos: ['eqp'], rotulo: 'Responsável' }),
+      publicavel: T('sn', { rotulo: 'Pode ser publicado' }),
+      observacoes: T('textoLongo', { max: 8000, rotulo: 'Observações' }),
+    },
+    padroes: { situacao: 'ativo' },
+    permissoes: PRODUCAO,
+    campos_restritos: { marketing: PROJETO_PUBLICO },
+    // ferramenta que só lê, mas pode mudar estes campos
+    editaveis_por: { marketing: ['nome_publico'] },
+    filtros: ['situacao', 'nucleo_id', 'cliente_id', 'oportunidade_id', 'contrato_id', 'responsavel_id', 'ano', 'codigo'],
+    ordem: 'ano DESC, numero DESC',
+    busca: (r) => ({ titulo: `${r.codigo} · ${r.nome}`, partes: [r.codigo, r.nome, r.nome_publico, r.servico, r.tipologia, r.bairro, r.cidade] }),
+  },
+
+  // Restrita: vendas e Projetos. Mesmo id do projeto. Fora da busca.
+  projetos_local: {
+    prefixo: 'prj',
+    id_da_tabela: 'projetos',
+    campos: {
+      logradouro: T('texto', { max: 160, rotulo: 'Logradouro' }),
+      numero: T('texto', { max: 20, rotulo: 'Número' }),
+      complemento: T('texto', { max: 80, rotulo: 'Complemento' }),
+      cep: T('cep', { rotulo: 'CEP' }),
+      referencias: T('textoLongo', { max: 2000, rotulo: 'Referências de acesso' }),
+    },
+    permissoes: { vendas: 'E', projetos: 'E', maquina: 'E' },
+    filtros: [],
+    ordem: 'id',
+  },
+
+  etapas: {
+    prefixo: 'eta',
+    campos: {
+      projeto_id: T('ref', { obrig: true, prefixos: ['prj'], rotulo: 'Projeto' }),
+      ordem: T('inteiro', { obrig: true, min: 0, max: 999, rotulo: 'Ordem' }),
+      nome: T('texto', { obrig: true, max: 120, rotulo: 'Nome' }),
+      fase: T('texto', { max: 120, rotulo: 'Fase' }),
+      ref_vendas: T('texto', { max: 80, rotulo: 'Etapa no vendas' }),
+      semanas: T('real', { rotulo: 'Semanas' }),
+      situacao: T('lista', { valores: SITUACOES_ETAPA, rotulo: 'Situação' }),
+      inicio_previsto: T('data', { rotulo: 'Início previsto' }),
+      fim_previsto: T('data', { rotulo: 'Fim previsto' }),
+      inicio: T('data', { rotulo: 'Início' }),
+      fim: T('data', { rotulo: 'Fim' }),
+      percentual_pagamento: T('real', { rotulo: 'Percentual do pagamento' }),
+      observacoes: T('textoLongo', { max: 4000, rotulo: 'Observações' }),
+    },
+    imutaveis: ['projeto_id'],
+    padroes: { situacao: 'prevista' },
+    permissoes: PRODUCAO,
+    campos_restritos: { marketing: ['projeto_id', 'ordem', 'nome', 'fase', 'situacao'] },
+    filtros: ['projeto_id', 'situacao'],
+    ordem: 'projeto_id, ordem',
+  },
+
+  horas: {
+    prefixo: 'hor',
+    campos: {
+      equipe_id: T('ref', { obrig: true, prefixos: ['eqp'], rotulo: 'Quem' }),
+      projeto_id: T('ref', { obrig: true, prefixos: ['prj'], rotulo: 'Projeto' }),
+      etapa_id: T('ref', { prefixos: ['eta'], rotulo: 'Etapa' }),
+      data: T('data', { obrig: true, rotulo: 'Dia' }),
+      minutos: T('inteiro', { obrig: true, min: 1, max: 1440, rotulo: 'Duração (minutos)' }),
+      descricao: T('textoLongo', { max: 2000, rotulo: 'O que foi feito' }),
+    },
+    permissoes: { hub: 'L', projetos: 'E', maquina: 'E' },
+    filtros: ['equipe_id', 'projeto_id', 'etapa_id', 'data'],
+    ordem: 'data DESC, criado_em DESC',
+  },
 };
 
 // Rotas da API → tabela. Pessoas sensíveis têm rota própria, pendurada na pessoa.
@@ -306,6 +408,10 @@ export const ROTAS = {
   oportunidades: 'oportunidades',
   propostas: 'propostas',
   contratos: 'contratos',
+  projetos: 'projetos',
+  'projetos-local': 'projetos_local',
+  etapas: 'etapas',
+  horas: 'horas',
 };
 
 export const COMUNS = ['id', 'criado_em', 'atualizado_em', 'criado_por', 'atualizado_por', 'versao', 'arquivado_em'];

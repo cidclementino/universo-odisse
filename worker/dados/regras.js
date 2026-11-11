@@ -154,17 +154,247 @@ const propostas = {
 
 const CONGELADOS = TABELAS.propostas.congelado.campos;
 
+// ---------------------------------------------------------------- projetos (0004)
+// Código AAAA-NNN; a numeração recomeça a cada ano (sequência `projetos-<ano>`).
+// Um projeto nasce do contrato principal assinado (contratos, abaixo) ou do cadastro manual
+// na ferramenta Projetos (projetos que já existiam antes do Universo, com o código que já tinham).
+
+const tres = (n) => String(n).padStart(3, '0');
+
+async function numerarProjeto(env, ano, codigoDado) {
+  if (codigoDado) {
+    const m = String(codigoDado).trim().match(/^(\d{4})-(\d{3,4})$/);
+    if (!m) throw new ErroApi(422, 'Código: no formato AAAA-NNN (ex.: 2025-031)');
+    const a = Number(m[1]);
+    const numero = Number(m[2]);
+    if (a < 2000 || a > 2100 || numero < 1) throw new ErroApi(422, 'Código: ano ou número fora do esperado');
+    // a sequência do ano vai até pelo menos este número: o próximo automático nunca repete um código antigo
+    await ajustarSequencia(env, `projetos-${a}`, numero);
+    return { codigo: `${a}-${tres(numero)}`, ano: a, numero };
+  }
+  const numero = await proximoNumero(env, `projetos-${ano}`);
+  return { codigo: `${ano}-${tres(numero)}`, ano, numero };
+}
+
+// Soma dias a um dia AAAA-MM-DD (dias corridos, como o cronograma da proposta).
+export function somarDias(dia, n) {
+  const d = new Date(dia + 'T12:00:00Z');
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+// Prazos previstos das etapas em sequência a partir do início, como o cronograma da proposta:
+// cada etapa dura `semanas` × 7 dias corridos e a seguinte começa no dia em que a anterior termina.
+export function preverEtapas(inicio, etapas) {
+  let cursor = inicio;
+  return etapas.map((e) => {
+    if (!cursor || !e.semanas) return { ...e, inicio_previsto: e.inicio_previsto ?? null, fim_previsto: e.fim_previsto ?? null };
+    const fim = somarDias(cursor, Math.round(e.semanas * 7));
+    const r = { ...e, inicio_previsto: cursor, fim_previsto: fim };
+    cursor = fim;
+    return r;
+  });
+}
+
+// INSERT … SELECT com guarda: só grava se a guarda existir (o registro-pai foi gravado no mesmo lote).
+function inserirGuardado(env, tabela, linha, guarda) {
+  const cols = Object.keys(linha);
+  return env.DB.prepare(`INSERT INTO ${tabela} (${cols.join(', ')}) SELECT ${cols.map(() => '?').join(', ')} WHERE EXISTS (${guarda[0]})`)
+    .bind(...cols.map((k) => linha[k]), ...guarda[1]);
+}
+function historicoGuardado(env, tabela, id, acao, por, mudancas, guarda) {
+  return env.DB.prepare(`INSERT INTO historico (registro_id, tabela, acao, por, em, mudancas) SELECT ?, ?, ?, ?, ?, ? WHERE EXISTS (${guarda[0]})`)
+    .bind(id, tabela, acao, por, agoraISO(), mudancas ? JSON.stringify(mudancas) : null, ...guarda[1]);
+}
+const comuns = (id, ferramenta, agora) => ({
+  id, criado_em: agora, atualizado_em: agora, criado_por: ferramenta, atualizado_por: ferramenta, versao: 1, arquivado_em: null,
+});
+
+// Etapas, local do imóvel e co-clientes de um projeto novo. `dados.etapas` = [{ nome, fase, ref_vendas,
+// semanas, percentual_pagamento }] (na ordem); `dados.local` = { logradouro, numero, complemento, cep, referencias };
+// `dados.coclientes` = ids (pes_/org_). Devolve { stmts, previsao_fim }.
+export async function filhosDoProjeto(env, ferramenta, prjId, inicio, dados, guarda, { validar, novoId, sqlBusca }) {
+  const agora = agoraISO();
+  const stmts = [];
+  const lista = Array.isArray(dados.etapas) ? dados.etapas : [];
+  if (lista.length > 40) throw new ErroApi(422, 'no máximo 40 etapas');
+  const limpas = lista.map((e, i) => {
+    const v = validar('etapas', { ...e, projeto_id: prjId, ordem: i + 1 });
+    if (v.semanas !== null && (v.semanas < 0 || v.semanas > 520)) throw new ErroApi(422, `Etapa ${i + 1}: semanas fora do esperado`);
+    return v;
+  });
+  const previstas = preverEtapas(inicio, limpas);
+  for (const e of previstas) {
+    const id = novoId('eta');
+    const linha = { ...comuns(id, ferramenta, agora), ...e, situacao: e.situacao || 'prevista' };
+    stmts.push(inserirGuardado(env, 'etapas', linha, guarda), historicoGuardado(env, 'etapas', id, 'criar', ferramenta, e, guarda));
+  }
+  if (dados.local && typeof dados.local === 'object') {
+    const v = validar('projetos_local', dados.local);
+    if (Object.values(v).some((x) => x !== null)) {
+      stmts.push(inserirGuardado(env, 'projetos_local', { ...comuns(prjId, ferramenta, agora), ...v }, guarda),
+        historicoGuardado(env, 'projetos_local', prjId, 'criar', ferramenta, v, guarda));
+    }
+  }
+  const cocl = [...new Set((dados.coclientes || []).filter((x) => /^(pes|org)_/.test(x)))];
+  for (const para of cocl) {
+    const id = novoId('vin');
+    const linha = { ...comuns(id, ferramenta, agora), de_id: prjId, para_id: para, papel: 'cliente', observacao: null };
+    stmts.push(inserirGuardado(env, 'vinculos', linha, guarda),
+      historicoGuardado(env, 'vinculos', id, 'criar', ferramenta, { de_id: prjId, para_id: para, papel: 'cliente' }, guarda));
+  }
+  const ultimo = previstas.filter((e) => e.fim_previsto).pop();
+  return { stmts, previsao_fim: ultimo ? ultimo.fim_previsto : null };
+}
+
+const projetos = {
+  // cadastro manual (ferramenta Projetos): aceita o código que o projeto já tinha, etapas, local e co-clientes
+  async criar(env, ferramenta, valores, corpo, id, aux) {
+    const ano = Number((valores.inicio || hojeBrasilia()).slice(0, 4));
+    Object.assign(valores, await numerarProjeto(env, ano, corpo.codigo), { contrato_id: null });
+    if (valores.cliente_id) {
+      const ok = await env.DB.prepare(`SELECT 1 FROM ${valores.cliente_id.startsWith('org_') ? 'organizacoes' : 'pessoas'} WHERE id = ?`)
+        .bind(valores.cliente_id).first();
+      if (!ok) throw new ErroApi(422, 'Cliente: não encontrado');
+    }
+    const guarda = ['SELECT 1 FROM projetos WHERE id = ?', [id]];
+    const f = await filhosDoProjeto(env, ferramenta, id, valores.inicio, corpo, guarda, aux);
+    if (!valores.previsao_fim && f.previsao_fim) valores.previsao_fim = f.previsao_fim;
+    return f.stmts;
+  },
+};
+
 // ---------------------------------------------------------------- contratos
+// Assinar o contrato PRINCIPAL cria o projeto (código, etapas com prazos, local do imóvel, co-clientes),
+// marca a proposta como aceita e a oportunidade como ganha — tudo no mesmo lote do contrato.
+// O vendas manda em `corpo.projeto` o que só ele sabe ler do cálculo (nomes das etapas, endereço do imóvel);
+// cliente, núcleo e co-clientes vêm da oportunidade. `corpo.projeto_existente` liga a um projeto que já
+// existe (cadastrado à mão) em vez de criar outro. Aditivo assinado precisa de projeto_id.
+
+async function assinar(env, ferramenta, contrato, corpo, guarda, aux) {
+  const valores = {};
+  const extras = [];
+  if (!contrato.assinado_em) valores.assinado_em = hojeBrasilia();
+  const assinadoEm = contrato.assinado_em || valores.assinado_em;
+  if (contrato.tipo === 'aditivo') {
+    if (!contrato.projeto_id) throw new ErroApi(422, 'aditivo assinado precisa do projeto (projeto_id)');
+    return { valores, extras };
+  }
+  if (contrato.projeto_id) return { valores, extras }; // já ligado a um projeto
+
+  if (!contrato.proposta_id) throw new ErroApi(422, 'contrato principal: informe a proposta aceita (proposta_id)');
+  const ppt = await env.DB.prepare('SELECT * FROM propostas WHERE id = ?').bind(contrato.proposta_id).first();
+  if (!ppt || ppt.arquivado_em) throw new ErroApi(422, 'Proposta: não encontrada');
+  if (ppt.simulacao) throw new ErroApi(422, 'simulação não vira contrato');
+  const opo = await env.DB.prepare('SELECT * FROM oportunidades WHERE id = ?').bind(ppt.oportunidade_id).first();
+  if (!contrato.valor_total && ppt.valor_total) valores.valor_total = ppt.valor_total;
+
+  // ligar a um projeto já cadastrado (ex.: cadastrado à mão antes de o contrato entrar no Universo)
+  if (corpo.projeto_existente) {
+    const prj = await env.DB.prepare('SELECT id, arquivado_em, contrato_id FROM projetos WHERE id = ?').bind(String(corpo.projeto_existente)).first();
+    if (!prj || prj.arquivado_em) throw new ErroApi(422, 'Projeto: não encontrado');
+    valores.projeto_id = prj.id;
+    if (!prj.contrato_id) {
+      extras.push(env.DB.prepare(`UPDATE projetos SET contrato_id = ?, oportunidade_id = COALESCE(oportunidade_id, ?), versao = versao + 1,
+        atualizado_em = ?, atualizado_por = ? WHERE id = ? AND contrato_id IS NULL AND EXISTS (${guarda[0]})`)
+        .bind(contrato.id, opo?.id ?? null, agoraISO(), ferramenta, prj.id, ...guarda[1]));
+    }
+  } else {
+    const p = corpo.projeto && typeof corpo.projeto === 'object' ? corpo.projeto : {};
+    const coclientes = [];
+    if (opo) {
+      const { results } = await env.DB.prepare(
+        `SELECT para_id FROM vinculos WHERE de_id = ? AND papel = 'cliente' AND arquivado_em IS NULL`).bind(opo.id).all();
+      coclientes.push(...results.map((r) => r.para_id));
+    }
+    const base = aux.validar('projetos', {
+      nome: p.nome || opo?.titulo || ppt.titulo || 'Projeto',
+      nome_publico: p.nome_publico, servico: p.servico || ppt.titulo, tipologia: p.tipologia, area_m2: p.area_m2,
+      bairro: p.bairro, cidade: p.cidade, uf: p.uf, inicio: p.inicio || assinadoEm,
+      nucleo_id: p.nucleo_id || opo?.nucleo_id || 'arquitetos', cliente_id: opo?.cliente_id, oportunidade_id: opo?.id,
+      responsavel_id: p.responsavel_id || opo?.responsavel_id, observacoes: p.observacoes,
+    });
+    const prjId = aux.novoId('prj');
+    const num = await numerarProjeto(env, Number(assinadoEm.slice(0, 4)), null);
+    const f = await filhosDoProjeto(env, ferramenta, prjId, base.inicio, { etapas: p.etapas, local: p.local, coclientes }, guarda, aux);
+    const agora = agoraISO();
+    const linha = {
+      ...comuns(prjId, ferramenta, agora), ...base, ...num, contrato_id: contrato.id, situacao: 'ativo',
+      previsao_fim: base.previsao_fim || f.previsao_fim, publicavel: base.publicavel ?? null,
+    };
+    // projeto primeiro (as etapas, o local e os vínculos apontam para ele)
+    extras.push(inserirGuardado(env, 'projetos', linha, guarda),
+      historicoGuardado(env, 'projetos', prjId, 'criar', ferramenta, { ...base, ...num, contrato_id: contrato.id }, guarda));
+    const b = aux.sqlBusca('projetos', prjId, linha, false);
+    if (b) extras.push(env.DB.prepare(b[0].replace(/\s+ON CONFLICT/, ` WHERE EXISTS (${guarda[0]}) ON CONFLICT`))
+      .bind(...b[1], ...guarda[1]));
+    extras.push(...f.stmts);
+    valores.projeto_id = prjId;
+  }
+
+  // proposta aceita e oportunidade ganha (se ainda não estavam)
+  const agora = agoraISO();
+  const hoje = hojeBrasilia();
+  extras.push(
+    env.DB.prepare(`INSERT INTO historico (registro_id, tabela, acao, por, em, mudancas)
+      SELECT id, 'propostas', 'alterar', ?, ?, json_object('situacao', json_array(situacao, 'aceita'))
+      FROM propostas WHERE id = ? AND situacao <> 'aceita' AND EXISTS (${guarda[0]})`).bind(ferramenta, agora, ppt.id, ...guarda[1]),
+    env.DB.prepare(`UPDATE propostas SET situacao = 'aceita', versao = versao + 1, atualizado_em = ?, atualizado_por = ?
+      WHERE id = ? AND situacao <> 'aceita' AND EXISTS (${guarda[0]})`).bind(agora, ferramenta, ppt.id, ...guarda[1]),
+  );
+  if (opo) {
+    extras.push(
+      env.DB.prepare(`INSERT INTO historico (registro_id, tabela, acao, por, em, mudancas)
+        SELECT id, 'oportunidades', 'alterar', ?, ?, json_object('etapa_funil', json_array(etapa_funil, 'ganha'))
+        FROM oportunidades WHERE id = ? AND etapa_funil <> 'ganha' AND EXISTS (${guarda[0]})`).bind(ferramenta, agora, opo.id, ...guarda[1]),
+      env.DB.prepare(`UPDATE oportunidades SET etapa_funil = 'ganha', etapa_desde = ?, fechada_em = ?, versao = versao + 1,
+        atualizado_em = ?, atualizado_por = ? WHERE id = ? AND etapa_funil <> 'ganha' AND EXISTS (${guarda[0]})`)
+        .bind(hoje, hoje, agora, ferramenta, opo.id, ...guarda[1]),
+    );
+  }
+  return { valores, extras };
+}
 
 const contratos = {
-  async criar(env, ferramenta, valores) {
+  async criar(env, ferramenta, valores, corpo, id, aux) {
     const numero = await proximoNumero(env, 'contratos');
     Object.assign(valores, { numero, codigo: `CT-${quatro(numero)}-${hojeBrasilia().slice(0, 4)}` });
+    if (valores.situacao !== 'assinado') return [];
+    const guarda = ['SELECT 1 FROM contratos WHERE id = ? AND versao = 1', [id]];
+    const r = await assinar(env, ferramenta, { ...valores, id }, corpo, guarda, aux);
+    Object.assign(valores, r.valores);
+    return r.extras;
+  },
+  async alterar(env, ferramenta, atual, mudancas, corpo, aux) {
+    if (atual.situacao === 'assinado' && mudancas.projeto_id !== undefined && atual.projeto_id && mudancas.projeto_id !== atual.projeto_id) {
+      throw new ErroApi(409, 'o contrato assinado já está ligado a um projeto');
+    }
+    if (mudancas.situacao !== 'assinado' || atual.situacao === 'assinado') return [];
+    const guarda = ['SELECT 1 FROM contratos WHERE id = ? AND versao = ?', [atual.id, atual.versao + 1]];
+    const r = await assinar(env, ferramenta, { ...atual, ...mudancas }, corpo, guarda, aux);
+    Object.assign(mudancas, r.valores);
+    return r.extras;
+  },
+};
+
+// ---------------------------------------------------------------- horas
+// A etapa precisa ser do mesmo projeto (o banco também confere, por gatilho).
+async function conferirEtapa(env, projetoId, etapaId) {
+  if (!etapaId) return;
+  const e = await env.DB.prepare('SELECT projeto_id FROM etapas WHERE id = ?').bind(etapaId).first();
+  if (!e || e.projeto_id !== projetoId) throw new ErroApi(422, 'Etapa: precisa ser uma etapa deste projeto');
+}
+const horas = {
+  async criar(env, ferramenta, valores) { await conferirEtapa(env, valores.projeto_id, valores.etapa_id); return []; },
+  async alterar(env, ferramenta, atual, mudancas) {
+    if ('etapa_id' in mudancas || 'projeto_id' in mudancas) {
+      await conferirEtapa(env, mudancas.projeto_id ?? atual.projeto_id, 'etapa_id' in mudancas ? mudancas.etapa_id : atual.etapa_id);
+    }
     return [];
   },
 };
 
-export const REGRAS = { oportunidades, propostas, contratos };
+export const REGRAS = { oportunidades, propostas, contratos, projetos, horas };
 
 // ---------------------------------------------------------------- painel do comercial
 // Uma chamada só para a tela do funil: oportunidades abertas (e as fechadas nos últimos 90 dias)
@@ -185,6 +415,8 @@ export async function painelComercial(env) {
           FROM interacoes i WHERE i.sobre_id = o.id AND i.arquivado_em IS NULL
           ORDER BY i.data DESC, i.criado_em DESC LIMIT 1) AS ultima_interacao,
        (SELECT count(*) FROM propostas p WHERE p.oportunidade_id = o.id AND p.arquivado_em IS NULL) AS n_propostas,
+       (SELECT json_object('id', j.id, 'codigo', j.codigo, 'nome', j.nome, 'situacao', j.situacao)
+          FROM projetos j WHERE j.oportunidade_id = o.id AND j.arquivado_em IS NULL ORDER BY j.criado_em DESC LIMIT 1) AS projeto,
        (SELECT json_group_array(COALESCE(o2.nome, p2.nome))
           FROM vinculos v LEFT JOIN organizacoes o2 ON o2.id = v.para_id LEFT JOIN pessoas p2 ON p2.id = v.para_id
           WHERE v.de_id = o.id AND v.papel = 'cliente' AND v.arquivado_em IS NULL) AS coclientes
@@ -200,6 +432,7 @@ export async function painelComercial(env) {
       ...r,
       ultima_proposta: r.ultima_proposta ? JSON.parse(r.ultima_proposta) : null,
       ultima_interacao: r.ultima_interacao ? JSON.parse(r.ultima_interacao) : null,
+      projeto: r.projeto ? JSON.parse(r.projeto) : null,
       coclientes: r.coclientes ? JSON.parse(r.coclientes).filter(Boolean) : [],
     })),
     fechadas_desde: corte,
