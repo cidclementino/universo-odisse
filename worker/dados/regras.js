@@ -184,7 +184,10 @@ export async function painelComercial(env) {
                            'proxima_acao_em', i.proxima_acao_em)
           FROM interacoes i WHERE i.sobre_id = o.id AND i.arquivado_em IS NULL
           ORDER BY i.data DESC, i.criado_em DESC LIMIT 1) AS ultima_interacao,
-       (SELECT count(*) FROM propostas p WHERE p.oportunidade_id = o.id AND p.arquivado_em IS NULL) AS n_propostas
+       (SELECT count(*) FROM propostas p WHERE p.oportunidade_id = o.id AND p.arquivado_em IS NULL) AS n_propostas,
+       (SELECT json_group_array(COALESCE(o2.nome, p2.nome))
+          FROM vinculos v LEFT JOIN organizacoes o2 ON o2.id = v.para_id LEFT JOIN pessoas p2 ON p2.id = v.para_id
+          WHERE v.de_id = o.id AND v.papel = 'cliente' AND v.arquivado_em IS NULL) AS coclientes
      FROM oportunidades o
        LEFT JOIN organizacoes org ON org.id = o.cliente_id
        LEFT JOIN pessoas pc ON pc.id = o.cliente_id
@@ -197,7 +200,84 @@ export async function painelComercial(env) {
       ...r,
       ultima_proposta: r.ultima_proposta ? JSON.parse(r.ultima_proposta) : null,
       ultima_interacao: r.ultima_interacao ? JSON.parse(r.ultima_interacao) : null,
+      coclientes: r.coclientes ? JSON.parse(r.coclientes).filter(Boolean) : [],
     })),
     fechadas_desde: corte,
+  };
+}
+
+// ---------------------------------------------------------------- contatos do comercial
+// Lista e ficha de contatos (pessoas e organizações) para a tela de Contatos do vendas,
+// montadas em poucas consultas. "Oportunidades de um contato" = as em que ele é titular,
+// co-cliente (vínculo papel 'cliente') ou pessoa de contato.
+
+const OPOS_DE = `(o.cliente_id = ?1 OR o.contato_pessoa_id = ?1 OR o.id IN
+  (SELECT v.de_id FROM vinculos v WHERE v.para_id = ?1 AND v.papel = 'cliente' AND v.arquivado_em IS NULL))`;
+
+const contagemOpos = (col) => `
+  (SELECT count(*) FROM oportunidades o WHERE o.arquivado_em IS NULL AND (o.cliente_id = ${col} OR o.contato_pessoa_id = ${col}
+     OR o.id IN (SELECT v.de_id FROM vinculos v WHERE v.para_id = ${col} AND v.papel = 'cliente' AND v.arquivado_em IS NULL))) AS n_oportunidades,
+  (SELECT count(*) FROM oportunidades o WHERE o.arquivado_em IS NULL AND o.etapa_funil NOT IN ('ganha', 'perdida')
+     AND (o.cliente_id = ${col} OR o.contato_pessoa_id = ${col}
+     OR o.id IN (SELECT v.de_id FROM vinculos v WHERE v.para_id = ${col} AND v.papel = 'cliente' AND v.arquivado_em IS NULL))) AS n_abertas`;
+
+export async function listaContatos(env, url) {
+  const comArquivados = url.searchParams.get('arquivados') === '1';
+  const filtro = (t) => (comArquivados ? '' : `WHERE ${t}.arquivado_em IS NULL`);
+  // o próprio Odisse (org_odisse, semente do banco) não é contato do comercial
+  const semOdisse = comArquivados ? "WHERE g.id <> 'org_odisse'" : "AND g.id <> 'org_odisse'";
+  const [pes, org] = await env.DB.batch([
+    env.DB.prepare(`SELECT p.id, p.nome, p.apelido, p.email, p.telefone, p.whatsapp, p.instagram, p.arquivado_em, p.atualizado_em,
+        (SELECT json_group_array(json_object('id', g.id, 'nome', g.nome, 'papel', a.papel))
+           FROM atuacoes a JOIN organizacoes g ON g.id = a.organizacao_id
+           WHERE a.pessoa_id = p.id AND a.arquivado_em IS NULL AND a.ate IS NULL AND g.arquivado_em IS NULL) AS ligacoes,
+        ${contagemOpos('p.id')}
+      FROM pessoas p ${filtro('p')} ORDER BY p.nome LIMIT 3000`),
+    env.DB.prepare(`SELECT g.id, g.nome, g.razao_social, g.cnpj, g.tipo, g.email, g.telefone, g.site, g.instagram, g.cidade, g.uf,
+        g.arquivado_em, g.atualizado_em,
+        (SELECT json_group_array(json_object('id', p.id, 'nome', p.nome, 'papel', a.papel))
+           FROM atuacoes a JOIN pessoas p ON p.id = a.pessoa_id
+           WHERE a.organizacao_id = g.id AND a.arquivado_em IS NULL AND a.ate IS NULL AND p.arquivado_em IS NULL) AS ligacoes,
+        ${contagemOpos('g.id')}
+      FROM organizacoes g ${filtro('g')} ${semOdisse} ORDER BY g.nome LIMIT 3000`),
+  ]);
+  const ler = (tipo) => (r) => ({ ...r, tipo_contato: tipo, ligacoes: r.ligacoes ? JSON.parse(r.ligacoes) : [] });
+  return { pessoas: pes.results.map(ler('pessoa')), organizacoes: org.results.map(ler('organizacao')) };
+}
+
+export async function fichaContato(env, id, tabela, registro) {
+  const pessoa = tabela === 'pessoas';
+  const [atu, opos, ints] = await env.DB.batch([
+    pessoa
+      ? env.DB.prepare(`SELECT a.*, g.nome AS organizacao_nome, g.arquivado_em AS organizacao_arquivada
+          FROM atuacoes a JOIN organizacoes g ON g.id = a.organizacao_id
+          WHERE a.pessoa_id = ? AND a.arquivado_em IS NULL
+          ORDER BY (a.ate IS NOT NULL), a.principal DESC, a.criado_em`).bind(id)
+      : env.DB.prepare(`SELECT a.*, p.nome AS pessoa_nome, p.email AS pessoa_email, p.whatsapp AS pessoa_whatsapp,
+            p.telefone AS pessoa_telefone, p.arquivado_em AS pessoa_arquivada
+          FROM atuacoes a JOIN pessoas p ON p.id = a.pessoa_id
+          WHERE a.organizacao_id = ? AND a.arquivado_em IS NULL
+          ORDER BY (a.ate IS NOT NULL), a.principal DESC, p.nome`).bind(id),
+    env.DB.prepare(`SELECT o.id, o.titulo, o.etapa_funil, o.nucleo_id, o.valor_estimado, o.cliente_id, o.contato_pessoa_id,
+        o.atualizado_em, o.fechada_em,
+        CASE WHEN o.cliente_id = ?1 THEN 'titular'
+             WHEN EXISTS (SELECT 1 FROM vinculos v WHERE v.de_id = o.id AND v.para_id = ?1 AND v.papel = 'cliente' AND v.arquivado_em IS NULL) THEN 'cocliente'
+             ELSE 'contato' END AS papel,
+        (SELECT json_object('id', p.id, 'codigo', p.codigo, 'valor_total', p.valor_total, 'situacao', p.situacao, 'data', p.data)
+           FROM propostas p WHERE p.oportunidade_id = o.id AND p.arquivado_em IS NULL
+           ORDER BY p.numero DESC, p.revisao DESC LIMIT 1) AS ultima_proposta
+      FROM oportunidades o WHERE o.arquivado_em IS NULL AND ${OPOS_DE}
+      ORDER BY (o.etapa_funil IN ('ganha', 'perdida')), o.atualizado_em DESC LIMIT 200`).bind(id),
+    env.DB.prepare(`SELECT i.id, i.sobre_id, i.pessoa_id, i.tipo, i.data, i.resumo, i.proxima_acao, i.proxima_acao_em,
+        o.titulo AS oportunidade_titulo
+      FROM interacoes i LEFT JOIN oportunidades o ON o.id = i.sobre_id
+      WHERE i.arquivado_em IS NULL AND (i.sobre_id = ?1 OR i.pessoa_id = ?1)
+      ORDER BY i.data DESC, i.criado_em DESC LIMIT 50`).bind(id),
+  ]);
+  return {
+    registro,
+    atuacoes: atu.results,
+    oportunidades: opos.results.map((r) => ({ ...r, ultima_proposta: r.ultima_proposta ? JSON.parse(r.ultima_proposta) : null })),
+    interacoes: ints.results,
   };
 }

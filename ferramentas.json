@@ -29,8 +29,9 @@
     },
     {
       "id": "crm", "nome": "Contatos e funil", "secao": "ferramentas", "grupo": "comercial",
-      "descricao": "Pedidos de todos os canais, etapas, propostas e próximas ações",
-      "url": "https://vendas.odisse.com.br/crm.html", "hosts": ["vendas.odisse.com.br/crm.html"],
+      "descricao": "Pedidos de todos os canais, etapas, propostas e próximas ações; pessoas e organizações",
+      "url": "https://vendas.odisse.com.br/crm.html", "hosts": ["vendas.odisse.com.br/crm.html", "vendas.odisse.com.br/contatos.html"],
+      "extra": [{ "nome": "Contatos", "url": "https://vendas.odisse.com.br/contatos.html" }],
       "acesso": "interna", "status": "no-ar"
     },
     {

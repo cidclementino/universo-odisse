@@ -21,7 +21,9 @@
 //   PUT    arquivos/:id/conteudo?variante=g|m|s  (corpo binário; cada variante sobe uma vez só)
 //   GET    arquivos/:id/conteudo?variante=g|m|s
 //   POST   revisoes/:id/resolver { versao, situacao: 'mesmo'|'diferentes', manter }  -> junta dois contatos
-//   GET    comercial/painel                   -> oportunidades abertas com cliente, última proposta e próxima ação
+//   GET    comercial/painel                   -> oportunidades abertas com cliente, co-clientes, última proposta e próxima ação
+//   GET    comercial/contatos[?arquivados=1]  -> pessoas e organizações com ligações e contagem de oportunidades
+//   GET    comercial/contatos/:id             -> ficha: registro, atuações, oportunidades (titular/co-cliente/contato), interações
 //   GET    propostas/numeracao                -> { valor } último número usado (null = ainda não ajustada)
 //   POST   propostas/numeracao  { minimo }    -> leva a numeração até pelo menos `minimo` (nunca volta)
 // propostas: POST normal numera sozinho; { revisao_de } cria a revisão seguinte; { importada_de, numero,
@@ -30,7 +32,7 @@
 
 import { TABELAS, ROTAS, PREFIXOS, COMUNS } from './esquema.js';
 import { novoId, prefixoDe, agoraISO, normalizar, limpar } from './util.js';
-import { ErroApi, REGRAS, proximoNumero, ajustarSequencia, valorSequencia, painelComercial } from './regras.js';
+import { ErroApi, REGRAS, proximoNumero, ajustarSequencia, valorSequencia, painelComercial, listaContatos, fichaContato } from './regras.js';
 
 export { proximoNumero };
 
@@ -688,6 +690,17 @@ export async function api(env, ferramenta, request, url, cors) {
     if (rota === 'comercial' && id === 'painel' && m === 'GET') {
       exigir('oportunidades', ferramenta, 'L');
       return json(await painelComercial(env));
+    }
+    // comercial: contatos (lista e ficha juntadas, para a tela de Contatos do vendas)
+    if (rota === 'comercial' && id === 'contatos' && m === 'GET') {
+      exigir('oportunidades', ferramenta, 'L');
+      exigir('pessoas', ferramenta, 'L');
+      if (!acao) return json(await listaContatos(env, url));
+      const tabelaC = PREFIXOS[prefixoDe(acao)];
+      if (!['pessoas', 'organizacoes'].includes(tabelaC)) throw new ErroApi(404, 'contato não encontrado');
+      const linha = await buscarLinha(env, tabelaC, acao);
+      if (!linha) throw new ErroApi(404, 'contato não encontrado');
+      return json(await fichaContato(env, acao, tabelaC, visivel(tabelaC, ferramenta, linha)));
     }
     if (rota === 'propostas' && id === 'numeracao') {
       if (m === 'GET') {

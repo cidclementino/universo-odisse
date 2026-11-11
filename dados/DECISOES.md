@@ -57,8 +57,19 @@ Compromissos aceitos: o hub é ponto único de falha para os dados comuns; mudan
 ## Simulações e duplicados (migração 0003)
 
 - **Simulação** (`propostas.simulacao = 1`): orçamento sem cliente, para testar a ferramenta ou estimar o custo de um serviço. Consome número da sequência como qualquer proposta (decisão do Cid: testes também contam na numeração), não tem oportunidade (CHECK no banco: simulação ⇔ sem oportunidade), não entra no funil, e o PDF sai com "Simulação de Honorários", um aviso em caixa na primeira página e "SIMULAÇÃO · NÃO É PROPOSTA COMERCIAL" no cabeçalho de todas. Revisão de simulação continua simulação; simulação reaberta como proposta de verdade ganha número próprio. A 0003 refez `propostas` (e `contratos`, que aponta para ela) porque o SQLite não tira NOT NULL de coluna existente.
-- **Duplicados**: `POST revisoes/:id/resolver`. "São diferentes" só registra. "É o mesmo": o cadastro escolhido fica, é completado com o que só o outro tinha (observações somadas), recebe tudo que apontava para o outro (oportunidades, interações, atuações, equipe, vínculos, documentos e, para pessoas, os dados sensíveis que faltavam) e o outro é arquivado com a nota "Juntado a …". Pendências sobre o mesmo par seguem a mesma decisão; pendências que passam a repetir um par já perguntado são arquivadas. Tela: Funil → "Possíveis duplicados".
+- **Duplicados**: `POST revisoes/:id/resolver`. "São diferentes" só registra. "É o mesmo": o cadastro escolhido fica, é completado com o que só o outro tinha (observações somadas), recebe tudo que apontava para o outro (oportunidades, interações, atuações, equipe, vínculos, documentos e, para pessoas, os dados sensíveis que faltavam) e o outro é arquivado com a nota "Juntado a …". Pendências sobre o mesmo par seguem a mesma decisão; pendências que passam a repetir um par já perguntado são arquivadas. Tela: Contatos → "Possíveis duplicados" (no vendas).
 - O ano do código (`PC-NNNN-AAAA`) vem da data da proposta; o número é uma sequência única que não recomeça a cada ano (como no vendas antigo).
+
+## Contatos e co-clientes (sem migração nova, nov/2026)
+
+- **Tela de Contatos** (vendas.odisse.com.br/contatos.html) lê duas rotas de leitura juntada, sem SQL novo no banco:
+  - `GET comercial/contatos[?arquivados=1]`: pessoas e organizações, cada uma com as ligações ativas (atuações sem `ate`) e a contagem de oportunidades (total e em aberto). O próprio Odisse (`org_odisse`) fica de fora.
+  - `GET comercial/contatos/:id`: ficha com o registro, as atuações (com o nome do outro lado), as oportunidades e as interações (sobre o contato ou com ele).
+  - Permissão: quem lê oportunidades e pessoas (hub, vendas, projetos, máquina). O marketing não vê.
+- **Oportunidades de um contato** = em que ele é titular (`cliente_id`), co-cliente (vínculo `papel = 'cliente'`) ou pessoa de contato (`contato_pessoa_id`). A ficha diz qual.
+- **Co-clientes** (um casal, sócios) usam `vinculos` (de_id = oportunidade, para_id = pessoa ou organização, papel `cliente`), como o desenho previa; não há coluna nova. "Tornar titular" troca o `cliente_id` e inverte os vínculos. O painel do funil devolve `coclientes` (nomes) para o cartão mostrar "Ana Lins + Rafael Lins".
+- **Ligações pessoa ↔ organização** (atuações): "encerrar" grava `ate` (a pessoa saiu; a ligação fica no histórico); "tirar" arquiva (ligação feita por engano).
+- **Dados pessoais** continuam só no vendas, abertos sob pedido na ficha ("Mostrar dados pessoais"), e cada leitura entra no histórico.
 
 ## Como mudar a estrutura
 
