@@ -22,17 +22,21 @@
   const MARCA = 'https://marca.odisse.com.br/';
 
   const css = `
-  .ub-barra { box-sizing: border-box; display: flex; align-items: center; gap: 20px; height: 48px;
-    padding: 0 16px; background: #3F4B57; color: #FAFAF7;
+  /* três colunas: marca à esquerda, seções no centro exato da página, menu à direita */
+  .ub-barra { box-sizing: border-box; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    align-items: center; column-gap: 20px; height: 48px; padding: 0 16px; background: #3F4B57; color: #FAFAF7;
     font: 500 13px/1 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif; -webkit-font-smoothing: antialiased; }
   .ub-barra *, .ub-menu * { box-sizing: border-box; }
-  .ub-casa { display: flex; align-items: center; gap: 9px; color: inherit; text-decoration: none; flex: none; }
-  .ub-selo { width: 14px; height: 22px; background: currentColor;
+  .ub-barra > [data-ub-menu] { justify-self: end; }
+  .ub-casa { justify-self: start; display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; min-width: 0; }
+  /* logo oficial: selo da mão + logotipo ODISSE, desenhados em currentColor a partir da marca */
+  .ub-selo { flex: none; width: 17px; height: 28px; background: currentColor;
     -webkit-mask: url(${MARCA}selos/mao.svg) center / contain no-repeat; mask: url(${MARCA}selos/mao.svg) center / contain no-repeat; }
-  .ub-nome { font-weight: 700; font-size: 15px; letter-spacing: -.02em; }
+  .ub-logotipo { flex: none; width: 66px; height: 14px; background: currentColor;
+    -webkit-mask: url(${MARCA}logos/logotipo-odisse.svg) center / contain no-repeat; mask: url(${MARCA}logos/logotipo-odisse.svg) center / contain no-repeat; }
   .ub-sub { font-size: 10.5px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase; opacity: .6;
-    padding-left: 9px; border-left: 1px solid rgba(255,255,255,.25); }
-  .ub-secoes { position: relative; display: flex; align-items: stretch; height: 100%; gap: 2px; overflow-x: auto; scrollbar-width: none; flex: 1; min-width: 0; }
+    padding-left: 10px; border-left: 1px solid rgba(255,255,255,.25); white-space: nowrap; }
+  .ub-secoes { position: relative; display: flex; align-items: stretch; height: 100%; gap: 2px; overflow-x: auto; scrollbar-width: none; min-width: 0; }
   .ub-secoes::-webkit-scrollbar { display: none; }
   .ub-secoes a { display: flex; align-items: center; padding: 0 12px; color: inherit; text-decoration: none; white-space: nowrap;
     opacity: .78; border-bottom: 2px solid transparent; border-top: 2px solid transparent; }
@@ -58,7 +62,10 @@
   .ub-item b { display: block; font-weight: 600; font-size: 13px; }
   .ub-item small { display: block; font-size: 12px; line-height: 1.35; opacity: .7; font-weight: 400; margin-top: 2px; }
   .ub-item.ub-ativo { background: #E6E8EB; }
-  @media (max-width: 640px) { .ub-sub { display: none; } .ub-barra { gap: 10px; } }
+  /* telas estreitas: sem espaço para centrar, as seções ocupam o meio e rolam */
+  @media (max-width: 860px) { .ub-sub { display: none; } }
+  @media (max-width: 640px) { .ub-barra { grid-template-columns: auto minmax(0, 1fr) auto; column-gap: 10px; }
+    .ub-logotipo { display: none; } }
   `;
 
   const seta = '<svg viewBox="0 0 10 10" aria-hidden="true"><path d="M1.5 3.5 5 7l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>';
@@ -121,7 +128,7 @@
   function montarBarra(raiz, dados, item) {
     raiz.classList.add('ub-barra');
     raiz.innerHTML = `<a class="ub-casa" href="${linkSecao('inicio')}"><span class="ub-selo" aria-hidden="true"></span>
-        <span class="ub-nome">Odisse</span><span class="ub-sub">Universo</span></a>
+        <span class="ub-logotipo" role="img" aria-label="Odisse"></span><span class="ub-sub">Universo</span></a>
       <nav class="ub-secoes" aria-label="Seções do Universo">${dados.secoes.map((s) =>
         `<a href="${linkSecao(s.id)}" data-secao="${s.id}">${esc(s.nome)}</a>`).join('')}</nav>
       <span data-ub-menu></span>`;
