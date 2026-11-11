@@ -1,121 +1,120 @@
 {
-  "versao": 1,
-  "grupos": [
-    { "id": "marketing", "nome": "Marketing" },
-    { "id": "comercial", "nome": "Comercial" },
-    { "id": "presenca", "nome": "Site e presença" },
-    { "id": "producao", "nome": "Produção" }
+  "versao": 2,
+  "secoes": [
+    { "id": "inicio",      "nome": "Início",      "descricao": "O que importa hoje" },
+    { "id": "ferramentas", "nome": "Ferramentas", "descricao": "Onde se trabalha" },
+    { "id": "canais",      "nome": "Canais",      "descricao": "O que o público vê" },
+    { "id": "marca",       "nome": "Marca",       "descricao": "Quem somos" },
+    { "id": "biblioteca",  "nome": "Biblioteca",  "descricao": "O que se reutiliza" }
   ],
-  "ferramentas": [
+  "grupos": [
+    { "id": "marketing", "secao": "ferramentas", "nome": "Marketing" },
+    { "id": "comercial", "secao": "ferramentas", "nome": "Comercial" },
+    { "id": "producao",  "secao": "ferramentas", "nome": "Produção" },
+    { "id": "sites",     "secao": "canais",      "nome": "Sites" },
+    { "id": "redes",     "secao": "canais",      "nome": "Redes e publicações" },
+    { "id": "acervo",    "secao": "biblioteca",  "nome": "Acervo e referências" }
+  ],
+  "itens": [
     {
-      "id": "marketing",
-      "nome": "Marketing",
+      "id": "marketing", "nome": "Marketing", "secao": "ferramentas", "grupo": "marketing",
       "descricao": "Posts 3:4 por núcleo, padrões e métricas das redes",
-      "url": "https://marketing.odisse.com.br/",
-      "hosts": ["marketing.odisse.com.br"],
-      "grupo": "marketing",
-      "acesso": "interna",
-      "status": "no-ar"
+      "url": "https://marketing.odisse.com.br/", "hosts": ["marketing.odisse.com.br"],
+      "acesso": "interna", "status": "no-ar"
     },
     {
-      "id": "calendario",
-      "nome": "Calendário editorial",
+      "id": "calendario", "nome": "Calendário editorial", "secao": "ferramentas", "grupo": "marketing",
       "descricao": "Datas das publicações, rodízio dos núcleos, horários de pico",
-      "grupo": "marketing",
-      "acesso": "interna",
-      "status": "em-breve"
+      "acesso": "interna", "status": "em-breve"
     },
     {
-      "id": "crm",
-      "nome": "Contatos e funil",
+      "id": "crm", "nome": "Contatos e funil", "secao": "ferramentas", "grupo": "comercial",
       "descricao": "Pedidos de todos os canais, etapas, propostas e próximas ações",
-      "grupo": "comercial",
-      "acesso": "interna",
-      "status": "em-breve"
+      "acesso": "interna", "status": "em-breve"
     },
     {
-      "id": "orcamentos",
-      "nome": "Orçamentos",
+      "id": "orcamentos", "nome": "Orçamentos", "secao": "ferramentas", "grupo": "comercial",
       "descricao": "Propostas de honorários pela metodologia CAU/AsBEA",
-      "url": "https://vendas.odisse.com.br/",
-      "hosts": ["vendas.odisse.com.br"],
-      "grupo": "comercial",
-      "acesso": "interna",
-      "status": "no-ar"
+      "url": "https://vendas.odisse.com.br/", "hosts": ["vendas.odisse.com.br"],
+      "acesso": "interna", "status": "no-ar"
     },
     {
-      "id": "radar",
-      "nome": "Radar",
+      "id": "radar", "nome": "Radar", "secao": "ferramentas", "grupo": "comercial",
       "descricao": "Concursos de arquitetura e oportunidades de terrenos",
-      "url": "https://radar.odisse.com.br/",
-      "hosts": ["radar.odisse.com.br"],
-      "grupo": "comercial",
-      "acesso": "interna",
-      "status": "no-ar"
+      "url": "https://radar.odisse.com.br/", "hosts": ["radar.odisse.com.br"],
+      "acesso": "interna", "status": "no-ar"
     },
     {
-      "id": "herma",
-      "nome": "Herma",
-      "descricao": "Leitura pública do potencial construtivo dos lotes",
-      "url": "https://herma.odisse.com.br/",
-      "hosts": ["herma.odisse.com.br"],
-      "grupo": "comercial",
-      "acesso": "publica",
-      "status": "no-ar"
-    },
-    {
-      "id": "painel-site",
-      "nome": "Painel do site",
-      "descricao": "Projetos, páginas e imagens de odisse.com.br",
-      "url": "https://www.odisse.com.br/admin/",
-      "hosts": ["www.odisse.com.br/admin", "odisse.com.br/admin"],
-      "grupo": "presenca",
-      "acesso": "interna",
-      "status": "no-ar"
-    },
-    {
-      "id": "site",
-      "nome": "Site institucional",
-      "descricao": "odisse.com.br",
-      "url": "https://www.odisse.com.br/",
-      "grupo": "presenca",
-      "acesso": "publica",
-      "status": "no-ar"
-    },
-    {
-      "id": "landing-pages",
-      "nome": "Landing pages",
-      "descricao": "Residencial e interiores",
-      "url": "https://projetos.odisse.com.br/",
-      "grupo": "presenca",
-      "acesso": "publica",
-      "status": "no-ar"
-    },
-    {
-      "id": "marca",
-      "nome": "Marca",
-      "descricao": "Logos, cores, tipografia e dados institucionais",
-      "url": "https://marca.odisse.com.br/",
-      "hosts": ["marca.odisse.com.br"],
-      "grupo": "presenca",
-      "acesso": "publica",
-      "status": "no-ar"
-    },
-    {
-      "id": "horas",
-      "nome": "Apontamento de horas",
-      "descricao": "Horas por projeto e etapa, margem real, teto da consultoria",
-      "grupo": "producao",
-      "acesso": "interna",
-      "status": "em-breve"
-    },
-    {
-      "id": "projetos",
-      "nome": "Projetos e etapas",
+      "id": "projetos", "nome": "Projetos e etapas", "secao": "ferramentas", "grupo": "producao",
       "descricao": "Contratos em etapas, prazos, revisões e aprovações",
-      "grupo": "producao",
-      "acesso": "interna",
-      "status": "em-breve"
+      "acesso": "interna", "status": "em-breve"
+    },
+    {
+      "id": "horas", "nome": "Apontamento de horas", "secao": "ferramentas", "grupo": "producao",
+      "descricao": "Horas por projeto e etapa, margem real, teto da consultoria",
+      "acesso": "interna", "status": "em-breve"
+    },
+    {
+      "id": "fornecedores", "nome": "Fornecedores", "secao": "ferramentas", "grupo": "producao",
+      "descricao": "Parceiros de execução: contatos, preços praticados, prazos e avaliação",
+      "acesso": "interna", "status": "em-breve"
+    },
+    {
+      "id": "cliente", "nome": "Plataforma do cliente", "secao": "ferramentas", "grupo": "producao",
+      "descricao": "Cronograma, pranchas da fase e aprovações, para cada cliente",
+      "acesso": "interna", "status": "em-breve"
+    },
+
+    {
+      "id": "site", "nome": "Site institucional", "secao": "canais", "grupo": "sites",
+      "descricao": "Projetos, sobre, contato e Elaia",
+      "url": "https://www.odisse.com.br/", "hosts": ["odisse.com.br/admin"],
+      "extra": [{ "nome": "Painel do site", "url": "https://www.odisse.com.br/admin/" }],
+      "acesso": "publica", "status": "no-ar"
+    },
+    {
+      "id": "landing-pages", "nome": "Landing pages", "secao": "canais", "grupo": "sites",
+      "descricao": "Projeto residencial e interiores",
+      "url": "https://projetos.odisse.com.br/",
+      "acesso": "publica", "status": "no-ar"
+    },
+    {
+      "id": "herma", "nome": "Herma", "secao": "canais", "grupo": "sites",
+      "descricao": "Leitura pública do potencial construtivo dos lotes",
+      "url": "https://herma.odisse.com.br/", "hosts": ["herma.odisse.com.br"],
+      "acesso": "publica", "status": "no-ar"
+    },
+    {
+      "id": "objetos", "nome": "Loja Odisse Objetos", "secao": "canais", "grupo": "sites",
+      "descricao": "Peças autorais e loja",
+      "acesso": "publica", "status": "em-breve"
+    },
+
+    {
+      "id": "padroes-posts", "nome": "Padrões dos posts", "secao": "biblioteca", "grupo": "acervo",
+      "descricao": "Estilos de texto, espaçamentos e panorama dos modelos 3:4",
+      "url": "https://marketing.odisse.com.br/#/padroes",
+      "acesso": "interna", "status": "no-ar"
+    },
+    {
+      "id": "acervo", "nome": "Acervo de imagens e vídeos", "secao": "biblioteca", "grupo": "acervo",
+      "descricao": "Fotos de obra e de estúdio, com projeto, núcleo e direitos de uso",
+      "acesso": "interna", "status": "em-breve"
+    },
+    {
+      "id": "biblioteca-tecnica", "nome": "Biblioteca técnica", "secao": "biblioteca", "grupo": "acervo",
+      "descricao": "Detalhes-padrão, especificações, materiais aprovados, templates de Rhino e Grasshopper",
+      "acesso": "interna", "status": "em-breve"
+    },
+    {
+      "id": "modelos", "nome": "Modelos", "secao": "biblioteca", "grupo": "acervo",
+      "descricao": "Contratos, propostas e documentos por tipo de serviço",
+      "acesso": "interna", "status": "em-breve"
+    },
+    {
+      "id": "manual", "nome": "Manual de procedimentos", "secao": "biblioteca", "grupo": "acervo",
+      "descricao": "Como o Odisse faz cada coisa, do atendimento à entrega",
+      "acesso": "interna", "status": "em-breve"
     }
   ]
 }

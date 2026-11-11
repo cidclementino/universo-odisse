@@ -4,12 +4,24 @@ O hub que reúne todas as ferramentas do **Odisse, Estúdio de Arquitetura e Des
 
 Cada ferramenta continua no seu próprio repositório e endereço. O Universo dá a elas três coisas em comum: a porta de entrada, o menu e a camada de interface.
 
+## Seções
+
+| Seção | Natureza | Rota |
+|---|---|---|
+| **Início** | O que importa hoje | `#/` |
+| **Ferramentas** | Onde se trabalha (Marketing, Comercial, Produção) | `#/ferramentas` |
+| **Canais** | O que o público vê: sites, redes, publicações | `#/canais` |
+| **Marca** | Quem somos: identidade e dados institucionais | `#/marca` |
+| **Biblioteca** | O que se reutiliza: acervo, referências, modelos, procedimentos | `#/biblioteca` |
+
+Os endereços das redes em Canais e os dados em Marca vêm do `odisse.json` da marca (fonte única); não se repetem aqui.
+
 ## O que tem aqui
 
 | Caminho | Conteúdo |
 |---|---|
-| `index.html` | Tela de entrada: as ferramentas agrupadas por frente |
-| `ferramentas.json` | **A lista única de ferramentas.** Alimenta a tela de entrada e o menu de todas as ferramentas |
+| `index.html`, `assets/hub.js`, `assets/hub.css` | As páginas do hub (uma por seção, por rota) |
+| `ferramentas.json` | **O mapa do Universo:** seções, grupos e itens. Alimenta as páginas do hub e a barra de todas as ferramentas |
 | `base/v1/barra.js` | Barra e menu do Universo, para incluir em cada ferramenta |
 | `base/v1/universo.css` | Camada de interface das ferramentas internas (botões, campos, tabelas, cartões) |
 
@@ -28,16 +40,16 @@ A marca (cores, fonte, logos, dados institucionais) **não** fica aqui: vem de [
 
 Onde a barra aparece:
 
-- `<div data-universo-barra></div>` — barra completa nesse ponto;
-- `<span data-universo-menu></span>` — só o botão "Universo" com o menu, para quem já tem a própria barra no topo (herda a cor do texto);
+- `<div data-universo-barra></div>` — barra completa nesse ponto (marca, seções e menu "Ir para");
+- `<span data-universo-menu></span>` — só o botão "Universo", com as seções e as ferramentas, para quem já tem a própria barra no topo (herda a cor do texto);
 - nenhum dos dois — barra completa no topo da página;
 - `data-auto="nao"` no `<script>` — não insere nada sozinha.
 
 Os sites públicos (odisse.com.br, projetos, Herma) **não** usam `universo.css` nem a barra; usam só a marca.
 
-## Adicionar ou mudar uma ferramenta
+## Adicionar ou mudar um item
 
-Editar `ferramentas.json`. Campos: `id`, `nome`, `descricao`, `url`, `hosts` (endereços que identificam a ferramenta, para o menu marcar onde você está), `grupo`, `acesso` (`interna` ou `publica`) e `status` (`no-ar` ou `em-breve`).
+Editar `ferramentas.json`. Campos de cada item: `id`, `nome`, `descricao`, `secao`, `grupo`, `url`, `hosts` (endereços que identificam a ferramenta, para a barra marcar a seção certa), `extra` (links secundários, ex.: o painel do site), `acesso` (`interna` ou `publica`) e `status` (`no-ar` ou `em-breve`). Itens em breve aparecem nas páginas, mas não no menu "Ir para".
 
 ## Regras
 

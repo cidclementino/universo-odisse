@@ -1,0 +1,63 @@
+/* Páginas do hub (Início, Ferramentas, Canais, Marca, Biblioteca). */
+
+.hub { max-width: 1120px; margin: 0 auto; padding: var(--u-esp-7) var(--u-esp-6) 96px; }
+.cab { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--u-esp-5);
+  padding-bottom: var(--u-esp-5); border-bottom: 1px solid var(--u-linha-forte); }
+.cab p { margin: 6px 0 0; max-width: 600px; }
+.cab .lado { text-align: right; white-space: nowrap; }
+.bloco { margin-top: var(--u-esp-7); }
+.bloco > .u-rotulo { display: block; margin-bottom: var(--u-esp-3); }
+.bloco > .u-apoio { margin: -4px 0 var(--u-esp-3); max-width: 640px; }
+
+/* cartões de itens */
+.cartoes { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: var(--u-esp-3); }
+.cartoes.compactos { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+.item { position: relative; display: flex; flex-direction: column; gap: 6px; min-height: 128px; transition: border-color .15s, transform .15s; }
+.compactos .item { min-height: 0; }
+.item:has(a.principal):hover { border-color: var(--u-tinta-2); transform: translateY(-1px); }
+.item .topo { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--u-esp-2); }
+.item b { font-size: 15px; font-weight: 650; letter-spacing: -.01em; }
+.item a.principal { color: inherit; text-decoration: none; }
+.item a.principal::after { content: ''; position: absolute; inset: 0; border-radius: inherit; }
+.item p { margin: 0; color: var(--u-tinta-2); font-size: 13px; line-height: 1.45; }
+.item .rodape { margin-top: auto; display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline; font-size: 11.5px; color: var(--u-tinta-2); }
+.item .rodape a { position: relative; z-index: 1; color: var(--u-tinta); font-weight: 600; text-decoration: none; }
+.item .rodape a:hover { text-decoration: underline; }
+.item.breve { background: transparent; border-style: dashed; }
+.item.breve b, .item.breve p { opacity: .6; }
+
+.aviso { border: 1px dashed var(--u-linha-forte); border-radius: var(--u-raio); padding: var(--u-esp-4) var(--u-esp-5);
+  color: var(--u-tinta-2); font-size: 13px; line-height: 1.5; }
+
+/* Marca */
+.cores { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--u-esp-3); }
+.cor { display: flex; flex-direction: column; align-items: stretch; border: 0; padding: 0; background: none; text-align: left;
+  cursor: pointer; font: inherit; color: inherit; }
+.cor .amostra { height: 84px; border-radius: var(--u-raio-p); border: 1px solid rgba(0,0,0,.06); }
+.cor b { font-weight: 600; font-size: 13px; margin-top: 8px; }
+.cor small { font-size: 11.5px; color: var(--u-tinta-2); }
+.pecas { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: var(--u-esp-3); }
+.peca .quadro { aspect-ratio: 1; display: grid; place-items: center; border-radius: var(--u-raio-p);
+  background: var(--u-elevada); border: 1px solid var(--u-linha); overflow: hidden; }
+.peca .quadro img { width: 100%; height: 100%; object-fit: contain; }
+.peca .quadro.mono { color: var(--u-tinta); padding: 26px; }
+.peca .quadro.mono svg { width: 100%; height: 100%; }
+.peca .nome { display: flex; justify-content: space-between; gap: 8px; font-size: 12.5px; margin-top: 6px; }
+.peca .nome a { color: var(--u-tinta-2); font-size: 11.5px; }
+.tipo .g { font-size: 48px; font-weight: 300; letter-spacing: -.02em; line-height: 1.1; }
+.tipo .pesos { display: flex; gap: 18px; flex-wrap: wrap; font-size: 18px; margin-top: 8px; }
+.dados th { width: 200px; }
+.dados a { color: inherit; }
+
+.toque { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(16px); background: var(--u-tinta);
+  color: var(--u-superficie); padding: 9px 14px; border-radius: var(--u-raio-p); font-size: 13px; opacity: 0; transition: .2s; pointer-events: none; }
+.toque.on { opacity: 1; transform: translateX(-50%); }
+
+@media (max-width: 640px) {
+  .hub { padding: var(--u-esp-5) var(--u-esp-4) 64px; }
+  .cab { flex-direction: column; align-items: flex-start; }
+  .cab .lado { text-align: left; }
+  .item { min-height: 0; }
+  .tipo .g { font-size: 34px; }
+  .dados th { width: 110px; }
+}

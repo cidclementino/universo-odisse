@@ -97,6 +97,6 @@
 .u-tabela tbody tr:hover { background: rgba(63,75,87,.04); }
 
 /* etiqueta */
-.u-etiqueta { display: inline-block; font-size: 10.5px; font-weight: 600; padding: 3px 7px; border-radius: 4px;
+.u-etiqueta { display: inline-block; white-space: nowrap; flex: none; font-size: 10.5px; font-weight: 600; padding: 3px 7px; border-radius: 4px;
   background: var(--odisse-areia, #E3D9C6); color: var(--u-tinta); }
 .u-etiqueta.suave { background: var(--odisse-nevoa, #E6E8EB); }
