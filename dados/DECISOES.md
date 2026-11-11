@@ -41,6 +41,19 @@ Compromissos aceitos: o hub é ponto único de falha para os dados comuns; mudan
 - **Autoria**: por ora só os dois sócios usam; `criado_por`/`atualizado_por`/`historico.por` gravam a ferramenta. O seletor de pessoa entra com o login único.
 - **Sequências** (números de proposta, contrato, projeto) no D1, incrementadas dentro do banco. No KV, duas propostas simultâneas podiam receber o mesmo número.
 
+## Comercial (migração 0002, casa: vendas.odisse)
+
+- **Oportunidade é o centro do funil**; proposta e interação penduram nela. O cliente titular é organização ou pessoa (`cliente_id`); a pessoa com quem se fala fica em `contato_pessoa_id`. `etapa_desde` e `fechada_em` são gravados pela API quando a etapa muda (dá para medir tempo por etapa sem ler o histórico).
+- **Numeração das propostas continua do vendas antigo.** A sequência `propostas` só passa a existir quando a migração (ou `POST propostas/numeracao`) a ajusta ao último número do KV; até lá, criar proposta nova dá 409 `numeracao_nao_ajustada`. Sem essa trava, o Universo começaria do 1 e repetiria números que já foram para clientes. Números nunca se repetem, nem entre arquivadas (índice único sem filtro).
+- **Revisão = mesmo número, revisão seguinte** (`PC-0007-2026-R1`), criada com `revisao_de`. As revisões anteriores ainda em rascunho ou enviadas passam a "substituída" no mesmo lote.
+- **PDF congelado.** O PDF que vai para o cliente é guardado no R2 no momento em que é gerado (`arquivo_pdf_id`, categoria `pdf_proposta`, dono = a proposta). Daí em diante título, data, valor, validade, cálculo e referências travam (409 `proposta_congelada`), e restaurar versão também é recusado: mudou, é revisão. Remontar o PDF a partir dos dados continua possível, mas o congelado é o documento de valor.
+- **Referências do cálculo**: cada proposta grava a região e a competência do CUB e a impressão digital (SHA-256, 12 caracteres) de cada tabela de `data/` do vendas. As propostas importadas do KV dizem explicitamente que essas versões não foram registradas na época, e o PDF delas é remontado com o modelo atual (marcado assim na legenda do arquivo).
+- **Importação** (`importada_de: 'kv:<código>'`, só vendas e máquina): mantém número e código originais e leva a sequência até eles. Índice único em `importada_de` torna a migração segura para rodar de novo.
+- **Endereço do orçamento é do imóvel**, não do cliente: fica no retrato do cálculo (e irá para `projetos_local`), nunca em `pessoas_sensiveis`. Do orçamento, só o CPF vai para os dados sensíveis, e só se ainda não houver.
+- **O vendas chega ao Universo pelo próprio Worker**: o navegador chama `/u/v1/…` no Worker do vendas (com a senha do vendas), que repassa pelo service binding `Vendas`. A senha do hub nunca vai para o vendas.
+- `GET comercial/painel` monta a tela do funil numa chamada só (oportunidades abertas e fechadas nos últimos 90 dias, com nome do cliente, contato, última proposta e a interação mais recente). A "próxima ação" é a da interação mais recente: registrar uma interação sem próxima ação limpa a pendência.
+- Códigos de origem no texto pronto do WhatsApp: `[LP-<página>]` (landing pages, projetos-odisse/analytics.js) e `[Herma <lote>]` (herma-odisse). O funil reconhece o código ao colar a mensagem.
+
 ## Como mudar a estrutura
 
 1. Nova migração em `dados/migracoes/NNNN_nome.sql` (nunca editar uma já aplicada).

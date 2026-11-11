@@ -16,6 +16,8 @@ export const prefixoDe = (id) => (typeof id === 'string' && /^[a-z]{3}_/.test(id
 
 // ---- tempo ------------------------------------------------------------------
 export const agoraISO = () => new Date().toISOString();
+// dia de hoje em Brasília (UTC-3, sem horário de verão desde 2019)
+export const hojeBrasilia = () => new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10);
 
 // ---- normalização (como o normalize.js do Radar) -----------------------------
 export function normalizar(s) {
@@ -119,6 +121,18 @@ const TIPOS = {
     const s = String(v).trim().replace(/^@/, '').replace(/^https?:\/\/(www\.)?instagram\.com\//i, '').replace(/\/.*$/, '');
     if (!/^[A-Za-z0-9._]{1,30}$/.test(s)) throw new Error('usuário do Instagram inválido');
     return s.toLowerCase();
+  },
+  // JSON guardado como texto; aceita objeto ou texto já serializado
+  json: (v, c) => {
+    let s;
+    if (typeof v === 'string') {
+      try { JSON.parse(v); } catch { throw new Error('JSON inválido'); }
+      s = v;
+    } else {
+      s = JSON.stringify(v);
+    }
+    if (s.length > (c.max || 100000)) throw new Error(`grande demais (máximo ${c.max || 100000} caracteres)`);
+    return s;
   },
   ref: (v, c) => {
     const s = String(v).trim();

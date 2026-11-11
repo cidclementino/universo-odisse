@@ -8,7 +8,7 @@ const T = (tipo, extra = {}) => ({ tipo, ...extra });
 const PAPEIS_ATUACAO = ['atendente', 'vendedor', 'representante', 'socio', 'funcionario', 'contato'];
 
 // Prefixos de id já existentes no banco e a tabela de cada um.
-// Prefixos de tabelas futuras (opo, prj, frn, ped, obj, col, pub, cot…) entram com as migrações delas.
+// Prefixos de tabelas futuras (prj, frn, ped, obj, col, pub, cot…) entram com as migrações delas.
 export const PREFIXOS = {
   org: 'organizacoes',
   pes: 'pessoas',
@@ -19,11 +19,20 @@ export const PREFIXOS = {
   arq: 'arquivos',
   vin: 'vinculos',
   rev: 'revisoes',
+  opo: 'oportunidades',
+  ppt: 'propostas',
+  ctr: 'contratos',
 };
 
 // Ferramentas que podem chamar a API. 'hub' = o próprio Universo (senha da equipe);
 // 'maquina' = rotinas do GitHub Actions (token próprio).
 export const FERRAMENTAS = ['hub', 'vendas', 'projetos', 'fornecedores', 'marketing', 'maquina'];
+
+const NUCLEOS = ['estudio', 'arquitetos', 'objetos', 'elaia'];
+export const ETAPAS_FUNIL = ['lead', 'contato', 'briefing', 'proposta', 'negociacao', 'ganha', 'perdida'];
+export const SITUACOES_PROPOSTA = ['rascunho', 'enviada', 'aceita', 'recusada', 'expirada', 'substituida'];
+// Comercial: casa no vendas; o hub e o Projetos leem.
+const COMERCIAL = { hub: 'L', vendas: 'E', projetos: 'L', maquina: 'E' };
 
 const TODOS_E = { hub: 'E', vendas: 'E', projetos: 'E', fornecedores: 'E', marketing: 'E', maquina: 'E' };
 
@@ -208,6 +217,76 @@ export const TABELAS = {
     filtros: ['situacao', 'tipo'],
     ordem: 'criado_em DESC',
   },
+
+  // ---------------------------------------------------------------- comercial (0002)
+  oportunidades: {
+    prefixo: 'opo',
+    campos: {
+      titulo: T('texto', { obrig: true, max: 160, rotulo: 'Título' }),
+      cliente_id: T('ref', { prefixos: ['org', 'pes'], rotulo: 'Cliente (titular)' }),
+      contato_pessoa_id: T('ref', { prefixos: ['pes'], rotulo: 'Pessoa de contato' }),
+      projeto_id: T('ref', { prefixos: ['prj'], rotulo: 'Projeto (ampliação ou aditivo)' }),
+      nucleo_id: T('lista', { valores: NUCLEOS, rotulo: 'Núcleo' }),
+      origem: T('lista', { valores: ['indicacao', 'instagram', 'site', 'landing_page', 'herma', 'radar', 'outro'], rotulo: 'Origem' }),
+      origem_detalhe: T('texto', { max: 200, rotulo: 'Detalhe da origem' }),
+      etapa_funil: T('lista', { valores: ETAPAS_FUNIL, rotulo: 'Etapa do funil' }),
+      valor_estimado: T('centavos', { rotulo: 'Valor estimado' }),
+      motivo_perda: T('texto', { max: 300, rotulo: 'Motivo da perda' }),
+      responsavel_id: T('ref', { prefixos: ['eqp'], rotulo: 'Responsável' }),
+      observacoes: T('textoLongo', { max: 8000, rotulo: 'Observações' }),
+    },
+    padroes: { etapa_funil: 'lead' },
+    permissoes: COMERCIAL,
+    filtros: ['etapa_funil', 'nucleo_id', 'cliente_id', 'contato_pessoa_id', 'origem', 'responsavel_id', 'projeto_id'],
+    ordem: 'atualizado_em DESC',
+    busca: (r) => ({ titulo: r.titulo, partes: [r.titulo, r.origem_detalhe, r.observacoes] }),
+  },
+
+  // numero, revisao, codigo e importada_de são gravados pela API (ver regras.js).
+  propostas: {
+    prefixo: 'ppt',
+    campos: {
+      oportunidade_id: T('ref', { obrig: true, prefixos: ['opo'], rotulo: 'Oportunidade' }),
+      titulo: T('texto', { max: 200, rotulo: 'Título' }),
+      data: T('data', { rotulo: 'Data da proposta' }),
+      valor_total: T('centavos', { rotulo: 'Valor total' }),
+      situacao: T('lista', { valores: SITUACOES_PROPOSTA, rotulo: 'Situação' }),
+      enviada_em: T('data', { rotulo: 'Enviada em' }),
+      validade: T('data', { rotulo: 'Validade' }),
+      calculo: T('json', { max: 400000, rotulo: 'Cálculo' }),
+      referencias: T('json', { max: 20000, rotulo: 'Referências' }),
+      arquivo_pdf_id: T('ref', { prefixos: ['arq'], rotulo: 'PDF' }),
+    },
+    imutaveis: ['oportunidade_id'],
+    // depois que o PDF é congelado, o que foi para o cliente não muda: mudou, é revisão nova
+    congelado: { quando: 'arquivo_pdf_id', campos: ['titulo', 'data', 'valor_total', 'calculo', 'referencias', 'arquivo_pdf_id', 'validade'] },
+    padroes: { situacao: 'rascunho' },
+    versoes: true,
+    permissoes: COMERCIAL,
+    filtros: ['oportunidade_id', 'situacao', 'numero', 'codigo', 'importada_de'],
+    ordem: 'numero DESC, revisao DESC',
+    busca: (r) => ({ titulo: `${r.codigo}${r.titulo ? ' · ' + r.titulo : ''}`, partes: [r.codigo, r.titulo] }),
+  },
+
+  contratos: {
+    prefixo: 'ctr',
+    campos: {
+      tipo: T('lista', { valores: ['principal', 'aditivo'], rotulo: 'Tipo' }),
+      proposta_id: T('ref', { prefixos: ['ppt'], rotulo: 'Proposta' }),
+      projeto_id: T('ref', { prefixos: ['prj'], rotulo: 'Projeto' }),
+      situacao: T('lista', { valores: ['rascunho', 'enviado', 'assinado', 'encerrado', 'cancelado'], rotulo: 'Situação' }),
+      valor_total: T('centavos', { rotulo: 'Valor total' }),
+      assinado_em: T('data', { rotulo: 'Assinado em' }),
+      arquivo_assinado_id: T('ref', { prefixos: ['arq'], rotulo: 'Contrato assinado' }),
+      observacoes: T('textoLongo', { max: 4000, rotulo: 'Observações' }),
+    },
+    imutaveis: ['tipo'],
+    padroes: { tipo: 'principal', situacao: 'rascunho' },
+    permissoes: { hub: 'L', vendas: 'E', projetos: 'E', maquina: 'E' },
+    filtros: ['proposta_id', 'projeto_id', 'situacao', 'tipo', 'numero'],
+    ordem: 'numero DESC',
+    busca: (r) => ({ titulo: r.codigo, partes: [r.codigo, r.observacoes] }),
+  },
 };
 
 // Rotas da API → tabela. Pessoas sensíveis têm rota própria, pendurada na pessoa.
@@ -222,6 +301,9 @@ export const ROTAS = {
   arquivos: 'arquivos',
   vinculos: 'vinculos',
   revisoes: 'revisoes',
+  oportunidades: 'oportunidades',
+  propostas: 'propostas',
+  contratos: 'contratos',
 };
 
 export const COMUNS = ['id', 'criado_em', 'atualizado_em', 'criado_por', 'atualizado_por', 'versao', 'arquivado_em'];

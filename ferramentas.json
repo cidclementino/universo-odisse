@@ -30,7 +30,8 @@
     {
       "id": "crm", "nome": "Contatos e funil", "secao": "ferramentas", "grupo": "comercial",
       "descricao": "Pedidos de todos os canais, etapas, propostas e próximas ações",
-      "acesso": "interna", "status": "em-breve"
+      "url": "https://vendas.odisse.com.br/crm.html", "hosts": ["vendas.odisse.com.br/crm.html"],
+      "acesso": "interna", "status": "no-ar"
     },
     {
       "id": "orcamentos", "nome": "Orçamentos", "secao": "ferramentas", "grupo": "comercial",

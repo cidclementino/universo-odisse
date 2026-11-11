@@ -20,24 +20,24 @@
 //   POST   <rota>/:id/versoes/:n/restaurar { versao }
 //   PUT    arquivos/:id/conteudo?variante=g|m|s  (corpo binário; cada variante sobe uma vez só)
 //   GET    arquivos/:id/conteudo?variante=g|m|s
+//   GET    comercial/painel                   -> oportunidades abertas com cliente, última proposta e próxima ação
+//   GET    propostas/numeracao                -> { valor } último número usado (null = ainda não ajustada)
+//   POST   propostas/numeracao  { minimo }    -> leva a numeração até pelo menos `minimo` (nunca volta)
+// propostas: POST normal numera sozinho; { revisao_de } cria a revisão seguinte; { importada_de, numero,
+//   codigo, revisao } traz uma proposta antiga. Com o PDF congelado (arquivo_pdf_id), cálculo e valores travam.
 // pessoas-sensiveis: só por id (o mesmo da pessoa); só o vendas; cada leitura vai para o histórico.
 
 import { TABELAS, ROTAS, PREFIXOS, COMUNS } from './esquema.js';
 import { novoId, prefixoDe, agoraISO, normalizar, limpar } from './util.js';
+import { ErroApi, REGRAS, proximoNumero, ajustarSequencia, valorSequencia, painelComercial } from './regras.js';
+
+export { proximoNumero };
 
 const SESSAO_VERSOES_MS = 10 * 60 * 1000; // edições dentro de 10 min viram uma versão só
 const MAX_VERSOES = 10;
 const MAX_IMAGEM = 20 * 1024 * 1024;
 const MAX_ARQUIVO = 95 * 1024 * 1024; // acima disso, envio em partes (ainda não implementado)
 const VARIANTES = { g: '', m: '-m', s: '-s' };
-
-class ErroApi extends Error {
-  constructor(status, erro, extra = {}) {
-    super(erro);
-    this.status = status;
-    this.extra = extra;
-  }
-}
 
 // ---------------------------------------------------------------- acesso
 
@@ -251,6 +251,9 @@ async function criar(env, ferramenta, tabela, corpo) {
     }
   }
 
+  // regras da tabela (numeração, funil…): podem completar os valores e acrescentar comandos ao lote
+  const extras = REGRAS[tabela]?.criar ? await REGRAS[tabela].criar(env, ferramenta, valores, corpo) : [];
+
   const agora = agoraISO();
   const linha = {
     id, criado_em: agora, atualizado_em: agora, criado_por: ferramenta, atualizado_por: ferramenta,
@@ -265,6 +268,7 @@ async function criar(env, ferramenta, tabela, corpo) {
   ];
   const b = sqlBusca(tabela, id, linha, false);
   if (b) stmts.push(prep(env, b));
+  stmts.push(...extras);
   for (const c of revisoes) {
     stmts.push(env.DB.prepare(
       `INSERT INTO revisoes (id, criado_em, atualizado_em, criado_por, atualizado_por, tipo, registros, campos)
@@ -346,6 +350,7 @@ async function alterar(env, ferramenta, tabela, id, corpo) {
   for (const [k, v] of Object.entries(valores)) if (v !== atual[k]) mudancas[k] = v;
   if (tabela === 'revisoes' && 'situacao' in mudancas) mudancas.decidido_em = mudancas.situacao === 'pendente' ? null : agoraISO();
   if (!Object.keys(mudancas).length) return { registro: visivel(tabela, ferramenta, atual), semMudanca: true };
+  if (REGRAS[tabela]?.alterar) await REGRAS[tabela].alterar(env, ferramenta, atual, mudancas);
   await conferirReferencias(env, tabela, mudancas);
   const nova = await gravar(env, ferramenta, tabela, atual, mudancas, 'alterar');
   return { registro: visivel(tabela, ferramenta, nova) };
@@ -386,6 +391,8 @@ async function listarVersoes(env, ferramenta, tabela, id) {
 async function restaurarVersao(env, ferramenta, tabela, id, n, corpo) {
   const atual = await carregarParaEditar(env, ferramenta, tabela, id, corpo);
   if (!TABELAS[tabela].versoes) throw new ErroApi(404, 'este tipo de registro não guarda versões');
+  const cong = TABELAS[tabela].congelado;
+  if (cong && atual[cong.quando]) throw new ErroApi(409, 'proposta_congelada', { detalhe: 'registro congelado: crie uma revisão' });
   const v = await env.DB.prepare('SELECT dados FROM versoes WHERE registro_id = ? AND id = ?').bind(id, n).first();
   if (!v) throw new ErroApi(404, 'versão não encontrada');
   const dados = JSON.parse(v.dados);
@@ -497,16 +504,6 @@ async function estado(env, ferramenta) {
   return { ok: true, ferramenta, banco, arquivos: !!env.ARQUIVOS, migracao };
 }
 
-// Próximo número de uma sequência (propostas, contratos, projetos por ano). Seguro contra
-// duas pessoas pedindo ao mesmo tempo: o incremento acontece dentro do próprio banco.
-export async function proximoNumero(env, nome, inicial = 0) {
-  const [, r] = await env.DB.batch([
-    env.DB.prepare('INSERT INTO sequencias (nome, valor) VALUES (?, ?) ON CONFLICT (nome) DO NOTHING').bind(nome, inicial),
-    env.DB.prepare('UPDATE sequencias SET valor = valor + 1 WHERE nome = ? RETURNING valor').bind(nome),
-  ]);
-  return r.results[0].valor;
-}
-
 // ---------------------------------------------------------------- roteador
 
 export async function api(env, ferramenta, request, url, cors) {
@@ -526,6 +523,24 @@ export async function api(env, ferramenta, request, url, cors) {
     if (rota === 'nucleos' && m === 'GET') {
       const { results } = await env.DB.prepare('SELECT * FROM nucleos ORDER BY ordem').all();
       return json({ itens: results });
+    }
+
+    // comercial: painel do funil e numeração das propostas
+    if (rota === 'comercial' && id === 'painel' && m === 'GET') {
+      exigir('oportunidades', ferramenta, 'L');
+      return json(await painelComercial(env));
+    }
+    if (rota === 'propostas' && id === 'numeracao') {
+      if (m === 'GET') {
+        exigir('propostas', ferramenta, 'L');
+        return json({ valor: await valorSequencia(env, 'propostas') });
+      }
+      if (m === 'POST') {
+        exigir('propostas', ferramenta, 'E');
+        const minimo = Number(corpo?.minimo);
+        if (!Number.isInteger(minimo) || minimo < 0) throw new ErroApi(422, 'minimo: inteiro, zero ou mais');
+        return json({ valor: await ajustarSequencia(env, 'propostas', minimo) });
+      }
     }
 
     const tabela = ROTAS[rota];
