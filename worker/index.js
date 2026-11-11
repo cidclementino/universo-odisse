@@ -1,19 +1,32 @@
 // API do Universo (hub) — Cloudflare Worker.
 //
-// Por enquanto serve só a página Marca: lê e grava o odisse.json do repositório
-// cidclementino/marca-odisse. Cada gravação vira um commit (histórico no GitHub) e,
-// depois que o GitHub Pages publica (1–2 min), todos os sites passam a ler o dado novo.
+// Duas partes:
+//   1. Marca: lê e grava o odisse.json do repositório cidclementino/marca-odisse. Cada gravação
+//      vira um commit e, depois que o GitHub Pages publica (1–2 min), os sites leem o dado novo.
+//   2. Dados (/api/v1, em dados/): a única porta do banco D1 `universo` e do R2 `universo-arquivos`.
+//      Ver dados/api.js e dados/esquema.js, e o dados/DECISOES.md na raiz do repositório.
+//
+// Quem chama:
+//   - o próprio hub, pelo navegador: Authorization: Bearer <UNIVERSO_SENHA>     -> ferramenta 'hub'
+//   - rotinas do GitHub Actions: Authorization: Bearer <MAQUINA_TOKEN>          -> ferramenta 'maquina'
+//   - outras ferramentas, Worker a Worker (service binding com entrypoint = "Vendas", "Projetos",
+//     "Fornecedores" ou "Marketing"): sem senha, porque esses pontos de entrada não são acessíveis
+//     pela internet, só por outro Worker da mesma conta. Cada um tem as permissões da sua ferramenta.
 //
 // Secrets (enviados pelo GitHub Actions; nunca no código):
-//   UNIVERSO_SENHA     -> senha da equipe (Authorization: Bearer <senha>)
+//   UNIVERSO_SENHA     -> senha da equipe
+//   MAQUINA_TOKEN      -> token das rotinas automáticas (cópia, lotes de imagem, migrações de dados)
 //   MARCA_GITHUB_TOKEN -> token "fine-grained" do GitHub com acesso SÓ ao repo marca-odisse,
 //                         permissão Contents: Read and write
 //
-// Rotas (todas exigem a senha):
+// Rotas da Marca (exigem a senha da equipe):
 //   GET /api/estado  -> { ok, marca: true|false }  (confere senha e se o token existe)
 //   GET /api/marca   -> { dados, sha }              (odisse.json direto do repositório, sem atraso do Pages)
 //   PUT /api/marca   <- { dados, sha }              -> { dados, sha, commit }
 //                       409 se alguém salvou antes (sha diferente)
+
+import { WorkerEntrypoint } from 'cloudflare:workers';
+import { api } from './dados/api.js';
 
 const REPO = 'cidclementino/marca-odisse';
 const ARQUIVO = 'odisse.json';
@@ -25,23 +38,38 @@ const GH = `https://api.github.com/repos/${REPO}/contents/${ARQUIVO}`;
 function cors() {
   return {
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, PUT, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Access-Control-Max-Age': '86400',
   };
 }
 
-function autorizado(request, env) {
-  const senha = env.UNIVERSO_SENHA;
-  if (!senha) return false;
+function confere(dada, segredo) {
+  if (!segredo || dada.length !== segredo.length) return false;
+  let dif = 0;
+  for (let i = 0; i < segredo.length; i++) dif |= dada.charCodeAt(i) ^ segredo.charCodeAt(i);
+  return dif === 0;
+}
+
+// Devolve 'hub', 'maquina' ou null.
+function quemChama(request, env) {
   const auth = request.headers.get('Authorization') || '';
   // a senha vem codificada (encodeURIComponent): aceita acentos, ç e qualquer símbolo
   let dada = auth.startsWith('Bearer ') ? auth.slice(7) : '';
-  try { dada = decodeURIComponent(dada); } catch { return false; }
-  if (dada.length !== senha.length) return false;
-  let dif = 0;
-  for (let i = 0; i < senha.length; i++) dif |= dada.charCodeAt(i) ^ senha.charCodeAt(i);
-  return dif === 0;
+  try { dada = decodeURIComponent(dada); } catch { return null; }
+  if (confere(dada, env.UNIVERSO_SENHA)) return 'hub';
+  if (confere(dada, env.MAQUINA_TOKEN)) return 'maquina';
+  return null;
+}
+
+// /arq/<id>[-m|-s] é atalho para /api/v1/arquivos/<id>/conteudo?variante=…
+function reescreverAtalho(url) {
+  const m = url.pathname.match(/^\/arq\/(arq_[0-9A-Z]{26})(?:-(m|s))?$/);
+  if (!m) return url;
+  const nova = new URL(url);
+  nova.pathname = `/api/v1/arquivos/${m[1]}/conteudo`;
+  nova.searchParams.set('variante', m[2] || 'g');
+  return nova;
 }
 
 // ---- GitHub ---------------------------------------------------------------
@@ -157,8 +185,13 @@ export default {
     const erro = (msg, status) => json({ error: msg }, status);
 
     if (request.method === 'OPTIONS') return new Response(null, { headers: CORS });
-    const { pathname } = new URL(request.url);
-    if (!autorizado(request, env)) return erro('senha incorreta', 401);
+    const url = reescreverAtalho(new URL(request.url));
+    const { pathname } = url;
+    const ferramenta = quemChama(request, env);
+    if (!ferramenta) return erro('senha incorreta', 401);
+
+    if (pathname.startsWith('/api/v1/') || pathname === '/api/v1') return api(env, ferramenta, request, url, CORS);
+    if (ferramenta !== 'hub') return erro('rota não encontrada', 404);
 
     try {
       if (pathname === '/api/estado') return json({ ok: true, marca: !!env.MARCA_GITHUB_TOKEN });
@@ -202,3 +235,22 @@ export default {
     }
   },
 };
+
+// ---- pontos de entrada para outras ferramentas (Worker a Worker) ----------
+// Na ferramenta: [[services]] binding = "UNIVERSO", service = "universo-hub", entrypoint = "Vendas"
+// e então env.UNIVERSO.fetch('https://universo/api/v1/…', { … }).
+
+function entrada(ferramenta) {
+  return class extends WorkerEntrypoint {
+    async fetch(request) {
+      const url = new URL(request.url);
+      if (!url.pathname.startsWith('/api/v1')) return new Response('rota não encontrada', { status: 404 });
+      return api(this.env, ferramenta, request, url, {});
+    }
+  };
+}
+
+export const Vendas = entrada('vendas');
+export const Projetos = entrada('projetos');
+export const Fornecedores = entrada('fornecedores');
+export const Marketing = entrada('marketing');

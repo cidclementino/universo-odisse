@@ -2,6 +2,20 @@ name = "universo-hub"
 main = "index.js"
 compatibility_date = "2026-07-01"
 
-# Sem banco por enquanto: a Marca mora no repositório marca-odisse.
-# Os secrets (UNIVERSO_SENHA, MARCA_GITHUB_TOKEN) são enviados pelo GitHub Actions
+# Os secrets (UNIVERSO_SENHA, MAQUINA_TOKEN, MARCA_GITHUB_TOKEN) são enviados pelo GitHub Actions
 # a partir dos secrets do repositório — nunca coloque os valores aqui.
+
+# --- dados (ligados pelo workflow; ver .github/workflows/worker.yml) ---
+# Banco D1 "universo". O workflow cria o banco na primeira vez, troca o marcador
+# abaixo pelo id verdadeiro e aplica as migrações de dados/migracoes antes de publicar.
+[[d1_databases]]
+binding = "DB"
+database_name = "universo"
+database_id = "__D1_ID__"
+migrations_dir = "../dados/migracoes"
+
+# R2 privado com os arquivos (documentos e acervo de mídias). Criado pelo workflow.
+[[r2_buckets]]
+binding = "ARQUIVOS"
+bucket_name = "universo-arquivos"
+# --- fim dos dados ---

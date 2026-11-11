@@ -1,0 +1,40 @@
+name: Cópia semanal do banco
+
+# Exporta o banco D1 "universo" e guarda no R2 privado "universo-copias" (d1/AAAA-MM-DD.sql.gz).
+# As cópias expiram sozinhas em 90 dias (regra criada pelo workflow do hub).
+# Nunca grava a cópia no git: o repositório é público.
+# Para restaurar: baixar o arquivo do R2, descompactar e rodar
+#   wrangler d1 execute <banco-de-teste> --remote --file=copia.sql   (testar num banco novo antes)
+# Para voltar no tempo dentro de 7 dias, o próprio D1 restaura qualquer minuto (Time Travel).
+
+on:
+  schedule:
+    - cron: '17 6 * * 0' # domingo, 03:17 em Brasília
+  workflow_dispatch:
+
+jobs:
+  copia:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Instalar Wrangler
+        run: npm install --no-save --prefix "$RUNNER_TEMP/wr" wrangler@4
+
+      - name: Exportar e guardar
+        run: |
+          W="$RUNNER_TEMP/wr/node_modules/.bin/wrangler"
+          cd "$RUNNER_TEMP"
+          DIA=$(TZ=America/Sao_Paulo date +%F)
+          "$W" d1 export universo --remote --output copia.sql
+          LINHAS=$(grep -c '^INSERT' copia.sql || true)
+          echo "Linhas exportadas: $LINHAS"
+          [ -s copia.sql ] || { echo "::error::A exportação veio vazia."; exit 1; }
+          gzip -9 copia.sql
+          "$W" r2 object put "universo-copias/d1/$DIA.sql.gz" --file copia.sql.gz --content-type application/gzip --remote
+          echo "Cópia guardada: universo-copias/d1/$DIA.sql.gz ($(du -h copia.sql.gz | cut -f1))"

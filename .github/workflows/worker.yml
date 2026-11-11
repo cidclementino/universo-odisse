@@ -1,37 +1,120 @@
 name: Publicar API do hub (Cloudflare Worker)
 
+# Publica o Worker universo-hub. Antes, garante o banco D1 "universo" e os R2 "universo-arquivos"
+# e "universo-copias" (cria na primeira vez) e aplica as migrações de dados/migracoes.
+# Se o token da Cloudflare ainda não tiver permissão de D1 ou R2, publica sem eles (a Marca continua
+# funcionando) e avisa o que falta.
+
 on:
   push:
     branches: [main]
-    paths: ['worker/**', '.github/workflows/worker.yml']
+    paths: ['worker/**', 'dados/migracoes/**', '.github/workflows/worker.yml']
   workflow_dispatch:
+
+concurrency:
+  group: hub-deploy
+  cancel-in-progress: false
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      UNIVERSO_SENHA: ${{ secrets.UNIVERSO_SENHA }}
+      MARCA_GITHUB_TOKEN: ${{ secrets.MARCA_GITHUB_TOKEN }}
+      MAQUINA_TOKEN: ${{ secrets.MAQUINA_TOKEN }}
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
       - name: Verificar secrets
-        env:
-          CF: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CONTA: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          if [ -z "$CF" ] || [ -z "$CONTA" ]; then
-            echo "::warning::Faltam os secrets CLOUDFLARE_API_TOKEN e/ou CLOUDFLARE_ACCOUNT_ID neste repositório — deploy ignorado."
-            echo "pular=1" >> "$GITHUB_ENV"
+          for s in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID UNIVERSO_SENHA; do
+            if [ -z "${!s}" ]; then echo "::error::Falta o secret $s (Settings → Secrets and variables → Actions)."; exit 1; fi
+          done
+          [ -n "$MAQUINA_TOKEN" ] || echo "::warning::Sem o secret MAQUINA_TOKEN: rotinas automáticas não conseguirão chamar a API de dados."
+
+      - name: Instalar Wrangler
+        run: npm install --no-save --prefix "$RUNNER_TEMP/wr" wrangler@4
+
+      - name: Banco D1 "universo" (cria na primeira vez)
+        id: d1
+        run: |
+          W="$RUNNER_TEMP/wr/node_modules/.bin/wrangler"
+          cd "$RUNNER_TEMP"
+          achar() { "$W" d1 list --json 2>/dev/null | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{const l=JSON.parse(s.slice(s.indexOf("[")));const d=l.find(x=>x.name==="universo");process.stdout.write(d?d.uuid:"")}catch{}})'; }
+          ID=$(achar)
+          if [ -z "$ID" ]; then "$W" d1 create universo || true; ID=$(achar); fi
+          if [ -z "$ID" ]; then
+            echo "::warning::Não consegui criar/achar o banco D1 'universo'. O token CLOUDFLARE_API_TOKEN precisa da permissão Account → D1 → Edit. Publicando sem o banco."
+            echo "ok=0" >> "$GITHUB_OUTPUT"
+          else
+            echo "Banco universo: $ID"
+            sed -i "s/__D1_ID__/$ID/" "$GITHUB_WORKSPACE/worker/wrangler.toml"
+            echo "ok=1" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Publicar Worker
-        if: env.pular != '1'
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          workingDirectory: worker
-          secrets: |
-            UNIVERSO_SENHA
-            MARCA_GITHUB_TOKEN
+      - name: R2 "universo-arquivos" e "universo-copias" (cria na primeira vez)
+        id: r2
+        run: |
+          W="$RUNNER_TEMP/wr/node_modules/.bin/wrangler"
+          cd "$RUNNER_TEMP"
+          ok=1
+          for b in universo-arquivos universo-copias; do
+            if "$W" r2 bucket info "$b" >/dev/null 2>&1; then echo "R2 $b: já existe"; continue; fi
+            if "$W" r2 bucket create "$b"; then echo "R2 $b: criado"; else ok=0; fi
+          done
+          if [ "$ok" = "1" ]; then
+            # cópias do banco expiram sozinhas depois de 90 dias (~12 semanas)
+            "$W" r2 bucket lifecycle list universo-copias 2>/dev/null | grep -q expirar-copias \
+              || "$W" r2 bucket lifecycle add universo-copias expirar-copias d1/ --expire-days 90 --force || true
+          else
+            echo "::warning::Não consegui criar/achar os R2. É preciso ativar o R2 na conta (painel da Cloudflare → R2) e o token precisa de Account → Workers R2 Storage → Edit. Publicando sem os arquivos."
+          fi
+          echo "ok=$ok" >> "$GITHUB_OUTPUT"
+
+      - name: Ajustar ligações conforme o que existe
+        run: |
+          node -e '
+            const fs = require("fs");
+            const f = "worker/wrangler.toml";
+            let s = fs.readFileSync(f, "utf8");
+            const tirar = (cab) => { s = s.replace(new RegExp("\\[\\[" + cab + "\\]\\][\\s\\S]*?(?=\\n\\s*\\n|\\n#|$)"), ""); };
+            if (process.env.D1 !== "1") tirar("d1_databases");
+            if (process.env.R2 !== "1") tirar("r2_buckets");
+            fs.writeFileSync(f, s);
+            console.log(s);
+          '
         env:
-          UNIVERSO_SENHA: ${{ secrets.UNIVERSO_SENHA }}
-          MARCA_GITHUB_TOKEN: ${{ secrets.MARCA_GITHUB_TOKEN }}
+          D1: ${{ steps.d1.outputs.ok }}
+          R2: ${{ steps.r2.outputs.ok }}
+
+      - name: Aplicar migrações do banco
+        if: steps.d1.outputs.ok == '1'
+        working-directory: worker
+        run: |
+          W="$RUNNER_TEMP/wr/node_modules/.bin/wrangler"
+          CI=true "$W" d1 migrations apply universo --remote
+
+      - name: Publicar Worker e gravar secrets
+        working-directory: worker
+        run: |
+          W="$RUNNER_TEMP/wr/node_modules/.bin/wrangler"
+          "$W" deploy
+          printf '%s' "$UNIVERSO_SENHA" | "$W" secret put UNIVERSO_SENHA
+          [ -z "$MARCA_GITHUB_TOKEN" ] || printf '%s' "$MARCA_GITHUB_TOKEN" | "$W" secret put MARCA_GITHUB_TOKEN
+          [ -z "$MAQUINA_TOKEN" ] || printf '%s' "$MAQUINA_TOKEN" | "$W" secret put MAQUINA_TOKEN
+
+      - name: Conferir
+        run: |
+          URL="https://universo-hub.reservaprojectbasework.workers.dev"
+          SENHA=$(node -e 'process.stdout.write(encodeURIComponent(process.env.UNIVERSO_SENHA))')
+          sem=$(curl -s -o /dev/null -w '%{http_code}' "$URL/api/v1/estado")
+          com=$(curl -s -H "Authorization: Bearer $SENHA" "$URL/api/v1/estado")
+          echo "Sem senha: $sem (esperado 401)"
+          echo "Com senha: $com"
+          [ "$sem" = "401" ] || { echo "::error::A API respondeu sem senha."; exit 1; }

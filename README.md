@@ -59,11 +59,26 @@ Editar `ferramentas.json`. Campos de cada item: `id`, `nome`, `descricao`, `seca
 
 ## Próximos passos
 
-Login único (Cloudflare Access ou login próprio do hub) · página **Marca** para editar `marca-odisse` por formulário · **Contatos e funil (CRM)** como primeira ferramenta nova.
+CRM no vendas.odisse (ligado à API de dados) · Projetos · Acervo + publicações do marketing · Fornecedores. Depois: financeiro, login único, plataforma do cliente.
 
 ## API do hub (`worker/`)
 
-Cloudflare Worker `universo-hub` (https://universo-hub.reservaprojectbasework.workers.dev), publicado pelo GitHub Actions a cada mudança em `worker/`.
+Cloudflare Worker `universo-hub` (https://universo-hub.reservaprojectbasework.workers.dev), publicado pelo GitHub Actions (`.github/workflows/worker.yml`) a cada mudança em `worker/` ou `dados/migracoes/`.
 
 - `GET /api/marca` e `PUT /api/marca`: lê e grava o `odisse.json` do repositório `marca-odisse`. Cada gravação é um commit ("Dados: … (pelo Universo)"); o formulário fica na página Marca.
-- Secrets do repositório: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `UNIVERSO_SENHA` (senha da equipe) e `MARCA_GITHUB_TOKEN` (token fine-grained do GitHub, só para `marca-odisse`, Contents: Read and write).
+- `/api/v1/…`: **API de dados**, a única porta do banco D1 `universo` e do R2 `universo-arquivos`. Rotas em `worker/dados/api.js`; tabelas, campos e permissões por ferramenta em `worker/dados/esquema.js`; estrutura em `dados/migracoes/`; porquês em [`dados/DECISOES.md`](dados/DECISOES.md).
+- Secrets do repositório: `CLOUDFLARE_API_TOKEN` (precisa de Workers Scripts, D1 e Workers R2 Storage: Edit), `CLOUDFLARE_ACCOUNT_ID`, `UNIVERSO_SENHA` (senha da equipe), `MAQUINA_TOKEN` (rotinas automáticas) e `MARCA_GITHUB_TOKEN` (token fine-grained do GitHub, só para `marca-odisse`, Contents: Read and write).
+- Cópia semanal do banco: `.github/workflows/copia.yml` (domingo de madrugada) → R2 `universo-copias`, guardada por 90 dias.
+
+### Ligar uma ferramenta à API de dados
+
+No `wrangler.toml` da ferramenta (mesma conta da Cloudflare):
+
+```toml
+[[services]]
+binding = "UNIVERSO"
+service = "universo-hub"
+entrypoint = "Vendas"   # ou Projetos, Fornecedores, Marketing
+```
+
+E no Worker da ferramenta: `env.UNIVERSO.fetch('https://universo/api/v1/organizacoes?q=pedra')`. Sem senha: o ponto de entrada só é acessível por outro Worker da conta, e já carrega as permissões da ferramenta.
