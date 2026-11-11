@@ -114,7 +114,13 @@ jobs:
           URL="https://universo-hub.reservaprojectbasework.workers.dev"
           SENHA=$(node -e 'process.stdout.write(encodeURIComponent(process.env.UNIVERSO_SENHA))')
           sem=$(curl -s -o /dev/null -w '%{http_code}' "$URL/api/v1/estado")
-          com=$(curl -s -H "Authorization: Bearer $SENHA" "$URL/api/v1/estado")
           echo "Sem senha: $sem (esperado 401)"
-          echo "Com senha: $com"
           [ "$sem" = "401" ] || { echo "::error::A API respondeu sem senha."; exit 1; }
+          # a versão nova leva alguns segundos para chegar a todos os servidores
+          for i in 1 2 3 4 5 6 7 8; do
+            com=$(curl -s -H "Authorization: Bearer $SENHA" "$URL/api/v1/estado")
+            case "$com" in *'"ok":true'*) break ;; esac
+            sleep 5
+          done
+          echo "Com senha: $com"
+          case "$com" in *'"ok":true'*) ;; *) echo "::error::A API de dados não respondeu como esperado."; exit 1 ;; esac
