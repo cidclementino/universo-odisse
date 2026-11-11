@@ -19,16 +19,15 @@ const REPO = 'cidclementino/marca-odisse';
 const ARQUIVO = 'odisse.json';
 const GH = `https://api.github.com/repos/${REPO}/contents/${ARQUIVO}`;
 
-const ORIGENS = ['https://universo.odisse.com.br', 'http://localhost:8000', 'http://127.0.0.1:8000'];
-
-function cors(request) {
-  const o = request.headers.get('Origin') || '';
+// Qualquer origem pode chamar: a proteção é a senha no cabeçalho (sem cookies), como no marketing.
+// Restringir a origem só fazia o navegador descartar a resposta quando o hub era aberto por
+// outro endereço (http://, www., github.io), com o erro genérico "Failed to fetch".
+function cors() {
   return {
-    'Access-Control-Allow-Origin': ORIGENS.includes(o) ? o : ORIGENS[0],
+    'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, PUT, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Access-Control-Max-Age': '86400',
-    Vary: 'Origin',
   };
 }
 
@@ -152,7 +151,7 @@ function mudancas(antes, depois) {
 
 export default {
   async fetch(request, env) {
-    const CORS = cors(request);
+    const CORS = cors();
     const json = (data, status = 200) =>
       new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json; charset=utf-8', ...CORS } });
     const erro = (msg, status) => json({ error: msg }, status);
