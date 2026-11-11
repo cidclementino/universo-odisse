@@ -1,0 +1,102 @@
+/*
+  Universo — camada de interface v1, para as ferramentas internas do Odisse.
+  Vai por cima da marca:
+
+    <link rel="stylesheet" href="https://marca.odisse.com.br/v1/marca.css">
+    <link rel="stylesheet" href="https://universo.odisse.com.br/base/v1/universo.css">
+
+  Os sites públicos (odisse.com.br, projetos, Herma) não usam esta camada, só a marca.
+  Classes com prefixo .u- para não colidir com o CSS próprio de cada ferramenta.
+  Ajuste compatível entra em v1/; renomear ou remover classe/variável = v2/.
+*/
+
+:root {
+  /* superfícies e linhas */
+  --u-fundo: #ECEDEB;
+  --u-superficie: var(--odisse-papel, #FAFAF7);
+  --u-elevada: #FFFFFF;
+  --u-linha: #D7DADD;
+  --u-linha-forte: #C3C8CD;
+
+  /* texto */
+  --u-tinta: var(--odisse-ardosia, #3F4B57);
+  --u-tinta-2: #5B6773;
+
+  /* estados */
+  --u-foco: #3C82DC;
+  --u-perigo: #A4473B;
+  --u-destaque: var(--odisse-ocre, #BB8248);
+
+  /* dados (validadas para daltonismo, como nas métricas) */
+  --u-dado-1: #2F6FAF;
+  --u-dado-2: #BB8248;
+
+  /* medidas */
+  --u-raio: 8px;
+  --u-raio-p: 6px;
+  --u-esp-1: 4px;
+  --u-esp-2: 8px;
+  --u-esp-3: 12px;
+  --u-esp-4: 16px;
+  --u-esp-5: 24px;
+  --u-esp-6: 32px;
+  --u-esp-7: 48px;
+
+  /* texto: tamanhos de interface (não de peças gráficas) */
+  --u-t-titulo: 24px;
+  --u-t-subtitulo: 17px;
+  --u-t-corpo: 14px;
+  --u-t-pequeno: 12.5px;
+  --u-t-rotulo: 11px;
+}
+
+.u-pagina {
+  margin: 0; min-height: 100vh; background: var(--u-fundo); color: var(--u-tinta);
+  font: 400 var(--u-t-corpo)/1.5 var(--odisse-fonte, 'Inter', system-ui, sans-serif);
+  font-optical-sizing: auto; -webkit-font-smoothing: antialiased;
+}
+
+/* títulos e rótulos */
+.u-titulo { font-size: var(--u-t-titulo); font-weight: 700; letter-spacing: -.02em; line-height: 1.2; margin: 0; }
+.u-subtitulo { font-size: var(--u-t-subtitulo); font-weight: 650; letter-spacing: -.01em; margin: 0; }
+.u-rotulo { font-size: var(--u-t-rotulo); font-weight: 650; letter-spacing: .08em; text-transform: uppercase; color: var(--u-tinta-2); }
+.u-apoio { color: var(--u-tinta-2); font-size: var(--u-t-pequeno); }
+
+/* cartão */
+.u-cartao { background: var(--u-superficie); border: 1px solid var(--u-linha); border-radius: var(--u-raio); padding: var(--u-esp-4); }
+
+/* botões */
+.u-botao {
+  display: inline-flex; align-items: center; gap: var(--u-esp-2); padding: 7px 12px;
+  border: 1px solid var(--u-linha-forte); border-radius: var(--u-raio-p); background: var(--u-superficie);
+  color: var(--u-tinta); font-family: inherit; font-size: 13px; font-weight: 500; line-height: 1.2; cursor: pointer; text-decoration: none;
+}
+.u-botao:hover { border-color: var(--u-tinta-2); }
+.u-botao:disabled { opacity: .4; cursor: default; }
+.u-botao.forte { background: var(--u-tinta); border-color: var(--u-tinta); color: var(--u-superficie); }
+.u-botao.perigo:hover { color: var(--u-perigo); border-color: var(--u-perigo); }
+
+/* campos */
+.u-campo { display: block; margin-bottom: var(--u-esp-3); }
+.u-campo > span { display: block; font-size: var(--u-t-pequeno); font-weight: 550; margin-bottom: var(--u-esp-1); }
+.u-campo > small { display: block; font-size: 11px; color: var(--u-tinta-2); margin-top: 3px; }
+.u-campo input, .u-campo textarea, .u-campo select {
+  width: 100%; padding: 8px 10px; font: inherit; font-size: 13px; color: inherit;
+  border: 1px solid var(--u-linha-forte); border-radius: var(--u-raio-p); background: var(--u-elevada);
+}
+.u-campo textarea { resize: vertical; min-height: 64px; line-height: 1.4; }
+.u-campo input:focus, .u-campo textarea:focus, .u-campo select:focus {
+  outline: 2px solid var(--u-foco); outline-offset: -1px; border-color: transparent;
+}
+
+/* tabela */
+.u-tabela { width: 100%; border-collapse: collapse; font-size: 13px; }
+.u-tabela th { text-align: left; font-size: var(--u-t-rotulo); font-weight: 650; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--u-tinta-2); padding: var(--u-esp-2) var(--u-esp-3); border-bottom: 1px solid var(--u-linha-forte); }
+.u-tabela td { padding: var(--u-esp-2) var(--u-esp-3); border-bottom: 1px solid var(--u-linha); vertical-align: top; }
+.u-tabela tbody tr:hover { background: rgba(63,75,87,.04); }
+
+/* etiqueta */
+.u-etiqueta { display: inline-block; font-size: 10.5px; font-weight: 600; padding: 3px 7px; border-radius: 4px;
+  background: var(--odisse-areia, #E3D9C6); color: var(--u-tinta); }
+.u-etiqueta.suave { background: var(--odisse-nevoa, #E6E8EB); }
