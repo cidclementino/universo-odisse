@@ -10,6 +10,11 @@ on:
     branches: [main]
     paths: ['worker/**', 'dados/migracoes/**', '.github/workflows/worker.yml']
   workflow_dispatch:
+    inputs:
+      recriar_banco:
+        description: 'Apagar e recriar o banco D1 na região ENAM (só funciona se ele tiver apenas os dados iniciais)'
+        type: boolean
+        default: false
 
 concurrency:
   group: hub-deploy
@@ -41,6 +46,23 @@ jobs:
       - name: Instalar Wrangler
         run: npm install --no-save --prefix "$RUNNER_TEMP/wr" wrangler@4
 
+      # Uso único: mover o banco para a costa leste dos EUA (ENAM), a região mais próxima do Brasil.
+      # Recusa se houver qualquer dado além das sementes da migração 0001.
+      - name: Recriar banco na ENAM (só se pedido e vazio)
+        if: github.event_name == 'workflow_dispatch' && inputs.recriar_banco
+        run: |
+          W="$RUNNER_TEMP/wr/node_modules/.bin/wrangler"
+          cd "$RUNNER_TEMP"
+          N=$("$W" d1 execute universo --remote --json --command "SELECT
+            (SELECT count(*) FROM organizacoes) + (SELECT count(*) FROM pessoas) + (SELECT count(*) FROM atuacoes)
+            + (SELECT count(*) FROM interacoes) + (SELECT count(*) FROM equipe) + (SELECT count(*) FROM sinteses)
+            + (SELECT count(*) FROM arquivos) + (SELECT count(*) FROM vinculos) + (SELECT count(*) FROM revisoes) AS n" \
+            | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const j=JSON.parse(s.slice(s.indexOf("[")));process.stdout.write(String(j[0].results[0].n))})')
+          echo "Registros no banco (fora núcleos): $N"
+          if [ "$N" != "1" ]; then echo "::error::O banco já tem dados além da organização Odisse. Recriação recusada."; exit 1; fi
+          "$W" d1 delete universo -y
+          echo "Banco antigo apagado; será recriado na ENAM no próximo passo."
+
       - name: Banco D1 "universo" (cria na primeira vez)
         id: d1
         run: |
@@ -48,7 +70,7 @@ jobs:
           cd "$RUNNER_TEMP"
           achar() { "$W" d1 list --json 2>/dev/null | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{const l=JSON.parse(s.slice(s.indexOf("[")));const d=l.find(x=>x.name==="universo");process.stdout.write(d?d.uuid:"")}catch{}})'; }
           ID=$(achar)
-          if [ -z "$ID" ]; then "$W" d1 create universo || true; ID=$(achar); fi
+          if [ -z "$ID" ]; then "$W" d1 create universo --location enam || true; ID=$(achar); fi
           if [ -z "$ID" ]; then
             echo "::warning::Não consegui criar/achar o banco D1 'universo'. O token CLOUDFLARE_API_TOKEN precisa da permissão Account → D1 → Edit. Publicando sem o banco."
             echo "ok=0" >> "$GITHUB_OUTPUT"
