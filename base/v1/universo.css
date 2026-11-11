@@ -81,7 +81,7 @@
 .u-campo > span { display: block; font-size: var(--u-t-pequeno); font-weight: 550; margin-bottom: var(--u-esp-1); }
 .u-campo > small { display: block; font-size: 11px; color: var(--u-tinta-2); margin-top: 3px; }
 .u-campo input, .u-campo textarea, .u-campo select {
-  width: 100%; padding: 8px 10px; font: inherit; font-size: 13px; color: inherit;
+  box-sizing: border-box; width: 100%; padding: 8px 10px; font: inherit; font-size: 13px; color: inherit;
   border: 1px solid var(--u-linha-forte); border-radius: var(--u-raio-p); background: var(--u-elevada);
 }
 .u-campo textarea { resize: vertical; min-height: 64px; line-height: 1.4; }

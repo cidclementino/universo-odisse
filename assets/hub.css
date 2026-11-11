@@ -47,6 +47,21 @@
 .tipo .g { font-size: 48px; font-weight: 300; letter-spacing: -.02em; line-height: 1.1; }
 .tipo .pesos { display: flex; gap: 18px; flex-wrap: wrap; font-size: 18px; margin-top: 8px; }
 .dados th { width: 200px; }
+.bloco-cab { display: flex; justify-content: space-between; align-items: center; gap: var(--u-esp-3); margin-bottom: var(--u-esp-3); }
+#dados-marca .ok, #dados-marca .erro { margin: 0 0 var(--u-esp-3); padding: 10px 14px; border-radius: var(--u-raio-p); font-size: 13px; }
+#dados-marca .ok { background: var(--odisse-areia, #E3D9C6); }
+#dados-marca .erro { background: #F3E1DE; color: var(--u-perigo); }
+#dados-marca .ok a { color: inherit; font-weight: 600; }
+.form-senha { max-width: 380px; }
+.form-marca { padding: var(--u-esp-5); }
+.form-marca fieldset { border: 0; padding: 0; margin: 0 0 var(--u-esp-5); }
+.form-marca legend { font-size: var(--u-t-subtitulo); font-weight: 650; letter-spacing: -.01em; padding: 0; margin-bottom: var(--u-esp-3); }
+.form-marca .campos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--u-esp-4); }
+.form-marca .campos .largo { grid-column: 1 / -1; }
+.form-marca .acoes, .form-senha .acoes { display: flex; justify-content: flex-end; align-items: center; gap: var(--u-esp-2);
+  padding-top: var(--u-esp-4); border-top: 1px solid var(--u-linha); }
+.form-marca .acoes .u-apoio { margin-right: auto; }
+.form-senha .acoes { border-top: 0; padding-top: 0; }
 .dados a { color: inherit; }
 
 .toque { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(16px); background: var(--u-tinta);
@@ -60,4 +75,6 @@
   .item { min-height: 0; }
   .tipo .g { font-size: 34px; }
   .dados th { width: 110px; }
+  .form-marca .campos { grid-template-columns: 1fr; }
+  .form-marca .acoes { flex-wrap: wrap; }
 }

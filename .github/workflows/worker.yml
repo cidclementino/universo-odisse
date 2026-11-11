@@ -1,0 +1,37 @@
+name: Publicar API do hub (Cloudflare Worker)
+
+on:
+  push:
+    branches: [main]
+    paths: ['worker/**', '.github/workflows/worker.yml']
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verificar secrets
+        env:
+          CF: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CONTA: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -z "$CF" ] || [ -z "$CONTA" ]; then
+            echo "::warning::Faltam os secrets CLOUDFLARE_API_TOKEN e/ou CLOUDFLARE_ACCOUNT_ID neste repositório — deploy ignorado."
+            echo "pular=1" >> "$GITHUB_ENV"
+          fi
+
+      - name: Publicar Worker
+        if: env.pular != '1'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: worker
+          secrets: |
+            UNIVERSO_SENHA
+            MARCA_GITHUB_TOKEN
+        env:
+          UNIVERSO_SENHA: ${{ secrets.UNIVERSO_SENHA }}
+          MARCA_GITHUB_TOKEN: ${{ secrets.MARCA_GITHUB_TOKEN }}

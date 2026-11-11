@@ -1,0 +1,7 @@
+name = "universo-hub"
+main = "index.js"
+compatibility_date = "2026-07-01"
+
+# Sem banco por enquanto: a Marca mora no repositório marca-odisse.
+# Os secrets (UNIVERSO_SENHA, MARCA_GITHUB_TOKEN) são enviados pelo GitHub Actions
+# a partir dos secrets do repositório — nunca coloque os valores aqui.

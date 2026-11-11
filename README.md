@@ -60,3 +60,10 @@ Editar `ferramentas.json`. Campos de cada item: `id`, `nome`, `descricao`, `seca
 ## Próximos passos
 
 Login único (Cloudflare Access ou login próprio do hub) · página **Marca** para editar `marca-odisse` por formulário · **Contatos e funil (CRM)** como primeira ferramenta nova.
+
+## API do hub (`worker/`)
+
+Cloudflare Worker `universo-hub` (https://universo-hub.reservaprojectbasework.workers.dev), publicado pelo GitHub Actions a cada mudança em `worker/`.
+
+- `GET /api/marca` e `PUT /api/marca`: lê e grava o `odisse.json` do repositório `marca-odisse`. Cada gravação é um commit ("Dados: … (pelo Universo)"); o formulário fica na página Marca.
+- Secrets do repositório: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `UNIVERSO_SENHA` (senha da equipe) e `MARCA_GITHUB_TOKEN` (token fine-grained do GitHub, só para `marca-odisse`, Contents: Read and write).
