@@ -1,6 +1,6 @@
 /* Páginas do hub (Início, Ferramentas, Canais, Marca, Biblioteca). */
 
-.hub { max-width: 1120px; margin: 0 auto; padding: var(--u-esp-7) var(--u-esp-6) 96px; }
+.hub { max-width: 1120px; margin: 0 auto; padding: var(--u-esp-7) var(--u-esp-6) var(--u-esp-6); }
 .cab { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--u-esp-5);
   padding-bottom: var(--u-esp-5); border-bottom: 1px solid var(--u-linha-forte); }
 .cab p { margin: 6px 0 0; max-width: 600px; }
@@ -78,3 +78,17 @@
   .form-marca .campos { grid-template-columns: 1fr; }
   .form-marca .acoes { flex-wrap: wrap; }
 }
+
+/* entrada (senha) */
+.u-trancado [data-universo-barra] { display: none; }
+.entrada { max-width: 340px; margin: 12vh auto 0; padding: var(--u-esp-6) var(--u-esp-5); display: flex; flex-direction: column; gap: var(--u-esp-3); }
+.entrada .u-rotulo { text-align: center; margin: -4px 0 var(--u-esp-3); }
+.entrada .u-campo { margin: 0; }
+.entrada .u-botao { justify-content: center; }
+.entrada .erro { margin: 0; padding: 10px 14px; border-radius: var(--u-raio-p); font-size: 13px; background: #F3E1DE; color: var(--u-perigo); }
+.marca-entrada { display: flex; align-items: center; justify-content: center; gap: 14px; color: var(--u-tinta); }
+.marca-entrada .selo { width: 30px; height: 50px; background: currentColor;
+  -webkit-mask: url(https://marca.odisse.com.br/selos/mao.svg) center / contain no-repeat; mask: url(https://marca.odisse.com.br/selos/mao.svg) center / contain no-repeat; }
+.marca-entrada .logotipo { width: 117px; height: 25px; background: currentColor;
+  -webkit-mask: url(https://marca.odisse.com.br/logos/logotipo-odisse.svg) center / contain no-repeat; mask: url(https://marca.odisse.com.br/logos/logotipo-odisse.svg) center / contain no-repeat; }
+.rodape-hub { margin-top: 96px; padding-top: var(--u-esp-4); border-top: 1px solid var(--u-linha); display: flex; justify-content: flex-end; }

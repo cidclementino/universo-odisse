@@ -307,13 +307,57 @@ function rota() {
 }
 
 function mostrar() {
+  if (document.body.classList.contains('u-trancado')) return;
   const r = rota();
   const sec = MAPA.secoes.find((s) => s.id === r);
   document.title = (r === 'inicio' ? 'Universo' : sec.nome + ' — Universo') + ' — Odisse';
-  vista.innerHTML = PAGINAS[r]();
+  vista.innerHTML = PAGINAS[r]() +
+    '<footer class="rodape-hub"><button class="u-botao" data-acao="sair">Sair do Universo</button></footer>';
   depois(r);
   window.scrollTo(0, 0);
 }
 
-carregar().then(() => { mostrar(); window.addEventListener('hashchange', mostrar); })
-  .catch(() => { vista.innerHTML = '<p class="u-apoio">Não foi possível carregar o Universo.</p>'; });
+// ---- entrada: a mesma senha da equipe abre o hub inteiro ---------------------
+// A senha é conferida no servidor do hub e fica lembrada neste computador.
+
+function telaEntrada(msg = '') {
+  document.body.classList.add('u-trancado');
+  document.title = 'Universo — Odisse';
+  vista.innerHTML = `<form class="entrada u-cartao" data-form="entrada">
+      <div class="marca-entrada" role="img" aria-label="Odisse"><span class="selo"></span><span class="logotipo"></span></div>
+      <span class="u-rotulo">Universo</span>
+      <label class="u-campo"><span>Senha da equipe</span>
+        <input type="password" name="senha" autocomplete="current-password" required autofocus></label>
+      ${msg ? `<p class="erro">${esc(msg)}</p>` : ''}
+      <button class="u-botao forte" type="submit">Entrar</button>
+    </form>`;
+  vista.querySelector('input').focus();
+  vista.querySelector('form').addEventListener('submit', (ev) => {
+    ev.preventDefault();
+    senha.gravar(ev.target.elements.senha.value);
+    entrar();
+  });
+}
+
+async function entrar() {
+  if (!senha.ler()) return telaEntrada();
+  vista.innerHTML = '<p class="u-apoio">Carregando…</p>';
+  let r;
+  try { r = await api('/api/estado'); } catch { r = { status: 0 }; }
+  if (r.status === 401) { senha.gravar(''); return telaEntrada('Senha incorreta.'); }
+  if (r.status !== 200) return telaEntrada('Não foi possível falar com o servidor do Universo. Tente de novo em instantes.');
+  document.body.classList.remove('u-trancado');
+  try { await carregar(); } catch { vista.innerHTML = '<p class="u-apoio">Não foi possível carregar o Universo.</p>'; return; }
+  mostrar();
+  if (!entrar.ligado) { window.addEventListener('hashchange', mostrar); entrar.ligado = true; }
+}
+
+function sair() {
+  senha.gravar('');
+  telaEntrada();
+  history.replaceState(null, '', location.pathname + location.search + '#/');
+}
+
+document.addEventListener('click', (ev) => { if (ev.target.closest('[data-acao="sair"]')) sair(); });
+
+entrar();
