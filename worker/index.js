@@ -36,7 +36,9 @@ function autorizado(request, env) {
   const senha = env.UNIVERSO_SENHA;
   if (!senha) return false;
   const auth = request.headers.get('Authorization') || '';
-  const dada = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+  // a senha vem codificada (encodeURIComponent): aceita acentos, ç e qualquer símbolo
+  let dada = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+  try { dada = decodeURIComponent(dada); } catch { return false; }
   if (dada.length !== senha.length) return false;
   let dif = 0;
   for (let i = 0; i < senha.length; i++) dif |= dada.charCodeAt(i) ^ senha.charCodeAt(i);

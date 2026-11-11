@@ -72,7 +72,7 @@ const senha = {
 async function api(caminho, opcoes = {}) {
   const r = await fetch(API + caminho, {
     ...opcoes,
-    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + senha.ler(), ...(opcoes.headers || {}) },
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + encodeURIComponent(senha.ler()), ...(opcoes.headers || {}) },
   });
   const j = await r.json().catch(() => ({}));
   return { status: r.status, ...j };
@@ -343,9 +343,12 @@ async function entrar() {
   if (!senha.ler()) return telaEntrada();
   vista.innerHTML = '<p class="u-apoio">Carregando…</p>';
   let r;
-  try { r = await api('/api/estado'); } catch { r = { status: 0 }; }
+  try { r = await api('/api/estado'); } catch (e) { r = { status: 0, error: e.message }; }
   if (r.status === 401) { senha.gravar(''); return telaEntrada('Senha incorreta.'); }
-  if (r.status !== 200) return telaEntrada('Não foi possível falar com o servidor do Universo. Tente de novo em instantes.');
+  if (r.status !== 200) {
+    console.warn('Universo: entrada falhou', r);
+    return telaEntrada(`Não foi possível falar com o servidor do Universo (${r.status ? 'resposta ' + r.status : 'sem resposta'}${r.error ? ': ' + r.error : ''}). Tente de novo em instantes.`);
+  }
   document.body.classList.remove('u-trancado');
   try { await carregar(); } catch { vista.innerHTML = '<p class="u-apoio">Não foi possível carregar o Universo.</p>'; return; }
   mostrar();
