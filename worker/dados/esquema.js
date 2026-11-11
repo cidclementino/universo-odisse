@@ -246,7 +246,9 @@ export const TABELAS = {
   propostas: {
     prefixo: 'ppt',
     campos: {
-      oportunidade_id: T('ref', { obrig: true, prefixos: ['opo'], rotulo: 'Oportunidade' }),
+      // obrigatória, menos em simulação (regras.js)
+      oportunidade_id: T('ref', { prefixos: ['opo'], rotulo: 'Oportunidade' }),
+      simulacao: T('sn', { rotulo: 'Simulação' }),
       titulo: T('texto', { max: 200, rotulo: 'Título' }),
       data: T('data', { rotulo: 'Data da proposta' }),
       valor_total: T('centavos', { rotulo: 'Valor total' }),
@@ -257,15 +259,15 @@ export const TABELAS = {
       referencias: T('json', { max: 20000, rotulo: 'Referências' }),
       arquivo_pdf_id: T('ref', { prefixos: ['arq'], rotulo: 'PDF' }),
     },
-    imutaveis: ['oportunidade_id'],
+    imutaveis: ['oportunidade_id', 'simulacao'],
     // depois que o PDF é congelado, o que foi para o cliente não muda: mudou, é revisão nova
     congelado: { quando: 'arquivo_pdf_id', campos: ['titulo', 'data', 'valor_total', 'calculo', 'referencias', 'arquivo_pdf_id', 'validade'] },
-    padroes: { situacao: 'rascunho' },
+    padroes: { situacao: 'rascunho', simulacao: 0 },
     versoes: true,
     permissoes: COMERCIAL,
-    filtros: ['oportunidade_id', 'situacao', 'numero', 'codigo', 'importada_de'],
+    filtros: ['oportunidade_id', 'situacao', 'numero', 'codigo', 'importada_de', 'simulacao'],
     ordem: 'numero DESC, revisao DESC',
-    busca: (r) => ({ titulo: `${r.codigo}${r.titulo ? ' · ' + r.titulo : ''}`, partes: [r.codigo, r.titulo] }),
+    busca: (r) => ({ titulo: `${r.codigo}${r.simulacao ? ' · simulação' : ''}${r.titulo ? ' · ' + r.titulo : ''}`, partes: [r.codigo, r.titulo, r.simulacao ? 'simulacao' : ''] }),
   },
 
   contratos: {

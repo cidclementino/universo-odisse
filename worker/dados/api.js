@@ -20,6 +20,7 @@
 //   POST   <rota>/:id/versoes/:n/restaurar { versao }
 //   PUT    arquivos/:id/conteudo?variante=g|m|s  (corpo binário; cada variante sobe uma vez só)
 //   GET    arquivos/:id/conteudo?variante=g|m|s
+//   POST   revisoes/:id/resolver { versao, situacao: 'mesmo'|'diferentes', manter }  -> junta dois contatos
 //   GET    comercial/painel                   -> oportunidades abertas com cliente, última proposta e próxima ação
 //   GET    propostas/numeracao                -> { valor } último número usado (null = ainda não ajustada)
 //   POST   propostas/numeracao  { minimo }    -> leva a numeração até pelo menos `minimo` (nunca volta)
@@ -406,6 +407,164 @@ async function restaurarVersao(env, ferramenta, tabela, id, n, corpo) {
   return { registro: visivel(tabela, ferramenta, nova) };
 }
 
+// ---------------------------------------------------------------- revisões de duplicados
+// "São a mesma pessoa/empresa": fica o cadastro escolhido (`manter`), completado com o que só o
+// outro tinha; tudo que apontava para o outro passa a apontar para ele (oportunidades, interações,
+// atuações, equipe, vínculos, documentos, dados sensíveis); o outro é arquivado com a nota
+// "Juntado a …"; outras revisões pendentes com o outro passam a falar do que ficou.
+// "São diferentes": só registra a decisão.
+
+const REFERENCIAS_CONTATO = [
+  ['oportunidades', 'cliente_id'], ['oportunidades', 'contato_pessoa_id'],
+  ['interacoes', 'pessoa_id'], ['interacoes', 'sobre_id'],
+  ['atuacoes', 'pessoa_id'], ['atuacoes', 'organizacao_id'],
+  ['equipe', 'pessoa_id'], ['vinculos', 'de_id'], ['vinculos', 'para_id'], ['arquivos', 'dono_id'],
+];
+const CAMPOS_SENSIVEIS = Object.keys(TABELAS.pessoas_sensiveis.campos);
+
+async function resolverRevisao(env, ferramenta, id, corpo) {
+  exigir('revisoes', ferramenta, 'E');
+  const rev = await buscarLinha(env, 'revisoes', id);
+  if (!rev) throw new ErroApi(404, 'não encontrado');
+  if (Number(corpo?.versao) !== rev.versao) throw new ErroApi(409, 'conflito', { registro: rev });
+  if (rev.situacao !== 'pendente') throw new ErroApi(409, 'esta revisão já foi decidida');
+  const decisao = corpo.situacao;
+  if (!['mesmo', 'diferentes'].includes(decisao)) throw new ErroApi(422, 'situacao: mesmo ou diferentes');
+  const agora = agoraISO();
+  const [a, b] = JSON.parse(rev.registros);
+  const fecharRevisao = (situacao) => [
+    env.DB.prepare(`UPDATE revisoes SET situacao = ?, decidido_em = ?, versao = versao + 1, atualizado_em = ?, atualizado_por = ?
+      WHERE id = ? AND versao = ?`).bind(situacao, agora, agora, ferramenta, id, rev.versao),
+    prep(env, sqlHistorico('revisoes', id, 'alterar', ferramenta, { situacao: ['pendente', situacao] }, true)),
+  ];
+
+  // outras revisões pendentes sobre o mesmo par (em qualquer ordem) seguem a mesma decisão
+  const chave = (ids) => [...ids].sort().join('|');
+  const { results: pendentes } = await env.DB.prepare(
+    `SELECT * FROM revisoes WHERE situacao = 'pendente' AND arquivado_em IS NULL AND id <> ?`,
+  ).bind(id).all();
+  const mesmoPar = pendentes.filter((r) => chave(JSON.parse(r.registros)) === chave([a, b]));
+  const fecharIguais = (situacao) => mesmoPar.flatMap((r) => [
+    env.DB.prepare(`UPDATE revisoes SET situacao = ?, decidido_em = ?, versao = versao + 1, atualizado_em = ?, atualizado_por = ?
+      WHERE id = ?`).bind(situacao, agora, agora, ferramenta, r.id),
+    prep(env, sqlHistorico('revisoes', r.id, 'alterar', ferramenta, { situacao: ['pendente', situacao], mesmo_par_de: [null, id] }, false)),
+  ]);
+
+  if (decisao === 'diferentes') {
+    const res = await env.DB.batch([...fecharRevisao('diferentes'), ...fecharIguais('diferentes')]);
+    if (res[0].meta.changes !== 1) throw new ErroApi(409, 'conflito');
+    return { ok: true, situacao: 'diferentes' };
+  }
+
+  const manter = corpo.manter;
+  if (![a, b].includes(manter)) throw new ErroApi(422, 'manter: um dos dois registros da revisão');
+  const outro = manter === a ? b : a;
+  const tabela = PREFIXOS[prefixoDe(manter)];
+  if (!['organizacoes', 'pessoas'].includes(tabela) || PREFIXOS[prefixoDe(outro)] !== tabela) {
+    throw new ErroApi(422, 'só se juntam dois contatos do mesmo tipo');
+  }
+  exigir(tabela, ferramenta, 'E');
+  const k = await buscarLinha(env, tabela, manter);
+  const o = await buscarLinha(env, tabela, outro);
+  if (!k || !o) throw new ErroApi(404, 'um dos registros não existe mais');
+  if (k.arquivado_em) throw new ErroApi(409, 'o cadastro escolhido para ficar está arquivado');
+
+  const stmts = [...fecharRevisao('mesmo'), ...fecharIguais('mesmo')];
+  // 1. completa o que fica com o que só o outro tinha
+  const comp = {};
+  for (const c of Object.keys(TABELAS[tabela].campos)) {
+    if ((k[c] === null || k[c] === '') && o[c] !== null && o[c] !== '') comp[c] = o[c];
+  }
+  if (k.observacoes && o.observacoes && k.observacoes !== o.observacoes) {
+    comp.observacoes = `${k.observacoes}\n\n[do cadastro juntado] ${o.observacoes}`.slice(0, 4000);
+  }
+  const novoK = { ...k, ...comp };
+  if (Object.keys(comp).length) {
+    const cols = Object.keys(comp);
+    stmts.push(
+      env.DB.prepare(`UPDATE ${tabela} SET ${cols.map((c) => `${c} = ?`).join(', ')}, versao = versao + 1, atualizado_em = ?,
+        atualizado_por = ? WHERE id = ?`).bind(...cols.map((c) => comp[c]), agora, ferramenta, manter),
+      prep(env, sqlHistorico(tabela, manter, 'alterar', ferramenta,
+        Object.fromEntries(cols.map((c) => [c, [k[c], comp[c]]])), false)),
+    );
+  }
+  const bk = sqlBusca(tabela, manter, novoK, false);
+  if (bk) stmts.push(prep(env, bk));
+
+  // 2. arquiva o outro
+  if (!o.arquivado_em) {
+    const nota = [o.observacoes, `Juntado a ${manter} em ${agora.slice(0, 10)}.`].filter(Boolean).join('\n');
+    stmts.push(
+      env.DB.prepare(`UPDATE ${tabela} SET arquivado_em = ?, observacoes = ?, versao = versao + 1, atualizado_em = ?,
+        atualizado_por = ? WHERE id = ?`).bind(agora, nota.slice(0, 4000), agora, ferramenta, outro),
+      prep(env, sqlHistorico(tabela, outro, 'arquivar', ferramenta, { juntado_a: [null, manter] }, false)),
+    );
+    const bo = sqlBusca(tabela, outro, { ...o, arquivado_em: agora }, false);
+    if (bo) stmts.push(prep(env, bo));
+  }
+
+  // 3. o que apontava para o outro passa a apontar para o que fica
+  //    (OR IGNORE: se já existir o mesmo vínculo/atuação para o que fica, a linha antiga fica com o arquivado)
+  for (const [t, col] of REFERENCIAS_CONTATO) {
+    stmts.push(
+      env.DB.prepare(`INSERT INTO historico (registro_id, tabela, acao, por, em, mudancas)
+        SELECT id, ?, 'alterar', ?, ?, json_object(?, json_array(?, ?)) FROM ${t} WHERE ${col} = ?`)
+        .bind(t, ferramenta, agora, col, outro, manter, outro),
+      env.DB.prepare(`UPDATE OR IGNORE ${t} SET ${col} = ?, versao = versao + 1, atualizado_em = ?, atualizado_por = ?
+        WHERE ${col} = ?`).bind(manter, agora, ferramenta, outro),
+    );
+  }
+
+  // 4. dados sensíveis da pessoa: completa os que faltam no que fica (o histórico guarda só nomes)
+  if (tabela === 'pessoas') {
+    const cs = CAMPOS_SENSIVEIS;
+    stmts.push(
+      env.DB.prepare(`INSERT INTO pessoas_sensiveis (id, criado_em, atualizado_em, criado_por, atualizado_por, ${cs.join(', ')})
+        SELECT ?, ?, ?, ?, ?, ${cs.join(', ')} FROM pessoas_sensiveis WHERE id = ? AND arquivado_em IS NULL
+        ON CONFLICT (id) DO UPDATE SET ${cs.map((c) => `${c} = COALESCE(pessoas_sensiveis.${c}, excluded.${c})`).join(', ')},
+          versao = pessoas_sensiveis.versao + 1, atualizado_em = excluded.atualizado_em, atualizado_por = excluded.atualizado_por`)
+        .bind(manter, agora, agora, ferramenta, ferramenta, outro),
+      env.DB.prepare(`INSERT INTO historico (registro_id, tabela, acao, por, em, mudancas)
+        SELECT ?, 'pessoas_sensiveis', 'alterar', ?, ?, json_object('campos', 'juntado de ' || ?)
+        FROM pessoas_sensiveis WHERE id = ?`).bind(manter, ferramenta, agora, outro, outro),
+    );
+  }
+
+  // 5. outras revisões pendentes que falavam do outro passam a falar do que ficou
+  //    (se o par que resulta já tem outra revisão pendente, esta é arquivada: seria a mesma pergunta duas vezes)
+  const fechadas = new Set(mesmoPar.map((r) => r.id));
+  const outras = pendentes.filter((r) => !fechadas.has(r.id) && r.registros.includes(outro));
+  const vistos = new Set(pendentes.filter((r) => !fechadas.has(r.id) && !r.registros.includes(outro))
+    .map((r) => chave(JSON.parse(r.registros))));
+  let resolvidas = mesmoPar.length;
+  for (const r of outras) {
+    const ids = JSON.parse(r.registros).map((x) => (x === outro ? manter : x));
+    const iguais = ids[0] === ids[1];
+    if (iguais) resolvidas++;
+    if (!iguais && vistos.has(chave(ids))) {
+      stmts.push(
+        env.DB.prepare(`UPDATE revisoes SET registros = ?, arquivado_em = ?, versao = versao + 1, atualizado_em = ?,
+          atualizado_por = ? WHERE id = ?`).bind(JSON.stringify(ids), agora, agora, ferramenta, r.id),
+        prep(env, sqlHistorico('revisoes', r.id, 'arquivar', ferramenta, { repetida_apos_juncao: [null, manter] }, false)),
+      );
+      continue;
+    }
+    vistos.add(chave(ids));
+    stmts.push(
+      env.DB.prepare(`UPDATE revisoes SET registros = ?, situacao = ?, decidido_em = ?, versao = versao + 1,
+        atualizado_em = ?, atualizado_por = ? WHERE id = ?`)
+        .bind(JSON.stringify(ids), iguais ? 'mesmo' : 'pendente', iguais ? agora : null, agora, ferramenta, r.id),
+      prep(env, sqlHistorico('revisoes', r.id, 'alterar', ferramenta,
+        { registros: [r.registros, JSON.stringify(ids)], ...(iguais ? { situacao: ['pendente', 'mesmo'] } : {}) }, false)),
+    );
+  }
+
+  let res;
+  try { res = await env.DB.batch(stmts); } catch (e) { throw traduzirErro(e); }
+  if (res[0].meta.changes !== 1) throw new ErroApi(409, 'conflito');
+  return { ok: true, situacao: 'mesmo', manter, juntado: outro, completados: Object.keys(comp), outras_resolvidas: resolvidas };
+}
+
 // ---------------------------------------------------------------- arquivos (conteúdo no R2)
 
 const chaveR2 = (id, variante) => `arq/${id}${VARIANTES[variante]}`;
@@ -560,6 +719,7 @@ export async function api(env, ferramenta, request, url, cors) {
     }
     if (acao === 'arquivar' && m === 'POST') return json(await arquivar(env, ferramenta, tabela, id, corpo, true));
     if (acao === 'restaurar' && m === 'POST') return json(await arquivar(env, ferramenta, tabela, id, corpo, false));
+    if (tabela === 'revisoes' && acao === 'resolver' && m === 'POST') return json(await resolverRevisao(env, ferramenta, id, corpo));
     if (acao === 'historico' && m === 'GET') return json(await historico(env, ferramenta, tabela, id));
     if (acao === 'versoes' && !n && m === 'GET') return json(await listarVersoes(env, ferramenta, tabela, id));
     if (acao === 'versoes' && n && acao2 === 'restaurar' && m === 'POST') {

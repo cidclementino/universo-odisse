@@ -54,6 +54,12 @@ Compromissos aceitos: o hub é ponto único de falha para os dados comuns; mudan
 - `GET comercial/painel` monta a tela do funil numa chamada só (oportunidades abertas e fechadas nos últimos 90 dias, com nome do cliente, contato, última proposta e a interação mais recente). A "próxima ação" é a da interação mais recente: registrar uma interação sem próxima ação limpa a pendência.
 - Códigos de origem no texto pronto do WhatsApp: `[LP-<página>]` (landing pages, projetos-odisse/analytics.js) e `[Herma <lote>]` (herma-odisse). O funil reconhece o código ao colar a mensagem.
 
+## Simulações e duplicados (migração 0003)
+
+- **Simulação** (`propostas.simulacao = 1`): orçamento sem cliente, para testar a ferramenta ou estimar o custo de um serviço. Consome número da sequência como qualquer proposta (decisão do Cid: testes também contam na numeração), não tem oportunidade (CHECK no banco: simulação ⇔ sem oportunidade), não entra no funil, e o PDF sai com "Simulação de Honorários", um aviso em caixa na primeira página e "SIMULAÇÃO · NÃO É PROPOSTA COMERCIAL" no cabeçalho de todas. Revisão de simulação continua simulação; simulação reaberta como proposta de verdade ganha número próprio. A 0003 refez `propostas` (e `contratos`, que aponta para ela) porque o SQLite não tira NOT NULL de coluna existente.
+- **Duplicados**: `POST revisoes/:id/resolver`. "São diferentes" só registra. "É o mesmo": o cadastro escolhido fica, é completado com o que só o outro tinha (observações somadas), recebe tudo que apontava para o outro (oportunidades, interações, atuações, equipe, vínculos, documentos e, para pessoas, os dados sensíveis que faltavam) e o outro é arquivado com a nota "Juntado a …". Pendências sobre o mesmo par seguem a mesma decisão; pendências que passam a repetir um par já perguntado são arquivadas. Tela: Funil → "Possíveis duplicados".
+- O ano do código (`PC-NNNN-AAAA`) vem da data da proposta; o número é uma sequência única que não recomeça a cada ano (como no vendas antigo).
+
 ## Como mudar a estrutura
 
 1. Nova migração em `dados/migracoes/NNNN_nome.sql` (nunca editar uma já aplicada).

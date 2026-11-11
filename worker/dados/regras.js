@@ -69,6 +69,9 @@ const oportunidades = {
 const propostas = {
   async criar(env, ferramenta, valores, corpo) {
     const extras = [];
+    // simulação: sem oportunidade (não entra no funil); proposta de verdade: oportunidade obrigatória
+    if (valores.simulacao && valores.oportunidade_id) throw new ErroApi(422, 'simulação não tem oportunidade');
+    if (!valores.simulacao && !valores.oportunidade_id) throw new ErroApi(422, 'Oportunidade: obrigatório');
     if (corpo.importada_de) {
       if (!['vendas', 'maquina'].includes(ferramenta)) throw new ErroApi(403, 'só o vendas importa propostas');
       const origem = String(corpo.importada_de);
@@ -90,8 +93,8 @@ const propostas = {
     if (corpo.revisao_de) {
       const base = await env.DB.prepare('SELECT * FROM propostas WHERE id = ?').bind(String(corpo.revisao_de)).first();
       if (!base) throw new ErroApi(422, 'revisao_de: proposta não encontrada');
-      if (valores.oportunidade_id !== base.oportunidade_id) {
-        throw new ErroApi(422, 'a revisão precisa ficar na mesma oportunidade da proposta original');
+      if (valores.oportunidade_id !== base.oportunidade_id || valores.simulacao !== base.simulacao) {
+        throw new ErroApi(422, 'a revisão precisa ficar na mesma oportunidade da proposta original (e simulação continua simulação)');
       }
       const m = await env.DB.prepare('SELECT MAX(revisao) AS r FROM propostas WHERE numero = ?').bind(base.numero).first();
       const revisao = (m?.r ?? 0) + 1;
