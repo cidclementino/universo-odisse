@@ -48,13 +48,15 @@
     },
     {
       "id": "projetos", "nome": "Projetos e etapas", "secao": "ferramentas", "grupo": "producao",
-      "descricao": "Contratos em etapas, prazos, revisões e aprovações",
-      "acesso": "interna", "status": "em-breve"
+      "descricao": "Projetos nascidos dos contratos assinados: etapas, prazos e local do imóvel",
+      "url": "https://projetos.odisse.com.br/", "hosts": ["projetos.odisse.com.br"],
+      "acesso": "interna", "status": "no-ar"
     },
     {
       "id": "horas", "nome": "Apontamento de horas", "secao": "ferramentas", "grupo": "producao",
-      "descricao": "Horas por projeto e etapa, margem real, teto da consultoria",
-      "acesso": "interna", "status": "em-breve"
+      "descricao": "Horas por projeto e etapa, semana de cada pessoa",
+      "url": "https://projetos.odisse.com.br/horas.html", "hosts": ["projetos.odisse.com.br/horas.html"],
+      "acesso": "interna", "status": "no-ar"
     },
     {
       "id": "fornecedores", "nome": "Fornecedores", "secao": "ferramentas", "grupo": "producao",
@@ -77,7 +79,7 @@
     {
       "id": "landing-pages", "nome": "Landing pages", "secao": "canais", "grupo": "sites",
       "descricao": "Projeto residencial e interiores",
-      "url": "https://projetos.odisse.com.br/",
+      "url": "https://servicos.odisse.com.br/", "hosts": ["servicos.odisse.com.br"],
       "acesso": "publica", "status": "no-ar"
     },
     {
