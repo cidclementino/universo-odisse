@@ -198,4 +198,18 @@ ok(pa.codigo === 'OA-2026-052' && pa.versao === 2, 'projeto antigo vira OA-2026-
 ok(ba.titulo === 'OA-2026-052 · Casa' && ba.texto.startsWith('oa-2026-052'), 'busca acompanha o código novo');
 ok(JSON.parse(ha.mudancas).codigo[1] === 'OA-2026-052', 'troca de código no histórico');
 
+// ---------------------------------------------------------------- lote (a página junta as edições e salva de uma vez)
+const lt = await chamar('POST', 'pgt/lote', { ops: [
+  { tipo: 'etapas-servicos', etapa_id: 'pet_pl', servico_id: 'srv_am', pertinencia: 'O', semanas: null },
+  { tipo: 'entregaveis-servicos', entregavel_ids: ['pen_ce_03'], servico_id: 'srv_am', pertinencia: 'P' },
+  { tipo: 'ordem', tabela: 'pgt_etapas', ids: ['pet_lv', 'pet_pp', 'pet_ev', 'pet_ce', 'pet_cb'] },
+] });
+P = await chamar('GET', 'pgt');
+ok(lt.feitas === 3 && P.etapas.find((e) => e.id === 'pet_pl').servicos.srv_am.pertinencia === 'O'
+  && P.entregaveis.find((x) => x.id === 'pen_ce_03').servicos.srv_am === 'P' && P.etapas[0].sigla === 'LV', 'lote: três mudanças numa chamada');
+const lr = await pedir('POST', 'pgt/lote', { ops: [{ tipo: 'etapas-servicos', etapa_id: 'pet_pl', servico_id: 'srv_am', pertinencia: null }, { tipo: 'etapas-servicos', etapa_id: 'pet_zz', servico_id: 'srv_am', pertinencia: 'P' }] });
+ok(lr.status === 422 && lr.j.indice === 1 && lr.j.feitas === 1, 'lote: diz qual mudança falhou');
+ok(await falha('POST', 'pgt/lote', { ops: [{ tipo: 'apagar' }] }) === 422, 'lote: tipo desconhecido → 422');
+ok(await falha('POST', 'pgt/lote', { ops: [] }, 'vendas') === 403, 'lote: vendas não edita o PGT');
+
 console.log('TUDO CERTO');

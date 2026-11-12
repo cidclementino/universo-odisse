@@ -13,6 +13,7 @@
 //   POST pgt/entregaveis-servicos  { entregavel_ids: [...], servico_id, pertinencia: 'P'|'O'|null }   (em massa)
 //   POST pgt/entregaveis-categorias { entregavel_id, categorias: [tca_…] }   (substitui; vazio = todas)
 //   POST pgt/ordem                 { tabela: 'pgt_entregaveis'|'pgt_etapas'|…, ids: [...] }  (ordem = posição)
+//   POST pgt/lote                  { ops: [{ tipo: 'etapas-servicos'|'entregaveis-servicos'|'ordem', … }] }  (até 500)
 //   POST bases/publicar | pgt/publicar  { nota }  -> retrato numerado (409 nada_mudou se igual ao último)
 //   GET  honorarios                          -> preço dos serviços, fases com parcela, etapas com pesos, parâmetros
 //   POST honorarios/pesos       { etapa_id, servico_id, peso }   (só onde a etapa vale para o serviço)
@@ -329,6 +330,25 @@ async function reordenar(env, ferramenta, c) {
   return { ok: true };
 }
 
+// Várias mudanças de uma vez (a página do PGT junta as edições e salva tudo de uma vez):
+//   { ops: [{ tipo: 'etapas-servicos' | 'entregaveis-servicos' | 'ordem', ...corpo da rota }] }
+// Executa em ordem; se uma falhar, as anteriores ficam e a resposta diz qual falhou (422 com `indice`).
+const OPS_LOTE = { 'etapas-servicos': etapaServico, 'entregaveis-servicos': entregaveisServico, ordem: reordenar };
+async function lote(env, ferramenta, c) {
+  const ops = Array.isArray(c.ops) ? c.ops : [];
+  if (!ops.length || ops.length > 500) throw new ErroApi(422, 'ops: de 1 a 500 mudanças');
+  for (const [i, op] of ops.entries()) if (!OPS_LOTE[op?.tipo]) throw new ErroApi(422, `ops[${i}]: tipo desconhecido`);
+  let feitas = 0;
+  for (const [i, op] of ops.entries()) {
+    try { await OPS_LOTE[op.tipo](env, ferramenta, op); feitas++; }
+    catch (e) {
+      if (e instanceof ErroApi) throw new ErroApi(e.status, `mudança ${i + 1} de ${ops.length}: ${e.message}`, { indice: i, feitas });
+      throw e;
+    }
+  }
+  return { ok: true, feitas };
+}
+
 async function parametro(env, ferramenta, c) {
   const def = PARAMETROS[c.chave];
   if (!def) throw new ErroApi(422, 'parâmetro desconhecido');
@@ -362,6 +382,7 @@ export async function rotasPgt(env, ferramenta, m, [rota, id, acao], corpo, url,
     if (id === 'entregaveis-servicos') return entregaveisServico(env, ferramenta, c);
     if (id === 'entregaveis-categorias') return entregavelCategorias(env, ferramenta, c);
     if (id === 'ordem') return reordenar(env, ferramenta, c);
+    if (id === 'lote') return lote(env, ferramenta, c);
     if (id === 'publicar') return publicar(env, ferramenta, 'pgt', c);
     throw new ErroApi(404, 'rota não encontrada');
   }
