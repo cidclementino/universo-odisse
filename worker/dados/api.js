@@ -26,7 +26,8 @@
 //   GET    comercial/contatos/:id             -> ficha: registro, atuações, oportunidades (titular/co-cliente/contato), interações
 //   GET    producao/painel | producao/projetos/:id | producao/horas?de=&ate=   (ver producao.js)
 //   POST   producao/equipe { nome, email, papel }  -> cadastra na equipe (usa a pessoa que já existe)
-// projetos: POST numera AAAA-NNN (ou aceita { codigo } de projeto antigo) e aceita { etapas, local, coclientes }.
+// projetos: POST numera OA-AAAA-NNN (ou aceita { codigo } de projeto antigo) e aceita { etapas, local, coclientes }.
+//   GET    bases | pgt | publicacoes[/ultima]?tipo=…, POST bases/… e pgt/…   -> Bases e PGT (ver pgt.js)
 // contratos: situacao 'assinado' no principal cria o projeto (ver regras.js: assinar).
 //   GET    propostas/numeracao                -> { valor } último número usado (null = ainda não ajustada)
 //   POST   propostas/numeracao  { minimo }    -> leva a numeração até pelo menos `minimo` (nunca volta)
@@ -37,6 +38,7 @@
 import { TABELAS, ROTAS, PREFIXOS, COMUNS } from './esquema.js';
 import { novoId, prefixoDe, agoraISO, normalizar, limpar } from './util.js';
 import { painelProducao, fichaProjeto, horasPeriodo } from './producao.js';
+import { rotasPgt } from './pgt.js';
 import { ErroApi, REGRAS, proximoNumero, ajustarSequencia, valorSequencia, painelComercial, listaContatos, fichaContato } from './regras.js';
 
 export { proximoNumero };
@@ -762,6 +764,10 @@ export async function api(env, ferramenta, request, url, cors) {
         return json({ valor: await ajustarSequencia(env, 'propostas', minimo) });
       }
     }
+
+    // Bases e PGT: leituras juntadas, matrizes de pertinência e publicação (pgt.js)
+    const rp = await rotasPgt(env, ferramenta, m, [rota, id, acao], corpo, url, exigir);
+    if (rp !== undefined) return json(rp);
 
     const tabela = ROTAS[rota];
     if (!tabela) throw new ErroApi(404, 'rota não encontrada');

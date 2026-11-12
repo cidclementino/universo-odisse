@@ -61,8 +61,9 @@ const oportunidades = {
 
 // ---------------------------------------------------------------- propostas
 // Três jeitos de criar:
-//   normal         -> número novo da sequência, revisão 0, código PC-NNNN-AAAA (ano da data da proposta)
-//   revisao_de     -> mesmo número, revisão seguinte, código PC-NNNN-AAAA-R1; as anteriores ainda em
+//   normal         -> número novo da sequência, revisão 0, código PC-AAAA-NNNN (ano da data da proposta)
+//                     (até 11/2026 era PC-NNNN-AAAA; os já emitidos ficam como estão)
+//   revisao_de     -> mesmo número, revisão seguinte, código <código da original>-R1; as anteriores ainda em
 //                     rascunho ou enviadas viram "substituida"
 //   importada_de   -> traz uma proposta antiga com número e código originais e leva a sequência até ele
 
@@ -125,7 +126,7 @@ const propostas = {
     }
     const numero = await proximoNumero(env, 'propostas');
     const ano = (valores.data || hojeBrasilia()).slice(0, 4);
-    Object.assign(valores, { numero, revisao: 0, codigo: `PC-${quatro(numero)}-${ano}`, importada_de: null });
+    Object.assign(valores, { numero, revisao: 0, codigo: `PC-${ano}-${quatro(numero)}`, importada_de: null });
     return extras;
   },
 
@@ -155,7 +156,7 @@ const propostas = {
 const CONGELADOS = TABELAS.propostas.congelado.campos;
 
 // ---------------------------------------------------------------- projetos (0004)
-// Código AAAA-NNN; a numeração recomeça a cada ano (sequência `projetos-<ano>`).
+// Código OA-AAAA-NNN (até a 0005, AAAA-NNN); a numeração recomeça a cada ano (sequência `projetos-<ano>`).
 // Um projeto nasce do contrato principal assinado (contratos, abaixo) ou do cadastro manual
 // na ferramenta Projetos (projetos que já existiam antes do Universo, com o código que já tinham).
 
@@ -163,17 +164,17 @@ const tres = (n) => String(n).padStart(3, '0');
 
 async function numerarProjeto(env, ano, codigoDado) {
   if (codigoDado) {
-    const m = String(codigoDado).trim().match(/^(\d{4})-(\d{3,4})$/);
-    if (!m) throw new ErroApi(422, 'Código: no formato AAAA-NNN (ex.: 2025-031)');
+    const m = String(codigoDado).trim().toUpperCase().match(/^(?:OA-)?(\d{4})-(\d{3,4})$/);
+    if (!m) throw new ErroApi(422, 'Código: no formato OA-AAAA-NNN (ex.: OA-2025-031)');
     const a = Number(m[1]);
     const numero = Number(m[2]);
     if (a < 2000 || a > 2100 || numero < 1) throw new ErroApi(422, 'Código: ano ou número fora do esperado');
     // a sequência do ano vai até pelo menos este número: o próximo automático nunca repete um código antigo
     await ajustarSequencia(env, `projetos-${a}`, numero);
-    return { codigo: `${a}-${tres(numero)}`, ano: a, numero };
+    return { codigo: `OA-${a}-${tres(numero)}`, ano: a, numero };
   }
   const numero = await proximoNumero(env, `projetos-${ano}`);
-  return { codigo: `${ano}-${tres(numero)}`, ano, numero };
+  return { codigo: `OA-${ano}-${tres(numero)}`, ano, numero };
 }
 
 // Soma dias a um dia AAAA-MM-DD (dias corridos, como o cronograma da proposta).
@@ -358,7 +359,7 @@ async function assinar(env, ferramenta, contrato, corpo, guarda, aux) {
 const contratos = {
   async criar(env, ferramenta, valores, corpo, id, aux) {
     const numero = await proximoNumero(env, 'contratos');
-    Object.assign(valores, { numero, codigo: `CT-${quatro(numero)}-${hojeBrasilia().slice(0, 4)}` });
+    Object.assign(valores, { numero, codigo: `CT-${hojeBrasilia().slice(0, 4)}-${quatro(numero)}` });
     if (valores.situacao !== 'assinado') return [];
     const guarda = ['SELECT 1 FROM contratos WHERE id = ? AND versao = 1', [id]];
     const r = await assinar(env, ferramenta, { ...valores, id }, corpo, guarda, aux);
@@ -394,7 +395,92 @@ const horas = {
   },
 };
 
-export const REGRAS = { oportunidades, propostas, contratos, projetos, horas };
+// ---------------------------------------------------------------- Bases e PGT (0005)
+// Sigla em maiúsculas (2 a 4 letras, única entre os ativos — o banco também confere);
+// índice de complexidade: só critérios e níveis conhecidos; ordem nova = depois do último.
+
+export const CRITERIOS_IC = ['qtd_especialistas', 'qtd_aprovacoes', 'grau_resp_civil', 'grau_intervencao_cliente',
+  'expectativa_plastica', 'grau_controle_custo', 'indefinicao_escopo', 'indefinicao_prazo', 'demanda_midia'];
+const NIVEIS_IC = ['baixo', 'medio', 'alto'];
+
+function conferirSigla(o) {
+  if (!('sigla' in o) || o.sigla === null) return;
+  o.sigla = o.sigla.toUpperCase();
+  if (!/^[A-Z]{2,4}$/.test(o.sigla)) throw new ErroApi(422, 'Sigla: de 2 a 4 letras, sem acento');
+}
+function conferirIC(o, campo, rotulo) {
+  if (!(campo in o) || o[campo] === null) return;
+  const v = JSON.parse(o[campo]);
+  if (!v || typeof v !== 'object' || Array.isArray(v)) throw new ErroApi(422, `${rotulo}: objeto { critério: nível }`);
+  for (const [k, n] of Object.entries(v)) {
+    if (!CRITERIOS_IC.includes(k)) throw new ErroApi(422, `${rotulo}: critério desconhecido (${k})`);
+    if (!NIVEIS_IC.includes(n)) throw new ErroApi(422, `${rotulo}: nível de ${k} precisa ser baixo, medio ou alto`);
+  }
+}
+function conferirFaixa(o, campo, rotulo, min, max) {
+  if (campo in o && o[campo] !== null && (o[campo] < min || (max !== undefined && o[campo] > max))) {
+    throw new ErroApi(422, `${rotulo}: ${max === undefined ? `a partir de ${min}` : `entre ${min} e ${max}`}`);
+  }
+}
+async function ordemNoFim(env, tabela, valores, filtro) {
+  if (valores.ordem !== null && valores.ordem !== undefined) return;
+  const [col, v] = filtro || [];
+  const r = await env.DB.prepare(`SELECT COALESCE(MAX(ordem), 0) AS m FROM ${tabela} WHERE arquivado_em IS NULL${col ? ` AND ${col} = ?` : ''}`)
+    .bind(...(col ? [v] : [])).first();
+  valores.ordem = (r?.m || 0) + 1;
+}
+const simples = (tabela, conferir, filtroOrdem) => ({
+  async criar(env, ferramenta, valores) {
+    conferir(valores);
+    await ordemNoFim(env, tabela, valores, filtroOrdem && [filtroOrdem, valores[filtroOrdem]]);
+    return [];
+  },
+  async alterar(env, ferramenta, atual, mudancas) { conferir(mudancas); return []; },
+});
+
+const bases_servicos = simples('bases_servicos', (o) => {
+  conferirSigla(o); conferirIC(o, 'ic_ajustes', 'Ajustes do índice'); conferirFaixa(o, 'modificador', 'Modificador', 0);
+});
+const bases_categorias = simples('bases_categorias', (o) => conferirIC(o, 'ic_preset', 'Índice de complexidade'));
+const bases_usos = simples('bases_usos', (o) => {
+  conferirFaixa(o, 'fator_adequacao', 'Fator de adequação', 0); conferirFaixa(o, 'cub_referencia', 'CUB de referência', 0);
+  if (o.cub_codigo) o.cub_codigo = o.cub_codigo.toUpperCase();
+}, 'categoria_id');
+const pgt_fases = simples('pgt_fases', (o) => conferirFaixa(o, 'parcela', 'Parcela', 0, 1));
+const pgt_etapas = simples('pgt_etapas', (o) => { conferirSigla(o); conferirFaixa(o, 'semanas_base', 'Semanas', 0, 520); });
+const pgt_materiais = simples('pgt_materiais', () => {}, 'alvo_id');
+
+// Entregável novo: pode já nascer com a pertinência por serviço ({ servicos: { srv_ne: 'P', … } }).
+const pgt_entregaveis = {
+  async criar(env, ferramenta, valores, corpo, id) {
+    await ordemNoFim(env, 'pgt_entregaveis', valores, ['etapa_id', valores.etapa_id]);
+    const servs = corpo.servicos && typeof corpo.servicos === 'object' ? corpo.servicos : {};
+    const extras = [];
+    for (const [srv, p] of Object.entries(servs)) {
+      if (!p) continue;
+      if (!['P', 'O'].includes(p)) throw new ErroApi(422, 'Pertinência: P ou O');
+      const ok = await env.DB.prepare('SELECT 1 FROM bases_servicos WHERE id = ? AND arquivado_em IS NULL').bind(srv).first();
+      if (!ok) throw new ErroApi(422, `Serviço ${srv}: não encontrado`);
+      extras.push(env.DB.prepare('INSERT INTO pgt_entregaveis_servicos (entregavel_id, servico_id, pertinencia) VALUES (?, ?, ?)')
+        .bind(id, srv, p));
+    }
+    return extras;
+  },
+  async alterar(env, ferramenta, atual, mudancas) {
+    // mudou de etapa sem dizer a ordem: vai para o fim da etapa nova
+    if (mudancas.etapa_id && !('ordem' in mudancas)) {
+      const v = { ordem: null };
+      await ordemNoFim(env, 'pgt_entregaveis', v, ['etapa_id', mudancas.etapa_id]);
+      mudancas.ordem = v.ordem;
+    }
+    return [];
+  },
+};
+
+export const REGRAS = {
+  oportunidades, propostas, contratos, projetos, horas,
+  bases_servicos, bases_categorias, bases_usos, pgt_fases, pgt_etapas, pgt_entregaveis, pgt_materiais,
+};
 
 // ---------------------------------------------------------------- painel do comercial
 // Uma chamada só para a tela do funil: oportunidades abertas (e as fechadas nos últimos 90 dias)

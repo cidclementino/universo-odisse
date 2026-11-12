@@ -47,6 +47,18 @@
       "acesso": "interna", "status": "no-ar"
     },
     {
+      "id": "bases", "nome": "Bases", "secao": "ferramentas", "grupo": "producao",
+      "descricao": "Serviços, tipologias, CUB, fatores do CAU e índice de complexidade: o que forma o preço",
+      "url": "https://projetos.odisse.com.br/bases.html", "hosts": ["projetos.odisse.com.br/bases.html"],
+      "acesso": "interna", "status": "no-ar"
+    },
+    {
+      "id": "pgt", "nome": "Plano Geral de Trabalho", "secao": "ferramentas", "grupo": "producao",
+      "descricao": "Fases, etapas, entregáveis e materiais por serviço: o padrão que ordena contratos e projetos",
+      "url": "https://projetos.odisse.com.br/pgt.html", "hosts": ["projetos.odisse.com.br/pgt.html"],
+      "acesso": "interna", "status": "no-ar"
+    },
+    {
       "id": "projetos", "nome": "Projetos e etapas", "secao": "ferramentas", "grupo": "producao",
       "descricao": "Projetos nascidos dos contratos assinados: etapas, prazos e local do imóvel",
       "url": "https://projetos.odisse.com.br/", "hosts": ["projetos.odisse.com.br"],

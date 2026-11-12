@@ -1,0 +1,319 @@
+// Bases e Plano Geral de Trabalho (PGT) — migração 0005. Casa: páginas Bases e PGT da ferramenta Projetos.
+//
+// Os registros (serviços, categorias, usos, fases, etapas, entregáveis, materiais) usam as rotas comuns
+// da API (bases-servicos, pgt-etapas…). Aqui ficam as leituras juntadas, as matrizes de pertinência e a
+// publicação:
+//
+//   GET  bases                               -> serviços, categorias, usos, parâmetros + publicação e pendência
+//   POST bases/parametros  { chave, valor }
+//   GET  pgt                                 -> fases, etapas (com serviços), entregáveis (com código, serviços e
+//                                               categorias), materiais, serviços e categorias das Bases
+//   POST pgt/etapas-servicos       { etapa_id, servico_id, pertinencia: 'P'|'O'|null, peso, semanas }
+//   POST pgt/entregaveis-servicos  { entregavel_ids: [...], servico_id, pertinencia: 'P'|'O'|null }   (em massa)
+//   POST pgt/entregaveis-categorias { entregavel_id, categorias: [tca_…] }   (substitui; vazio = todas)
+//   POST pgt/ordem                 { tabela: 'pgt_entregaveis'|'pgt_etapas'|…, ids: [...] }  (ordem = posição)
+//   POST bases/publicar | pgt/publicar  { nota }  -> retrato numerado (409 nada_mudou se igual ao último)
+//   GET  publicacoes?tipo=bases|pgt              -> lista (sem os dados)
+//   GET  publicacoes/ultima?tipo=bases|pgt       -> último retrato com os dados (o vendas vai ler este)
+//
+// "Pendente" = o rascunho (as tabelas vivas) difere do último retrato publicado (assinatura SHA-256).
+
+import { ErroApi } from './regras.js';
+import { agoraISO } from './util.js';
+
+const lerJson = (s) => (s ? JSON.parse(s) : null);
+const PARAMETROS = { parcela_entrada: { rotulo: 'Parcela de entrada (na assinatura)', min: 0, max: 1 } };
+const ORDENAVEIS = ['bases_servicos', 'bases_categorias', 'bases_usos', 'pgt_fases', 'pgt_etapas', 'pgt_entregaveis', 'pgt_materiais'];
+
+async function sha256(texto) {
+  const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(texto));
+  return [...new Uint8Array(b)].map((x) => x.toString(16).padStart(2, '0')).join('');
+}
+
+// ---------------------------------------------------------------- retratos (só ativos, sem carimbos)
+
+const sem = (r, ...fora) => {
+  const o = { ...r };
+  for (const k of ['criado_em', 'atualizado_em', 'criado_por', 'atualizado_por', 'versao', 'arquivado_em', ...fora]) delete o[k];
+  return o;
+};
+
+export async function retratoBases(env) {
+  const [srv, cat, uso, par] = await env.DB.batch([
+    env.DB.prepare('SELECT * FROM bases_servicos WHERE arquivado_em IS NULL ORDER BY ordem, nome'),
+    env.DB.prepare('SELECT * FROM bases_categorias WHERE arquivado_em IS NULL ORDER BY ordem, nome'),
+    env.DB.prepare(`SELECT u.* FROM bases_usos u JOIN bases_categorias c ON c.id = u.categoria_id
+      WHERE u.arquivado_em IS NULL AND c.arquivado_em IS NULL ORDER BY c.ordem, u.ordem`),
+    env.DB.prepare('SELECT chave, valor FROM bases_parametros ORDER BY chave'),
+  ]);
+  return {
+    servicos: srv.results.map((r) => ({ ...sem(r), ic_ajustes: lerJson(r.ic_ajustes) || {} })),
+    categorias: cat.results.map((r) => ({ ...sem(r), ic_preset: lerJson(r.ic_preset) || {} })),
+    usos: uso.results.map((r) => sem(r)),
+    parametros: Object.fromEntries(par.results.map((p) => [p.chave, lerJson(p.valor)])),
+  };
+}
+
+export async function retratoPgt(env) {
+  const [fas, eta, es, ent, ens, enc, mat] = await env.DB.batch([
+    env.DB.prepare('SELECT * FROM pgt_fases WHERE arquivado_em IS NULL ORDER BY ordem'),
+    env.DB.prepare(`SELECT e.* FROM pgt_etapas e JOIN pgt_fases f ON f.id = e.fase_id
+      WHERE e.arquivado_em IS NULL AND f.arquivado_em IS NULL ORDER BY f.ordem, e.ordem`),
+    env.DB.prepare(`SELECT x.* FROM pgt_etapas_servicos x JOIN bases_servicos s ON s.id = x.servico_id
+      WHERE s.arquivado_em IS NULL ORDER BY x.etapa_id, s.ordem`),
+    env.DB.prepare('SELECT * FROM pgt_entregaveis WHERE arquivado_em IS NULL ORDER BY etapa_id, ordem, criado_em'),
+    env.DB.prepare(`SELECT x.* FROM pgt_entregaveis_servicos x JOIN bases_servicos s ON s.id = x.servico_id
+      WHERE s.arquivado_em IS NULL ORDER BY x.entregavel_id, s.ordem`),
+    env.DB.prepare(`SELECT x.* FROM pgt_entregaveis_categorias x JOIN bases_categorias c ON c.id = x.categoria_id
+      WHERE c.arquivado_em IS NULL ORDER BY x.entregavel_id, c.ordem`),
+    env.DB.prepare('SELECT * FROM pgt_materiais WHERE arquivado_em IS NULL ORDER BY alvo_id, ordem'),
+  ]);
+  const porEtapa = {};
+  for (const x of es.results) (porEtapa[x.etapa_id] ||= {})[x.servico_id] = { pertinencia: x.pertinencia, peso: x.peso, semanas: x.semanas };
+  const porEnt = {};
+  for (const x of ens.results) (porEnt[x.entregavel_id] ||= {})[x.servico_id] = x.pertinencia;
+  const catEnt = {};
+  for (const x of enc.results) (catEnt[x.entregavel_id] ||= []).push(x.categoria_id);
+  const etapas = eta.results.map((e) => ({ ...sem(e), servicos: porEtapa[e.id] || {} }));
+  const sigla = Object.fromEntries(etapas.map((e) => [e.id, e.sigla]));
+  // código = sigla da etapa + posição (CE-03); entregáveis de etapa arquivada ficam fora do retrato
+  const pos = {};
+  const entregaveis = ent.results.filter((r) => sigla[r.etapa_id]).map((r) => {
+    pos[r.etapa_id] = (pos[r.etapa_id] || 0) + 1;
+    return { ...sem(r), codigo: `${sigla[r.etapa_id]}-${String(pos[r.etapa_id]).padStart(2, '0')}`,
+      servicos: porEnt[r.id] || {}, categorias: catEnt[r.id] || [] };
+  });
+  return { fases: fas.results.map((r) => sem(r)), etapas, entregaveis, materiais: mat.results.map((r) => sem(r)) };
+}
+
+const RETRATOS = { bases: retratoBases, pgt: retratoPgt };
+
+async function ultima(env, tipo, comDados = false) {
+  return env.DB.prepare(`SELECT id, tipo, numero, publicado_em, por, nota, assinatura${comDados ? ', dados' : ''}
+    FROM pgt_publicacoes WHERE tipo = ? ORDER BY numero DESC LIMIT 1`).bind(tipo).first();
+}
+
+async function situacao(env, tipo, retrato) {
+  const u = await ultima(env, tipo);
+  const assinatura = await sha256(JSON.stringify(retrato));
+  return { publicacao: u ? { numero: u.numero, publicado_em: u.publicado_em, por: u.por, nota: u.nota } : null,
+    pendente: !u || u.assinatura !== assinatura };
+}
+
+async function publicar(env, ferramenta, tipo, corpo) {
+  const retrato = await RETRATOS[tipo](env);
+  if (tipo === 'pgt') retrato.bases_numero = (await ultima(env, 'bases'))?.numero ?? null;
+  const assinatura = await sha256(JSON.stringify(tipo === 'pgt' ? { ...retrato, bases_numero: undefined } : retrato));
+  const u = await ultima(env, tipo);
+  if (u && u.assinatura === assinatura) throw new ErroApi(409, 'nada_mudou', { detalhe: `nada mudou desde a versão ${u.numero}` });
+  const nota = corpo?.nota ? String(corpo.nota).trim().slice(0, 500) : null;
+  const numero = (u?.numero || 0) + 1;
+  const agora = agoraISO();
+  try {
+    await env.DB.prepare(`INSERT INTO pgt_publicacoes (tipo, numero, publicado_em, por, nota, assinatura, dados)
+      VALUES (?, ?, ?, ?, ?, ?, ?)`).bind(tipo, numero, agora, ferramenta, nota, assinatura, JSON.stringify(retrato)).run();
+  } catch (e) {
+    if (/UNIQUE/.test(String(e?.message))) throw new ErroApi(409, 'conflito', { detalhe: 'outra publicação aconteceu ao mesmo tempo; recarregue' });
+    throw e;
+  }
+  return { tipo, numero, publicado_em: agora, nota };
+}
+
+// ---------------------------------------------------------------- leituras para as páginas
+
+async function paginaBases(env) {
+  const r = await retratoBases(env);
+  // a página mostra também os arquivados (para restaurar) e as versões dos registros (para editar)
+  const [srv, cat, uso] = await env.DB.batch([
+    env.DB.prepare('SELECT id, versao, arquivado_em FROM bases_servicos'),
+    env.DB.prepare('SELECT id, versao, arquivado_em FROM bases_categorias'),
+    env.DB.prepare('SELECT id, versao, arquivado_em FROM bases_usos'),
+  ]);
+  const vers = Object.fromEntries([...srv.results, ...cat.results, ...uso.results].map((x) => [x.id, x.versao]));
+  const marcar = (l) => l.map((x) => ({ ...x, versao: vers[x.id] }));
+  const { results: arq } = await env.DB.prepare(`SELECT id, 'servico' AS tipo, nome AS nome, versao, arquivado_em FROM bases_servicos WHERE arquivado_em IS NOT NULL
+    UNION ALL SELECT id, 'categoria', nome, versao, arquivado_em FROM bases_categorias WHERE arquivado_em IS NOT NULL
+    UNION ALL SELECT id, 'uso', descricao, versao, arquivado_em FROM bases_usos WHERE arquivado_em IS NOT NULL`).all();
+  return {
+    servicos: marcar(r.servicos), categorias: marcar(r.categorias), usos: marcar(r.usos), parametros: r.parametros,
+    parametros_rotulos: Object.fromEntries(Object.entries(PARAMETROS).map(([k, v]) => [k, v.rotulo])),
+    arquivados: arq, ...(await situacao(env, 'bases', r)),
+  };
+}
+
+async function paginaPgt(env) {
+  const r = await retratoPgt(env);
+  const b = await retratoBases(env);
+  const tabelas = ['pgt_fases', 'pgt_etapas', 'pgt_entregaveis', 'pgt_materiais'];
+  const res = await env.DB.batch(tabelas.map((t) => env.DB.prepare(`SELECT id, versao FROM ${t}`)));
+  const vers = Object.fromEntries(res.flatMap((x) => x.results).map((x) => [x.id, x.versao]));
+  const marcar = (l) => l.map((x) => ({ ...x, versao: vers[x.id] }));
+  const { results: arq } = await env.DB.prepare(`SELECT id, 'etapa' AS tipo, sigla || ' · ' || nome AS nome, versao, arquivado_em FROM pgt_etapas WHERE arquivado_em IS NOT NULL
+    UNION ALL SELECT id, 'entregavel', texto, versao, arquivado_em FROM pgt_entregaveis WHERE arquivado_em IS NOT NULL
+    UNION ALL SELECT id, 'material', nome, versao, arquivado_em FROM pgt_materiais WHERE arquivado_em IS NOT NULL
+    ORDER BY arquivado_em DESC LIMIT 200`).all();
+  return {
+    fases: marcar(r.fases), etapas: marcar(r.etapas), entregaveis: marcar(r.entregaveis), materiais: marcar(r.materiais),
+    servicos: b.servicos.map((s) => ({ id: s.id, sigla: s.sigla, nome: s.nome, ordem: s.ordem, preco_por_etapa: s.preco_por_etapa })),
+    categorias: b.categorias.map((c) => ({ id: c.id, nome: c.nome, grupo: c.grupo })),
+    arquivados: arq, ...(await situacao(env, 'pgt', r)),
+  };
+}
+
+// ---------------------------------------------------------------- matrizes de pertinência
+
+const PERT = (p) => {
+  if (p === null || p === undefined || p === '') return null;
+  if (!['P', 'O'].includes(p)) throw new ErroApi(422, 'Pertinência: P (vem marcado), O (opcional) ou vazio (não se aplica)');
+  return p;
+};
+const numOuNulo = (v, rotulo) => {
+  if (v === null || v === undefined || v === '') return null;
+  const n = Number(v);
+  if (!Number.isFinite(n) || n < 0) throw new ErroApi(422, `${rotulo}: número, zero ou mais`);
+  return n;
+};
+async function ativo(env, tabela, id, rotulo) {
+  const r = await env.DB.prepare(`SELECT id FROM ${tabela} WHERE id = ? AND arquivado_em IS NULL`).bind(String(id || '')).first();
+  if (!r) throw new ErroApi(422, `${rotulo}: não encontrado`);
+}
+const hist = (env, registro, tabela, ferramenta, mudancas) => env.DB.prepare(
+  `INSERT INTO historico (registro_id, tabela, acao, por, em, mudancas) VALUES (?, ?, 'alterar', ?, ?, ?)`,
+).bind(registro, tabela, ferramenta, agoraISO(), JSON.stringify(mudancas));
+
+async function etapaServico(env, ferramenta, c) {
+  await ativo(env, 'pgt_etapas', c.etapa_id, 'Etapa');
+  await ativo(env, 'bases_servicos', c.servico_id, 'Serviço');
+  const p = PERT(c.pertinencia);
+  const peso = numOuNulo(c.peso, 'Peso');
+  const semanas = numOuNulo(c.semanas, 'Semanas');
+  const antes = await env.DB.prepare('SELECT pertinencia, peso, semanas FROM pgt_etapas_servicos WHERE etapa_id = ? AND servico_id = ?')
+    .bind(c.etapa_id, c.servico_id).first();
+  const depois = p ? { pertinencia: p, peso, semanas } : null;
+  await env.DB.batch([
+    p
+      ? env.DB.prepare(`INSERT INTO pgt_etapas_servicos (etapa_id, servico_id, pertinencia, peso, semanas) VALUES (?, ?, ?, ?, ?)
+          ON CONFLICT (etapa_id, servico_id) DO UPDATE SET pertinencia = excluded.pertinencia, peso = excluded.peso, semanas = excluded.semanas`)
+        .bind(c.etapa_id, c.servico_id, p, peso, semanas)
+      : env.DB.prepare('DELETE FROM pgt_etapas_servicos WHERE etapa_id = ? AND servico_id = ?').bind(c.etapa_id, c.servico_id),
+    hist(env, c.etapa_id, 'pgt_etapas', ferramenta, { [`servico:${c.servico_id}`]: [antes || null, depois] }),
+  ]);
+  return { ok: true, etapa_id: c.etapa_id, servico_id: c.servico_id, valor: depois };
+}
+
+async function entregaveisServico(env, ferramenta, c) {
+  const ids = [...new Set(Array.isArray(c.entregavel_ids) ? c.entregavel_ids.map(String) : [])];
+  if (!ids.length) throw new ErroApi(422, 'entregavel_ids: informe ao menos um entregável');
+  if (ids.length > 200) throw new ErroApi(422, 'no máximo 200 entregáveis por vez');
+  await ativo(env, 'bases_servicos', c.servico_id, 'Serviço');
+  const p = PERT(c.pertinencia);
+  const marcas = ids.map(() => '?').join(', ');
+  const { results: existem } = await env.DB.prepare(`SELECT id FROM pgt_entregaveis WHERE id IN (${marcas}) AND arquivado_em IS NULL`).bind(...ids).all();
+  if (existem.length !== ids.length) throw new ErroApi(422, 'algum entregável não foi encontrado (ou está arquivado)');
+  const { results: antes } = await env.DB.prepare(
+    `SELECT entregavel_id, pertinencia FROM pgt_entregaveis_servicos WHERE servico_id = ? AND entregavel_id IN (${marcas})`,
+  ).bind(c.servico_id, ...ids).all();
+  const eraDe = Object.fromEntries(antes.map((a) => [a.entregavel_id, a.pertinencia]));
+  const stmts = [];
+  let mudaram = 0;
+  for (const id of ids) {
+    const era = eraDe[id] || null;
+    if (era === p) continue;
+    mudaram++;
+    stmts.push(p
+      ? env.DB.prepare(`INSERT INTO pgt_entregaveis_servicos (entregavel_id, servico_id, pertinencia) VALUES (?, ?, ?)
+          ON CONFLICT (entregavel_id, servico_id) DO UPDATE SET pertinencia = excluded.pertinencia`).bind(id, c.servico_id, p)
+      : env.DB.prepare('DELETE FROM pgt_entregaveis_servicos WHERE entregavel_id = ? AND servico_id = ?').bind(id, c.servico_id),
+    hist(env, id, 'pgt_entregaveis', ferramenta, { [`servico:${c.servico_id}`]: [era, p] }));
+  }
+  if (stmts.length) await env.DB.batch(stmts);
+  return { ok: true, mudaram };
+}
+
+async function entregavelCategorias(env, ferramenta, c) {
+  await ativo(env, 'pgt_entregaveis', c.entregavel_id, 'Entregável');
+  const cats = [...new Set(Array.isArray(c.categorias) ? c.categorias.map(String) : [])];
+  for (const cat of cats) await ativo(env, 'bases_categorias', cat, `Categoria ${cat}`);
+  const { results } = await env.DB.prepare('SELECT categoria_id FROM pgt_entregaveis_categorias WHERE entregavel_id = ? ORDER BY categoria_id')
+    .bind(c.entregavel_id).all();
+  const antes = results.map((r) => r.categoria_id);
+  if (JSON.stringify(antes) === JSON.stringify([...cats].sort())) return { ok: true, semMudanca: true };
+  await env.DB.batch([
+    env.DB.prepare('DELETE FROM pgt_entregaveis_categorias WHERE entregavel_id = ?').bind(c.entregavel_id),
+    ...cats.map((cat) => env.DB.prepare('INSERT INTO pgt_entregaveis_categorias (entregavel_id, categoria_id) VALUES (?, ?)').bind(c.entregavel_id, cat)),
+    hist(env, c.entregavel_id, 'pgt_entregaveis', ferramenta, { categorias: [antes, cats] }),
+  ]);
+  return { ok: true, categorias: cats };
+}
+
+// Reordena: cada id recebe a posição na lista (1, 2, 3…). Não mexe na versão dos registros
+// (a ordem não é edição de conteúdo), mas fica no histórico.
+async function reordenar(env, ferramenta, c) {
+  if (!ORDENAVEIS.includes(c.tabela)) throw new ErroApi(422, 'tabela: não ordenável');
+  const ids = Array.isArray(c.ids) ? c.ids.map(String) : [];
+  if (!ids.length || ids.length > 300 || new Set(ids).size !== ids.length) throw new ErroApi(422, 'ids: lista sem repetição (até 300)');
+  const agora = agoraISO();
+  const stmts = ids.map((id, i) => env.DB.prepare(`UPDATE ${c.tabela} SET ordem = ?, atualizado_em = ?, atualizado_por = ? WHERE id = ?`)
+    .bind(i + 1, agora, ferramenta, id));
+  stmts.push(...ids.map((id, i) => hist(env, id, c.tabela, ferramenta, { ordem: [null, i + 1] })));
+  const res = await env.DB.batch(stmts);
+  const achados = res.slice(0, ids.length).filter((r) => r.meta.changes === 1).length;
+  if (achados !== ids.length) throw new ErroApi(422, 'algum registro da lista não foi encontrado');
+  return { ok: true };
+}
+
+async function parametro(env, ferramenta, c) {
+  const def = PARAMETROS[c.chave];
+  if (!def) throw new ErroApi(422, 'parâmetro desconhecido');
+  const n = Number(c.valor);
+  if (!Number.isFinite(n) || n < def.min || n > def.max) throw new ErroApi(422, `${def.rotulo}: entre ${def.min} e ${def.max}`);
+  const antes = await env.DB.prepare('SELECT valor FROM bases_parametros WHERE chave = ?').bind(c.chave).first();
+  const agora = agoraISO();
+  await env.DB.batch([
+    env.DB.prepare(`INSERT INTO bases_parametros (chave, valor, rotulo, atualizado_em, atualizado_por) VALUES (?, ?, ?, ?, ?)
+      ON CONFLICT (chave) DO UPDATE SET valor = excluded.valor, atualizado_em = excluded.atualizado_em, atualizado_por = excluded.atualizado_por`)
+      .bind(c.chave, JSON.stringify(n), def.rotulo, agora, ferramenta),
+    hist(env, `parametro:${c.chave}`, 'bases_parametros', ferramenta, { valor: [lerJson(antes?.valor), n] }),
+  ]);
+  return { ok: true, chave: c.chave, valor: n };
+}
+
+// ---------------------------------------------------------------- roteador
+// Devolve a resposta (objeto) ou undefined se a rota não for daqui.
+export async function rotasPgt(env, ferramenta, m, [rota, id, acao], corpo, url, exigir) {
+  if (rota === 'bases') {
+    if (!id && m === 'GET') { exigir('bases_servicos', ferramenta, 'L'); return paginaBases(env); }
+    if (id === 'parametros' && m === 'POST') { exigir('bases_servicos', ferramenta, 'E'); return parametro(env, ferramenta, corpo || {}); }
+    if (id === 'publicar' && m === 'POST') { exigir('bases_servicos', ferramenta, 'E'); return publicar(env, ferramenta, 'bases', corpo); }
+    throw new ErroApi(404, 'rota não encontrada');
+  }
+  if (rota === 'pgt') {
+    if (!id && m === 'GET') { exigir('pgt_etapas', ferramenta, 'L'); return paginaPgt(env); }
+    if (m !== 'POST') throw new ErroApi(405, 'método não aceito');
+    exigir('pgt_etapas', ferramenta, 'E');
+    const c = corpo || {};
+    if (id === 'etapas-servicos') return etapaServico(env, ferramenta, c);
+    if (id === 'entregaveis-servicos') return entregaveisServico(env, ferramenta, c);
+    if (id === 'entregaveis-categorias') return entregavelCategorias(env, ferramenta, c);
+    if (id === 'ordem') return reordenar(env, ferramenta, c);
+    if (id === 'publicar') return publicar(env, ferramenta, 'pgt', c);
+    throw new ErroApi(404, 'rota não encontrada');
+  }
+  if (rota === 'publicacoes' && m === 'GET') {
+    const tipo = url.searchParams.get('tipo');
+    if (!['bases', 'pgt'].includes(tipo)) throw new ErroApi(422, 'tipo: bases ou pgt');
+    exigir(tipo === 'bases' ? 'bases_servicos' : 'pgt_etapas', ferramenta, 'L');
+    if (id === 'ultima') {
+      const u = await ultima(env, tipo, true);
+      if (!u) throw new ErroApi(404, 'ainda não houve publicação');
+      return { ...u, dados: JSON.parse(u.dados) };
+    }
+    if (!id) {
+      const { results } = await env.DB.prepare(`SELECT numero, publicado_em, por, nota FROM pgt_publicacoes WHERE tipo = ?
+        ORDER BY numero DESC LIMIT 100`).bind(tipo).all();
+      return { itens: results };
+    }
+    throw new ErroApi(404, 'rota não encontrada');
+  }
+  return undefined;
+}

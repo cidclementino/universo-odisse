@@ -25,6 +25,13 @@ export const PREFIXOS = {
   prj: 'projetos',
   eta: 'etapas',
   hor: 'horas',
+  srv: 'bases_servicos',
+  tca: 'bases_categorias',
+  tus: 'bases_usos',
+  pfa: 'pgt_fases',
+  pet: 'pgt_etapas',
+  pen: 'pgt_entregaveis',
+  pma: 'pgt_materiais',
 };
 
 // Ferramentas que podem chamar a API. 'hub' = o próprio Universo (senha da equipe);
@@ -45,6 +52,11 @@ const PRODUCAO = { hub: 'L', vendas: 'L', projetos: 'E', fornecedores: 'L', mark
 // o que o marketing enxerga de um projeto (nada de cliente, valores ou observações internas)
 const PROJETO_PUBLICO = ['codigo', 'nome', 'nome_publico', 'nucleo_id', 'tipologia', 'area_m2', 'bairro', 'cidade', 'uf',
   'situacao', 'inicio', 'fim', 'publicavel'];
+
+// Bases e PGT (0005): editados nas páginas Bases e PGT da ferramenta Projetos; o vendas lê.
+const PGT = { hub: 'E', vendas: 'L', projetos: 'E', maquina: 'E' };
+export const GRUPOS_TIPOLOGIA = ['residencial', 'comercial', 'institucional', 'diversos'];
+export const TIPOS_MATERIAL = ['modelo', 'formulario', 'checklist', 'referencia'];
 
 const TODOS_E = { hub: 'E', vendas: 'E', projetos: 'E', fornecedores: 'E', marketing: 'E', maquina: 'E' };
 
@@ -391,6 +403,123 @@ export const TABELAS = {
     filtros: ['equipe_id', 'projeto_id', 'etapa_id', 'data'],
     ordem: 'data DESC, criado_em DESC',
   },
+
+  // ---------------------------------------------------------------- Bases (0005)
+  // sigla em maiúsculas e ic_ajustes/ic_preset conferidos em regras.js
+  bases_servicos: {
+    prefixo: 'srv',
+    campos: {
+      sigla: T('texto', { obrig: true, max: 4, rotulo: 'Sigla' }),
+      nome: T('texto', { obrig: true, max: 120, rotulo: 'Nome' }),
+      descricao: T('textoLongo', { max: 2000, rotulo: 'Descrição' }),
+      ordem: T('inteiro', { min: 0, max: 999, rotulo: 'Ordem' }),
+      modificador: T('real', { rotulo: 'Modificador' }),
+      pede_tipologia: T('sn', { rotulo: 'Pede tipologia' }),
+      com_preco: T('sn', { rotulo: 'Tem preço' }),
+      preco_por_etapa: T('sn', { rotulo: 'Preço repartido por etapa' }),
+      ic_ajustes: T('json', { max: 4000, rotulo: 'Ajustes do índice de complexidade' }),
+      observacoes: T('textoLongo', { max: 4000, rotulo: 'Observações' }),
+    },
+    padroes: { pede_tipologia: 1, com_preco: 1, preco_por_etapa: 0 },
+    permissoes: PGT,
+    filtros: [],
+    ordem: 'ordem, nome',
+  },
+
+  bases_categorias: {
+    prefixo: 'tca',
+    campos: {
+      grupo: T('lista', { obrig: true, valores: GRUPOS_TIPOLOGIA, rotulo: 'Grupo' }),
+      nome: T('texto', { obrig: true, max: 120, rotulo: 'Nome' }),
+      ordem: T('inteiro', { min: 0, max: 999, rotulo: 'Ordem' }),
+      ic_preset: T('json', { max: 4000, rotulo: 'Índice de complexidade' }),
+      observacoes: T('textoLongo', { max: 4000, rotulo: 'Observações' }),
+    },
+    permissoes: PGT,
+    filtros: ['grupo'],
+    ordem: 'ordem, nome',
+  },
+
+  bases_usos: {
+    prefixo: 'tus',
+    campos: {
+      categoria_id: T('ref', { obrig: true, prefixos: ['tca'], rotulo: 'Categoria' }),
+      item: T('texto', { max: 20, rotulo: 'Item do CAU' }),
+      descricao: T('texto', { obrig: true, max: 300, rotulo: 'Descrição' }),
+      categoria_cau: T('inteiro', { min: 1, max: 4, rotulo: 'Categoria do fator percentual (CAU)' }),
+      cub_codigo: T('texto', { max: 20, rotulo: 'Código do CUB' }),
+      cub_referencia: T('real', { rotulo: 'CUB de referência' }),
+      fator_adequacao: T('real', { rotulo: 'Fator de adequação' }),
+      ordem: T('inteiro', { min: 0, max: 999, rotulo: 'Ordem' }),
+      observacoes: T('textoLongo', { max: 4000, rotulo: 'Observações' }),
+    },
+    permissoes: PGT,
+    filtros: ['categoria_id'],
+    ordem: 'categoria_id, ordem',
+  },
+
+  // ---------------------------------------------------------------- PGT (0005)
+  pgt_fases: {
+    prefixo: 'pfa',
+    campos: {
+      nome: T('texto', { obrig: true, max: 80, rotulo: 'Nome' }),
+      ordem: T('inteiro', { min: 0, max: 999, rotulo: 'Ordem' }),
+      ilha: T('sn', { rotulo: 'Fora do fluxo (ilha)' }),
+      parcela: T('real', { rotulo: 'Parcela do pagamento' }),
+      descricao: T('textoLongo', { max: 2000, rotulo: 'Descrição' }),
+    },
+    padroes: { ilha: 0 },
+    permissoes: PGT,
+    filtros: [],
+    ordem: 'ordem',
+  },
+
+  pgt_etapas: {
+    prefixo: 'pet',
+    campos: {
+      fase_id: T('ref', { obrig: true, prefixos: ['pfa'], rotulo: 'Fase' }),
+      sigla: T('texto', { obrig: true, max: 4, rotulo: 'Sigla' }),
+      nome: T('texto', { obrig: true, max: 120, rotulo: 'Nome' }),
+      ordem: T('inteiro', { min: 0, max: 999, rotulo: 'Ordem' }),
+      nbr_nome: T('texto', { max: 120, rotulo: 'Nome na NBR' }),
+      nbr_sigla: T('texto', { max: 20, rotulo: 'Sigla na NBR' }),
+      nbr_nota: T('texto', { max: 300, rotulo: 'Nota sobre a NBR' }),
+      descricao: T('textoLongo', { max: 4000, rotulo: 'Descrição (contrato)' }),
+      semanas_base: T('real', { rotulo: 'Semanas' }),
+    },
+    permissoes: PGT,
+    filtros: ['fase_id'],
+    ordem: 'ordem',
+  },
+
+  pgt_entregaveis: {
+    prefixo: 'pen',
+    campos: {
+      etapa_id: T('ref', { obrig: true, prefixos: ['pet'], rotulo: 'Etapa' }),
+      texto: T('texto', { obrig: true, max: 400, rotulo: 'Texto (contrato)' }),
+      ordem: T('inteiro', { min: 0, max: 999, rotulo: 'Ordem' }),
+      observacoes: T('textoLongo', { max: 4000, rotulo: 'Observações' }),
+    },
+    permissoes: PGT,
+    filtros: ['etapa_id'],
+    ordem: 'etapa_id, ordem',
+  },
+
+  pgt_materiais: {
+    prefixo: 'pma',
+    campos: {
+      alvo_id: T('ref', { obrig: true, prefixos: ['pet', 'pen'], rotulo: 'Etapa ou entregável' }),
+      tipo: T('lista', { obrig: true, valores: TIPOS_MATERIAL, rotulo: 'Tipo' }),
+      nome: T('texto', { obrig: true, max: 160, rotulo: 'Nome' }),
+      descricao: T('textoLongo', { max: 2000, rotulo: 'Descrição' }),
+      link: T('url', { rotulo: 'Link' }),
+      arquivo_id: T('ref', { prefixos: ['arq'], rotulo: 'Arquivo' }),
+      ordem: T('inteiro', { min: 0, max: 999, rotulo: 'Ordem' }),
+    },
+    permissoes: PGT,
+    filtros: ['alvo_id', 'tipo'],
+    ordem: 'alvo_id, ordem',
+  },
 };
 
 // Rotas da API → tabela. Pessoas sensíveis têm rota própria, pendurada na pessoa.
@@ -412,6 +541,13 @@ export const ROTAS = {
   'projetos-local': 'projetos_local',
   etapas: 'etapas',
   horas: 'horas',
+  'bases-servicos': 'bases_servicos',
+  'bases-categorias': 'bases_categorias',
+  'bases-usos': 'bases_usos',
+  'pgt-fases': 'pgt_fases',
+  'pgt-etapas': 'pgt_etapas',
+  'pgt-entregaveis': 'pgt_entregaveis',
+  'pgt-materiais': 'pgt_materiais',
 };
 
 export const COMUNS = ['id', 'criado_em', 'atualizado_em', 'criado_por', 'atualizado_por', 'versao', 'arquivado_em'];

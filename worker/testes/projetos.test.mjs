@@ -38,7 +38,7 @@ const ctr = (await chamar('POST', 'contratos', { proposta_id: ppt.id, situacao: 
 ok(ctr.projeto_id && ctr.projeto_id.startsWith('prj_'), 'contrato assinado ganhou projeto ' + ctr.projeto_id);
 ok(ctr.valor_total === 4500000, 'valor do contrato veio da proposta');
 const prj = (await chamar('GET', 'projetos/' + ctr.projeto_id)).registro;
-ok(prj.codigo === '2026-052', 'código continua do 051: ' + prj.codigo);
+ok(prj.codigo === 'OA-2026-052', 'código continua do 051: ' + prj.codigo);
 ok(prj.cliente_id === ana.id && prj.oportunidade_id === opo.id && prj.contrato_id === ctr.id, 'projeto com cliente, oportunidade e contrato');
 ok(prj.previsao_fim === '2026-12-21', 'previsão de fim = início + 5 semanas: ' + prj.previsao_fim);
 const ficha = await chamar('GET', 'producao/projetos/' + prj.id);
@@ -50,7 +50,7 @@ ok((await chamar('GET', 'propostas/' + ppt.id)).registro.situacao === 'aceita', 
 const opoDepois = (await chamar('GET', 'oportunidades/' + opo.id)).registro;
 ok(opoDepois.etapa_funil === 'ganha' && opoDepois.fechada_em, 'oportunidade virou ganha');
 const painelCom = await chamar('GET', 'comercial/painel');
-ok(painelCom.itens.find((x) => x.id === opo.id).projeto.codigo === '2026-052', 'funil mostra o projeto da oportunidade');
+ok(painelCom.itens.find((x) => x.id === opo.id).projeto.codigo === 'OA-2026-052', 'funil mostra o projeto da oportunidade');
 const marketingLe = (await chamar('GET', 'producao/projetos/' + prj.id, null, 'hub')).local === undefined;
 ok(marketingLe, 'hub lê a ficha sem o local');
 ok(await falha('GET', 'producao/painel', null, 'marketing') === 403, 'marketing não lê o painel (tem clientes)');
@@ -62,7 +62,7 @@ const c2 = (await chamar('POST', 'contratos', { proposta_id: ppt2.id })).registr
 ok(!c2.projeto_id && c2.situacao === 'rascunho', 'contrato em rascunho não cria projeto');
 const c2b = (await chamar('PATCH', 'contratos/' + c2.id, { versao: c2.versao, situacao: 'assinado', projeto: { etapas: [{ nome: 'Estudo', semanas: 1 }] } })).registro;
 const prj2 = (await chamar('GET', 'projetos/' + c2b.projeto_id)).registro;
-ok(prj2.codigo === '2026-053' && prj2.nome === 'Sala Lins' && c2b.assinado_em, 'PATCH para assinado cria o projeto 2026-053 com nome da oportunidade');
+ok(prj2.codigo === 'OA-2026-053' && prj2.nome === 'Sala Lins' && c2b.assinado_em, 'PATCH para assinado cria o projeto OA-2026-053 com nome da oportunidade');
 ok(await falha('PATCH', 'contratos/' + c2.id, { versao: c2.versao, situacao: 'assinado' }) === 409, 'versão velha → 409, sem projeto duplicado');
 ok((await chamar('GET', 'projetos?oportunidade_id=' + opo2.id, null, 'projetos')).itens.length === 1, 'continua um projeto só');
 
@@ -73,14 +73,14 @@ ok(await falha('POST', 'contratos', { proposta_id: sim.id, situacao: 'assinado' 
 // cadastro manual com código antigo (projeto anterior ao Universo)
 const avs = (await chamar('POST', 'projetos', { nome: 'Retrofit AVS', codigo: '2026-031', inicio: '2026-05-04', nucleo_id: 'arquitetos',
   etapas: [{ nome: 'Levantamento', semanas: 2, situacao: 'concluida' }] }, 'projetos')).registro;
-ok(avs.codigo === '2026-031' && avs.numero === 31, 'manual aceita o código que já existia');
+ok(avs.codigo === 'OA-2026-031' && avs.numero === 31, 'manual aceita o código que já existia');
 ok(await falha('POST', 'projetos', { nome: 'Outro', codigo: '2026-031' }, 'projetos') === 409, 'código repetido → 409');
 const novo = (await chamar('POST', 'projetos', { nome: 'Antigo', codigo: '2025-047' }, 'projetos')).registro;
 ok(novo.ano === 2025, 'código de outro ano');
 const auto = (await chamar('POST', 'projetos', { nome: 'Manual novo', inicio: '2026-11-20' }, 'projetos')).registro;
-ok(auto.codigo === '2026-054', 'manual sem código segue a sequência: ' + auto.codigo);
+ok(auto.codigo === 'OA-2026-054', 'manual sem código segue a sequência: ' + auto.codigo);
 const em2027 = (await chamar('POST', 'projetos', { nome: 'Ano novo', inicio: '2027-01-10' }, 'projetos')).registro;
-ok(em2027.codigo === '2027-001', 'em 2027 recomeça do 001');
+ok(em2027.codigo === 'OA-2027-001', 'em 2027 recomeça do 001');
 ok(await falha('POST', 'projetos', { nome: 'x' }, 'vendas') === 403, 'vendas não cria projeto à mão');
 
 // equipe e horas
@@ -99,7 +99,7 @@ const linha = painel.itens.find((x) => x.id === prj.id);
 ok(linha.minutos === 210 && linha.etapa_atual.nome === 'Programação Projetual' && linha.coclientes[0] === 'Rafael Lins', 'painel com horas, etapa atual e co-clientes');
 ok(painel.equipe.length === 1 && painel.equipe[0].nome === 'Cid Clementino', 'painel traz a equipe');
 const hp = await chamar('GET', 'producao/horas?de=2026-11-17&ate=2026-11-17', null, 'projetos');
-ok(hp.itens.length === 1 && hp.itens[0].projeto_codigo === '2026-052', 'horas do período com o código do projeto');
+ok(hp.itens.length === 1 && hp.itens[0].projeto_codigo === 'OA-2026-052', 'horas do período com o código do projeto');
 
 // marketing: só o nome público
 await chamar('PATCH', 'projetos/' + prj.id, { versao: prj.versao, nome_publico: 'Casa das Ostras' }, 'marketing');
