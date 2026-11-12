@@ -54,6 +54,8 @@ const PROJETO_PUBLICO = ['codigo', 'nome', 'nome_publico', 'nucleo_id', 'tipolog
   'situacao', 'inicio', 'fim', 'publicavel'];
 
 // Bases e PGT (0005): editados nas páginas Bases e PGT da ferramenta Projetos; o vendas lê.
+// Exceção (0006): os campos de custo (preço do serviço, parcela da fase) são editados pelo vendas,
+// na página Honorários; os pesos das etapas têm rota própria (pgt.js).
 const PGT = { hub: 'E', vendas: 'L', projetos: 'E', maquina: 'E' };
 export const GRUPOS_TIPOLOGIA = ['residencial', 'comercial', 'institucional', 'diversos'];
 export const TIPOS_MATERIAL = ['modelo', 'formulario', 'checklist', 'referencia'];
@@ -422,6 +424,7 @@ export const TABELAS = {
     },
     padroes: { pede_tipologia: 1, com_preco: 1, preco_por_etapa: 0 },
     permissoes: PGT,
+    editaveis_por: { vendas: ['modificador', 'com_preco', 'preco_por_etapa'] },
     filtros: [],
     ordem: 'ordem, nome',
   },
@@ -470,6 +473,7 @@ export const TABELAS = {
     },
     padroes: { ilha: 0 },
     permissoes: PGT,
+    editaveis_por: { vendas: ['parcela'] },
     filtros: [],
     ordem: 'ordem',
   },

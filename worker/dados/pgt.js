@@ -1,20 +1,26 @@
 // Bases e Plano Geral de Trabalho (PGT) — migração 0005. Casa: páginas Bases e PGT da ferramenta Projetos.
+// Honorários (0006): o custo (preço dos serviços, pesos das etapas, parcelas) mora nas mesmas tabelas, mas
+// é editado e publicado pela página Honorários do vendas. Projetos = estrutura; vendas = custo.
 //
 // Os registros (serviços, categorias, usos, fases, etapas, entregáveis, materiais) usam as rotas comuns
 // da API (bases-servicos, pgt-etapas…). Aqui ficam as leituras juntadas, as matrizes de pertinência e a
 // publicação:
 //
-//   GET  bases                               -> serviços, categorias, usos, parâmetros + publicação e pendência
-//   POST bases/parametros  { chave, valor }
+//   GET  bases                               -> serviços, categorias, usos + publicação e pendência
 //   GET  pgt                                 -> fases, etapas (com serviços), entregáveis (com código, serviços e
 //                                               categorias), materiais, serviços e categorias das Bases
-//   POST pgt/etapas-servicos       { etapa_id, servico_id, pertinencia: 'P'|'O'|null, peso, semanas }
+//   POST pgt/etapas-servicos       { etapa_id, servico_id, pertinencia: 'P'|'O'|null, semanas }  (o peso fica)
 //   POST pgt/entregaveis-servicos  { entregavel_ids: [...], servico_id, pertinencia: 'P'|'O'|null }   (em massa)
 //   POST pgt/entregaveis-categorias { entregavel_id, categorias: [tca_…] }   (substitui; vazio = todas)
 //   POST pgt/ordem                 { tabela: 'pgt_entregaveis'|'pgt_etapas'|…, ids: [...] }  (ordem = posição)
 //   POST bases/publicar | pgt/publicar  { nota }  -> retrato numerado (409 nada_mudou se igual ao último)
-//   GET  publicacoes?tipo=bases|pgt              -> lista (sem os dados)
-//   GET  publicacoes/ultima?tipo=bases|pgt       -> último retrato com os dados (o vendas vai ler este)
+//   GET  honorarios                          -> preço dos serviços, fases com parcela, etapas com pesos, parâmetros
+//   POST honorarios/pesos       { etapa_id, servico_id, peso }   (só onde a etapa vale para o serviço)
+//   POST honorarios/parametros  { chave, valor }
+//   POST honorarios/publicar    { nota }
+//   (preço dos serviços e parcela das fases: PATCH bases-servicos / pgt-fases, campos liberados ao vendas)
+//   GET  publicacoes?tipo=bases|pgt|honorarios         -> lista (sem os dados)
+//   GET  publicacoes/ultima?tipo=bases|pgt|honorarios  -> último retrato com os dados (o vendas vai ler este)
 //
 // "Pendente" = o rascunho (as tabelas vivas) difere do último retrato publicado (assinatura SHA-256).
 
@@ -23,6 +29,10 @@ import { agoraISO } from './util.js';
 
 const lerJson = (s) => (s ? JSON.parse(s) : null);
 const PARAMETROS = { parcela_entrada: { rotulo: 'Parcela de entrada (na assinatura)', min: 0, max: 1 } };
+// campos de custo: fora dos retratos de estrutura, dentro do retrato de honorários
+const PRECO_SERVICO = ['modificador', 'com_preco', 'preco_por_etapa'];
+// quem edita os honorários (o Projetos só lê)
+const HONORARIOS = { hub: 'E', vendas: 'E', maquina: 'E', projetos: 'L' };
 const ORDENAVEIS = ['bases_servicos', 'bases_categorias', 'bases_usos', 'pgt_fases', 'pgt_etapas', 'pgt_entregaveis', 'pgt_materiais'];
 
 async function sha256(texto) {
@@ -39,18 +49,16 @@ const sem = (r, ...fora) => {
 };
 
 export async function retratoBases(env) {
-  const [srv, cat, uso, par] = await env.DB.batch([
+  const [srv, cat, uso] = await env.DB.batch([
     env.DB.prepare('SELECT * FROM bases_servicos WHERE arquivado_em IS NULL ORDER BY ordem, nome'),
     env.DB.prepare('SELECT * FROM bases_categorias WHERE arquivado_em IS NULL ORDER BY ordem, nome'),
     env.DB.prepare(`SELECT u.* FROM bases_usos u JOIN bases_categorias c ON c.id = u.categoria_id
       WHERE u.arquivado_em IS NULL AND c.arquivado_em IS NULL ORDER BY c.ordem, u.ordem`),
-    env.DB.prepare('SELECT chave, valor FROM bases_parametros ORDER BY chave'),
   ]);
   return {
-    servicos: srv.results.map((r) => ({ ...sem(r), ic_ajustes: lerJson(r.ic_ajustes) || {} })),
+    servicos: srv.results.map((r) => ({ ...sem(r, ...PRECO_SERVICO), ic_ajustes: lerJson(r.ic_ajustes) || {} })),
     categorias: cat.results.map((r) => ({ ...sem(r), ic_preset: lerJson(r.ic_preset) || {} })),
     usos: uso.results.map((r) => sem(r)),
-    parametros: Object.fromEntries(par.results.map((p) => [p.chave, lerJson(p.valor)])),
   };
 }
 
@@ -69,7 +77,7 @@ export async function retratoPgt(env) {
     env.DB.prepare('SELECT * FROM pgt_materiais WHERE arquivado_em IS NULL ORDER BY alvo_id, ordem'),
   ]);
   const porEtapa = {};
-  for (const x of es.results) (porEtapa[x.etapa_id] ||= {})[x.servico_id] = { pertinencia: x.pertinencia, peso: x.peso, semanas: x.semanas };
+  for (const x of es.results) (porEtapa[x.etapa_id] ||= {})[x.servico_id] = { pertinencia: x.pertinencia, semanas: x.semanas };
   const porEnt = {};
   for (const x of ens.results) (porEnt[x.entregavel_id] ||= {})[x.servico_id] = x.pertinencia;
   const catEnt = {};
@@ -83,10 +91,29 @@ export async function retratoPgt(env) {
     return { ...sem(r), codigo: `${sigla[r.etapa_id]}-${String(pos[r.etapa_id]).padStart(2, '0')}`,
       servicos: porEnt[r.id] || {}, categorias: catEnt[r.id] || [] };
   });
-  return { fases: fas.results.map((r) => sem(r)), etapas, entregaveis, materiais: mat.results.map((r) => sem(r)) };
+  return { fases: fas.results.map((r) => sem(r, 'parcela')), etapas, entregaveis, materiais: mat.results.map((r) => sem(r)) };
 }
 
-const RETRATOS = { bases: retratoBases, pgt: retratoPgt };
+// Honorários: o custo sobre a estrutura. Pesos só onde a etapa vale para o serviço (P ou O).
+export async function retratoHonorarios(env) {
+  const [srv, fas, es, par] = await env.DB.batch([
+    env.DB.prepare(`SELECT id, sigla, nome, ${PRECO_SERVICO.join(', ')} FROM bases_servicos WHERE arquivado_em IS NULL ORDER BY ordem, nome`),
+    env.DB.prepare('SELECT id, nome, ilha, parcela FROM pgt_fases WHERE arquivado_em IS NULL ORDER BY ordem'),
+    env.DB.prepare(`SELECT x.etapa_id, x.servico_id, x.peso FROM pgt_etapas_servicos x
+      JOIN bases_servicos s ON s.id = x.servico_id JOIN pgt_etapas e ON e.id = x.etapa_id JOIN pgt_fases f ON f.id = e.fase_id
+      WHERE s.arquivado_em IS NULL AND e.arquivado_em IS NULL AND f.arquivado_em IS NULL AND x.peso IS NOT NULL
+      ORDER BY f.ordem, e.ordem, s.ordem`),
+    env.DB.prepare('SELECT chave, valor FROM bases_parametros ORDER BY chave'),
+  ]);
+  const pesos = {};
+  for (const x of es.results) (pesos[x.etapa_id] ||= {})[x.servico_id] = x.peso;
+  return {
+    servicos: srv.results, fases: fas.results, pesos,
+    parametros: Object.fromEntries(par.results.map((p) => [p.chave, lerJson(p.valor)])),
+  };
+}
+
+const RETRATOS = { bases: retratoBases, pgt: retratoPgt, honorarios: retratoHonorarios };
 
 async function ultima(env, tipo, comDados = false) {
   return env.DB.prepare(`SELECT id, tipo, numero, publicado_em, por, nota, assinatura${comDados ? ', dados' : ''}
@@ -102,8 +129,10 @@ async function situacao(env, tipo, retrato) {
 
 async function publicar(env, ferramenta, tipo, corpo) {
   const retrato = await RETRATOS[tipo](env);
-  if (tipo === 'pgt') retrato.bases_numero = (await ultima(env, 'bases'))?.numero ?? null;
-  const assinatura = await sha256(JSON.stringify(tipo === 'pgt' ? { ...retrato, bases_numero: undefined } : retrato));
+  const assinatura = await sha256(JSON.stringify(retrato));
+  // versões de que este retrato depende (não entram na assinatura)
+  if (tipo !== 'bases') retrato.bases_numero = (await ultima(env, 'bases'))?.numero ?? null;
+  if (tipo === 'honorarios') retrato.pgt_numero = (await ultima(env, 'pgt'))?.numero ?? null;
   const u = await ultima(env, tipo);
   if (u && u.assinatura === assinatura) throw new ErroApi(409, 'nada_mudou', { detalhe: `nada mudou desde a versão ${u.numero}` });
   const nota = corpo?.nota ? String(corpo.nota).trim().slice(0, 500) : null;
@@ -135,8 +164,7 @@ async function paginaBases(env) {
     UNION ALL SELECT id, 'categoria', nome, versao, arquivado_em FROM bases_categorias WHERE arquivado_em IS NOT NULL
     UNION ALL SELECT id, 'uso', descricao, versao, arquivado_em FROM bases_usos WHERE arquivado_em IS NOT NULL`).all();
   return {
-    servicos: marcar(r.servicos), categorias: marcar(r.categorias), usos: marcar(r.usos), parametros: r.parametros,
-    parametros_rotulos: Object.fromEntries(Object.entries(PARAMETROS).map(([k, v]) => [k, v.rotulo])),
+    servicos: marcar(r.servicos), categorias: marcar(r.categorias), usos: marcar(r.usos),
     arquivados: arq, ...(await situacao(env, 'bases', r)),
   };
 }
@@ -154,10 +182,48 @@ async function paginaPgt(env) {
     ORDER BY arquivado_em DESC LIMIT 200`).all();
   return {
     fases: marcar(r.fases), etapas: marcar(r.etapas), entregaveis: marcar(r.entregaveis), materiais: marcar(r.materiais),
-    servicos: b.servicos.map((s) => ({ id: s.id, sigla: s.sigla, nome: s.nome, ordem: s.ordem, preco_por_etapa: s.preco_por_etapa })),
+    servicos: b.servicos.map((s) => ({ id: s.id, sigla: s.sigla, nome: s.nome, ordem: s.ordem })),
     categorias: b.categorias.map((c) => ({ id: c.id, nome: c.nome, grupo: c.grupo })),
     arquivados: arq, ...(await situacao(env, 'pgt', r)),
   };
+}
+
+async function paginaHonorarios(env) {
+  const r = await retratoHonorarios(env);
+  const [srv, fas, eta, es] = await env.DB.batch([
+    env.DB.prepare('SELECT id, versao FROM bases_servicos WHERE arquivado_em IS NULL'),
+    env.DB.prepare('SELECT id, versao FROM pgt_fases WHERE arquivado_em IS NULL'),
+    env.DB.prepare(`SELECT e.id, e.fase_id, e.sigla, e.nome FROM pgt_etapas e JOIN pgt_fases f ON f.id = e.fase_id
+      WHERE e.arquivado_em IS NULL AND f.arquivado_em IS NULL ORDER BY f.ordem, e.ordem`),
+    env.DB.prepare('SELECT etapa_id, servico_id, pertinencia, peso FROM pgt_etapas_servicos'),
+  ]);
+  const vers = Object.fromEntries([...srv.results, ...fas.results].map((x) => [x.id, x.versao]));
+  const porEtapa = {};
+  for (const x of es.results) (porEtapa[x.etapa_id] ||= {})[x.servico_id] = { pertinencia: x.pertinencia, peso: x.peso };
+  return {
+    servicos: r.servicos.map((s) => ({ ...s, versao: vers[s.id] })),
+    fases: r.fases.map((f) => ({ ...f, versao: vers[f.id] })),
+    etapas: eta.results.map((e) => ({ ...e, servicos: porEtapa[e.id] || {} })),
+    parametros: r.parametros,
+    parametros_rotulos: Object.fromEntries(Object.entries(PARAMETROS).map(([k, v]) => [k, v.rotulo])),
+    ...(await situacao(env, 'honorarios', r)),
+  };
+}
+
+async function pesoEtapa(env, ferramenta, c) {
+  await ativo(env, 'pgt_etapas', c.etapa_id, 'Etapa');
+  await ativo(env, 'bases_servicos', c.servico_id, 'Serviço');
+  const peso = numOuNulo(c.peso, 'Peso');
+  if (peso !== null && peso > 100) throw new ErroApi(422, 'Peso: de 0 a 100');
+  const antes = await env.DB.prepare('SELECT peso FROM pgt_etapas_servicos WHERE etapa_id = ? AND servico_id = ?')
+    .bind(c.etapa_id, c.servico_id).first();
+  if (!antes) throw new ErroApi(422, 'esta etapa não vale para este serviço (marque no Plano Geral de Trabalho)');
+  if ((antes.peso ?? null) === peso) return { ok: true, semMudanca: true };
+  await env.DB.batch([
+    env.DB.prepare('UPDATE pgt_etapas_servicos SET peso = ? WHERE etapa_id = ? AND servico_id = ?').bind(peso, c.etapa_id, c.servico_id),
+    hist(env, c.etapa_id, 'pgt_etapas', ferramenta, { [`peso:${c.servico_id}`]: [antes.peso ?? null, peso] }),
+  ]);
+  return { ok: true, etapa_id: c.etapa_id, servico_id: c.servico_id, peso };
 }
 
 // ---------------------------------------------------------------- matrizes de pertinência
@@ -185,10 +251,11 @@ async function etapaServico(env, ferramenta, c) {
   await ativo(env, 'pgt_etapas', c.etapa_id, 'Etapa');
   await ativo(env, 'bases_servicos', c.servico_id, 'Serviço');
   const p = PERT(c.pertinencia);
-  const peso = numOuNulo(c.peso, 'Peso');
   const semanas = numOuNulo(c.semanas, 'Semanas');
   const antes = await env.DB.prepare('SELECT pertinencia, peso, semanas FROM pgt_etapas_servicos WHERE etapa_id = ? AND servico_id = ?')
     .bind(c.etapa_id, c.servico_id).first();
+  // o peso é dos honorários (vendas): aqui só entra se vier explícito; senão, fica o que estava
+  const peso = 'peso' in c ? numOuNulo(c.peso, 'Peso') : (antes?.peso ?? null);
   const depois = p ? { pertinencia: p, peso, semanas } : null;
   await env.DB.batch([
     p
@@ -283,7 +350,6 @@ async function parametro(env, ferramenta, c) {
 export async function rotasPgt(env, ferramenta, m, [rota, id, acao], corpo, url, exigir) {
   if (rota === 'bases') {
     if (!id && m === 'GET') { exigir('bases_servicos', ferramenta, 'L'); return paginaBases(env); }
-    if (id === 'parametros' && m === 'POST') { exigir('bases_servicos', ferramenta, 'E'); return parametro(env, ferramenta, corpo || {}); }
     if (id === 'publicar' && m === 'POST') { exigir('bases_servicos', ferramenta, 'E'); return publicar(env, ferramenta, 'bases', corpo); }
     throw new ErroApi(404, 'rota não encontrada');
   }
@@ -299,10 +365,23 @@ export async function rotasPgt(env, ferramenta, m, [rota, id, acao], corpo, url,
     if (id === 'publicar') return publicar(env, ferramenta, 'pgt', c);
     throw new ErroApi(404, 'rota não encontrada');
   }
+  if (rota === 'honorarios') {
+    const pode = HONORARIOS[ferramenta];
+    if (!pode) throw new ErroApi(403, 'esta ferramenta não pode ver isto');
+    if (!id && m === 'GET') return paginaHonorarios(env);
+    if (m !== 'POST') throw new ErroApi(405, 'método não aceito');
+    if (pode !== 'E') throw new ErroApi(403, 'esta ferramenta não pode editar isto');
+    const c = corpo || {};
+    if (id === 'pesos') return pesoEtapa(env, ferramenta, c);
+    if (id === 'parametros') return parametro(env, ferramenta, c);
+    if (id === 'publicar') return publicar(env, ferramenta, 'honorarios', c);
+    throw new ErroApi(404, 'rota não encontrada');
+  }
   if (rota === 'publicacoes' && m === 'GET') {
     const tipo = url.searchParams.get('tipo');
-    if (!['bases', 'pgt'].includes(tipo)) throw new ErroApi(422, 'tipo: bases ou pgt');
-    exigir(tipo === 'bases' ? 'bases_servicos' : 'pgt_etapas', ferramenta, 'L');
+    if (!['bases', 'pgt', 'honorarios'].includes(tipo)) throw new ErroApi(422, 'tipo: bases, pgt ou honorarios');
+    if (tipo === 'honorarios') { if (!HONORARIOS[ferramenta]) throw new ErroApi(403, 'esta ferramenta não pode ver isto'); }
+    else exigir(tipo === 'bases' ? 'bases_servicos' : 'pgt_etapas', ferramenta, 'L');
     if (id === 'ultima') {
       const u = await ultima(env, tipo, true);
       if (!u) throw new ErroApi(404, 'ainda não houve publicação');

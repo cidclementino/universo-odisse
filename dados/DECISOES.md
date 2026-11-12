@@ -98,6 +98,13 @@ Compromissos aceitos: o hub é ponto único de falha para os dados comuns; mudan
 - **Materiais**: nesta migração só estrutura e link; envio de arquivos e criação de formulários e checklists vêm depois.
 - **Códigos com o ano antes do número** (decisão do Cid, 12/11): projeto `OA-AAAA-NNN`, proposta `PC-AAAA-NNNN`, contrato `CT-AAAA-NNNN`. A 0005 renomeou os projetos que já existiam (`2026-052` → `OA-2026-052`, com histórico e busca), porque o código do projeto é interno (pastas e arquivos). Propostas e contratos já emitidos ficam com o código antigo: ele está impresso no PDF que o cliente recebeu. Revisão de uma proposta antiga continua no formato antigo (mesmo número). O cadastro manual aceita `OA-2026-031` ou `2026-031`.
 
+## Honorários (migração 0006, casa: vendas)
+
+- **Projetos = estrutura, vendas = custo** (decisão do Cid, 12/11): preço dos serviços (`modificador`, `com_preco`, `preco_por_etapa`), parcela de cada fase, pesos das etapas na matriz etapa × serviço e parcela de entrada saíram das páginas Bases e PGT e dos retratos `bases` e `pgt`. Continuam nas mesmas tabelas, mas formam o retrato **`honorarios`**, editado e publicado pela página Honorários do vendas. O CUB vigente e a base de honorários (CUB × fator) também só aparecem no vendas; nas Bases fica o código do CUB de cada uso.
+- **Permissões**: o vendas muda só os campos de custo (`editaveis_por` em `bases_servicos` e `pgt_fases`) e os pesos (`POST honorarios/pesos`, só onde a etapa vale para o serviço); o Projetos lê os honorários e não os edita. Alternar a pertinência no PGT mantém o peso que havia (`pgt/etapas-servicos` só grava o peso se ele vier no pedido).
+- O retrato dos honorários leva os números das Bases e do PGT publicados na hora (`bases_numero`, `pgt_numero`), fora da assinatura. A proposta vai registrar as três versões.
+- A 0006 refaz `pgt_publicacoes` para aceitar o tipo `honorarios` (o CHECK do SQLite não se altera), mantendo os retratos já publicados. Como os retratos de Bases e PGT mudaram de forma, as duas páginas aparecem "pendentes" uma vez depois desta mudança.
+
 ## Como mudar a estrutura
 
 1. Nova migração em `dados/migracoes/NNNN_nome.sql` (nunca editar uma já aplicada).
