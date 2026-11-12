@@ -9,11 +9,11 @@
 //   GET  bases                               -> serviços, categorias, usos + publicação e pendência
 //   GET  pgt                                 -> fases, etapas (com serviços), entregáveis (com código, serviços e
 //                                               categorias), materiais, serviços e categorias das Bases
-//   POST pgt/etapas-servicos       { etapa_id, servico_id, pertinencia: 'P'|'O'|null, semanas }  (o peso fica)
+//   (desde a 0007 a pertinência da etapa é calculada dos entregáveis; POST pgt/etapas-servicos responde 422)
 //   POST pgt/entregaveis-servicos  { entregavel_ids: [...], servico_id, pertinencia: 'P'|'O'|null }   (em massa)
 //   POST pgt/entregaveis-categorias { entregavel_id, categorias: [tca_…] }   (substitui; vazio = todas)
 //   POST pgt/ordem                 { tabela: 'pgt_entregaveis'|'pgt_etapas'|…, ids: [...] }  (ordem = posição)
-//   POST pgt/lote                  { ops: [{ tipo: 'etapas-servicos'|'entregaveis-servicos'|'ordem', … }] }  (até 500)
+//   POST pgt/lote                  { ops: [{ tipo: 'campos'|'entregaveis-servicos'|'entregaveis-categorias'|'ordem', … }] }  (até 500)
 //   POST bases/publicar | pgt/publicar  { nota }  -> retrato numerado (409 nada_mudou se igual ao último)
 //   GET  honorarios                          -> preço dos serviços, fases com parcela, etapas com pesos, parâmetros
 //   POST honorarios/pesos       { etapa_id, servico_id, peso }   (só onde a etapa vale para o serviço)
@@ -63,13 +63,26 @@ export async function retratoBases(env) {
   };
 }
 
+// Pertinência da etapa × serviço, calculada dos entregáveis (0007): P se algum entregável é P; O se só há O.
+const SQL_PERT_DERIVADA = `SELECT e.etapa_id, x.servico_id, MAX(CASE x.pertinencia WHEN 'P' THEN 2 ELSE 1 END) AS n
+  FROM pgt_entregaveis e JOIN pgt_entregaveis_servicos x ON x.entregavel_id = e.id JOIN bases_servicos s ON s.id = x.servico_id
+  WHERE e.arquivado_em IS NULL AND s.arquivado_em IS NULL GROUP BY e.etapa_id, x.servico_id`;
+const mapaDerivado = (rows) => {
+  const m = {};
+  for (const r of rows) (m[r.etapa_id] ||= {})[r.servico_id] = r.n === 2 ? 'P' : 'O';
+  return m;
+};
+async function pertinenciaDerivada(env) { return mapaDerivado((await env.DB.prepare(SQL_PERT_DERIVADA).all()).results); }
+
+// campos só da tela (fora dos retratos e da assinatura)
+const SO_TELA = ['travado'];
+
 export async function retratoPgt(env) {
   const [fas, eta, es, ent, ens, enc, mat] = await env.DB.batch([
     env.DB.prepare('SELECT * FROM pgt_fases WHERE arquivado_em IS NULL ORDER BY ordem'),
     env.DB.prepare(`SELECT e.* FROM pgt_etapas e JOIN pgt_fases f ON f.id = e.fase_id
       WHERE e.arquivado_em IS NULL AND f.arquivado_em IS NULL ORDER BY f.ordem, e.ordem`),
-    env.DB.prepare(`SELECT x.* FROM pgt_etapas_servicos x JOIN bases_servicos s ON s.id = x.servico_id
-      WHERE s.arquivado_em IS NULL ORDER BY x.etapa_id, s.ordem`),
+    env.DB.prepare(SQL_PERT_DERIVADA),
     env.DB.prepare('SELECT * FROM pgt_entregaveis WHERE arquivado_em IS NULL ORDER BY etapa_id, ordem, criado_em'),
     env.DB.prepare(`SELECT x.* FROM pgt_entregaveis_servicos x JOIN bases_servicos s ON s.id = x.servico_id
       WHERE s.arquivado_em IS NULL ORDER BY x.entregavel_id, s.ordem`),
@@ -77,27 +90,35 @@ export async function retratoPgt(env) {
       WHERE c.arquivado_em IS NULL ORDER BY x.entregavel_id, c.ordem`),
     env.DB.prepare('SELECT * FROM pgt_materiais WHERE arquivado_em IS NULL ORDER BY alvo_id, ordem'),
   ]);
-  const porEtapa = {};
-  for (const x of es.results) (porEtapa[x.etapa_id] ||= {})[x.servico_id] = { pertinencia: x.pertinencia, semanas: x.semanas };
+  const derivada = mapaDerivado(es.results);
   const porEnt = {};
   for (const x of ens.results) (porEnt[x.entregavel_id] ||= {})[x.servico_id] = x.pertinencia;
   const catEnt = {};
   for (const x of enc.results) (catEnt[x.entregavel_id] ||= []).push(x.categoria_id);
-  const etapas = eta.results.map((e) => ({ ...sem(e), servicos: porEtapa[e.id] || {} }));
+  const etapas = eta.results.map((e) => ({ ...sem(e, ...SO_TELA, 'semanas_base'),
+    servicos: Object.fromEntries(Object.entries(derivada[e.id] || {}).map(([k, p]) => [k, { pertinencia: p }])) }));
   const sigla = Object.fromEntries(etapas.map((e) => [e.id, e.sigla]));
   // código = sigla da etapa + posição (CE-03); entregáveis de etapa arquivada ficam fora do retrato
   const pos = {};
   const entregaveis = ent.results.filter((r) => sigla[r.etapa_id]).map((r) => {
     pos[r.etapa_id] = (pos[r.etapa_id] || 0) + 1;
-    return { ...sem(r), codigo: `${sigla[r.etapa_id]}-${String(pos[r.etapa_id]).padStart(2, '0')}`,
+    return { ...sem(r, ...SO_TELA), codigo: `${sigla[r.etapa_id]}-${String(pos[r.etapa_id]).padStart(2, '0')}`,
       servicos: porEnt[r.id] || {}, categorias: catEnt[r.id] || [] };
   });
-  return { fases: fas.results.map((r) => sem(r, 'parcela')), etapas, entregaveis, materiais: mat.results.map((r) => sem(r)) };
+  // prazo da etapa por serviço = soma dos entregáveis que vêm marcados (P) para ele, em turnos
+  for (const e of etapas) {
+    e.prazos = {};
+    for (const x of entregaveis) {
+      if (x.etapa_id !== e.id) continue;
+      for (const [srv, p] of Object.entries(x.servicos)) if (p === 'P') e.prazos[srv] = (e.prazos[srv] || 0) + (x.prazo_turnos || 0);
+    }
+  }
+  return { fases: fas.results.map((r) => sem(r, 'parcela', ...SO_TELA)), etapas, entregaveis, materiais: mat.results.map((r) => sem(r)) };
 }
 
 // Honorários: o custo sobre a estrutura. Pesos só onde a etapa vale para o serviço (P ou O).
 export async function retratoHonorarios(env) {
-  const [srv, fas, es, par] = await env.DB.batch([
+  const [srv, fas, es, par, der] = await env.DB.batch([
     env.DB.prepare(`SELECT id, sigla, nome, ${PRECO_SERVICO.join(', ')} FROM bases_servicos WHERE arquivado_em IS NULL ORDER BY ordem, nome`),
     env.DB.prepare('SELECT id, nome, ilha, parcela FROM pgt_fases WHERE arquivado_em IS NULL ORDER BY ordem'),
     env.DB.prepare(`SELECT x.etapa_id, x.servico_id, x.peso FROM pgt_etapas_servicos x
@@ -105,9 +126,11 @@ export async function retratoHonorarios(env) {
       WHERE s.arquivado_em IS NULL AND e.arquivado_em IS NULL AND f.arquivado_em IS NULL AND x.peso IS NOT NULL
       ORDER BY f.ordem, e.ordem, s.ordem`),
     env.DB.prepare('SELECT chave, valor FROM bases_parametros ORDER BY chave'),
+    env.DB.prepare(SQL_PERT_DERIVADA),
   ]);
+  const vale = mapaDerivado(der.results);
   const pesos = {};
-  for (const x of es.results) (pesos[x.etapa_id] ||= {})[x.servico_id] = x.peso;
+  for (const x of es.results) if (vale[x.etapa_id]?.[x.servico_id]) (pesos[x.etapa_id] ||= {})[x.servico_id] = x.peso;
   return {
     servicos: srv.results, fases: fas.results, pesos,
     parametros: Object.fromEntries(par.results.map((p) => [p.chave, lerJson(p.valor)])),
@@ -174,9 +197,9 @@ async function paginaPgt(env) {
   const r = await retratoPgt(env);
   const b = await retratoBases(env);
   const tabelas = ['pgt_fases', 'pgt_etapas', 'pgt_entregaveis', 'pgt_materiais'];
-  const res = await env.DB.batch(tabelas.map((t) => env.DB.prepare(`SELECT id, versao FROM ${t}`)));
-  const vers = Object.fromEntries(res.flatMap((x) => x.results).map((x) => [x.id, x.versao]));
-  const marcar = (l) => l.map((x) => ({ ...x, versao: vers[x.id] }));
+  const res = await env.DB.batch(tabelas.map((t) => env.DB.prepare(`SELECT id, versao${t === 'pgt_materiais' ? '' : ', travado'} FROM ${t}`)));
+  const vers = Object.fromEntries(res.flatMap((x) => x.results).map((x) => [x.id, x]));
+  const marcar = (l) => l.map((x) => ({ ...x, versao: vers[x.id].versao, ...('travado' in vers[x.id] ? { travado: vers[x.id].travado } : {}) }));
   const { results: arq } = await env.DB.prepare(`SELECT id, 'etapa' AS tipo, sigla || ' · ' || nome AS nome, versao, arquivado_em FROM pgt_etapas WHERE arquivado_em IS NOT NULL
     UNION ALL SELECT id, 'entregavel', texto, versao, arquivado_em FROM pgt_entregaveis WHERE arquivado_em IS NOT NULL
     UNION ALL SELECT id, 'material', nome, versao, arquivado_em FROM pgt_materiais WHERE arquivado_em IS NOT NULL
@@ -196,11 +219,14 @@ async function paginaHonorarios(env) {
     env.DB.prepare('SELECT id, versao FROM pgt_fases WHERE arquivado_em IS NULL'),
     env.DB.prepare(`SELECT e.id, e.fase_id, e.sigla, e.nome FROM pgt_etapas e JOIN pgt_fases f ON f.id = e.fase_id
       WHERE e.arquivado_em IS NULL AND f.arquivado_em IS NULL ORDER BY f.ordem, e.ordem`),
-    env.DB.prepare('SELECT etapa_id, servico_id, pertinencia, peso FROM pgt_etapas_servicos'),
+    env.DB.prepare('SELECT etapa_id, servico_id, peso FROM pgt_etapas_servicos'),
   ]);
   const vers = Object.fromEntries([...srv.results, ...fas.results].map((x) => [x.id, x.versao]));
+  const vale = await pertinenciaDerivada(env);
+  const peso = {};
+  for (const x of es.results) peso[`${x.etapa_id}|${x.servico_id}`] = x.peso;
   const porEtapa = {};
-  for (const x of es.results) (porEtapa[x.etapa_id] ||= {})[x.servico_id] = { pertinencia: x.pertinencia, peso: x.peso };
+  for (const [eta, m] of Object.entries(vale)) for (const [sv, p] of Object.entries(m)) (porEtapa[eta] ||= {})[sv] = { pertinencia: p, peso: peso[`${eta}|${sv}`] ?? null };
   return {
     servicos: r.servicos.map((s) => ({ ...s, versao: vers[s.id] })),
     fases: r.fases.map((f) => ({ ...f, versao: vers[f.id] })),
@@ -216,12 +242,15 @@ async function pesoEtapa(env, ferramenta, c) {
   await ativo(env, 'bases_servicos', c.servico_id, 'Serviço');
   const peso = numOuNulo(c.peso, 'Peso');
   if (peso !== null && peso > 100) throw new ErroApi(422, 'Peso: de 0 a 100');
-  const antes = await env.DB.prepare('SELECT peso FROM pgt_etapas_servicos WHERE etapa_id = ? AND servico_id = ?')
-    .bind(c.etapa_id, c.servico_id).first();
-  if (!antes) throw new ErroApi(422, 'esta etapa não vale para este serviço (marque no Plano Geral de Trabalho)');
+  if (!(await pertinenciaDerivada(env))[c.etapa_id]?.[c.servico_id]) {
+    throw new ErroApi(422, 'esta etapa não vale para este serviço (nenhum entregável dela está marcado para ele no Plano Geral de Trabalho)');
+  }
+  const antes = (await env.DB.prepare('SELECT peso FROM pgt_etapas_servicos WHERE etapa_id = ? AND servico_id = ?')
+    .bind(c.etapa_id, c.servico_id).first()) || {};
   if ((antes.peso ?? null) === peso) return { ok: true, semMudanca: true };
   await env.DB.batch([
-    env.DB.prepare('UPDATE pgt_etapas_servicos SET peso = ? WHERE etapa_id = ? AND servico_id = ?').bind(peso, c.etapa_id, c.servico_id),
+    env.DB.prepare(`INSERT INTO pgt_etapas_servicos (etapa_id, servico_id, peso) VALUES (?, ?, ?)
+      ON CONFLICT (etapa_id, servico_id) DO UPDATE SET peso = excluded.peso`).bind(c.etapa_id, c.servico_id, peso),
     hist(env, c.etapa_id, 'pgt_etapas', ferramenta, { [`peso:${c.servico_id}`]: [antes.peso ?? null, peso] }),
   ]);
   return { ok: true, etapa_id: c.etapa_id, servico_id: c.servico_id, peso };
@@ -248,26 +277,6 @@ const hist = (env, registro, tabela, ferramenta, mudancas) => env.DB.prepare(
   `INSERT INTO historico (registro_id, tabela, acao, por, em, mudancas) VALUES (?, ?, 'alterar', ?, ?, ?)`,
 ).bind(registro, tabela, ferramenta, agoraISO(), JSON.stringify(mudancas));
 
-async function etapaServico(env, ferramenta, c) {
-  await ativo(env, 'pgt_etapas', c.etapa_id, 'Etapa');
-  await ativo(env, 'bases_servicos', c.servico_id, 'Serviço');
-  const p = PERT(c.pertinencia);
-  const semanas = numOuNulo(c.semanas, 'Semanas');
-  const antes = await env.DB.prepare('SELECT pertinencia, peso, semanas FROM pgt_etapas_servicos WHERE etapa_id = ? AND servico_id = ?')
-    .bind(c.etapa_id, c.servico_id).first();
-  // o peso é dos honorários (vendas): aqui só entra se vier explícito; senão, fica o que estava
-  const peso = 'peso' in c ? numOuNulo(c.peso, 'Peso') : (antes?.peso ?? null);
-  const depois = p ? { pertinencia: p, peso, semanas } : null;
-  await env.DB.batch([
-    p
-      ? env.DB.prepare(`INSERT INTO pgt_etapas_servicos (etapa_id, servico_id, pertinencia, peso, semanas) VALUES (?, ?, ?, ?, ?)
-          ON CONFLICT (etapa_id, servico_id) DO UPDATE SET pertinencia = excluded.pertinencia, peso = excluded.peso, semanas = excluded.semanas`)
-        .bind(c.etapa_id, c.servico_id, p, peso, semanas)
-      : env.DB.prepare('DELETE FROM pgt_etapas_servicos WHERE etapa_id = ? AND servico_id = ?').bind(c.etapa_id, c.servico_id),
-    hist(env, c.etapa_id, 'pgt_etapas', ferramenta, { [`servico:${c.servico_id}`]: [antes || null, depois] }),
-  ]);
-  return { ok: true, etapa_id: c.etapa_id, servico_id: c.servico_id, valor: depois };
-}
 
 async function entregaveisServico(env, ferramenta, c) {
   const ids = [...new Set(Array.isArray(c.entregavel_ids) ? c.entregavel_ids.map(String) : [])];
@@ -331,16 +340,24 @@ async function reordenar(env, ferramenta, c) {
 }
 
 // Várias mudanças de uma vez (a página do PGT junta as edições e salva tudo de uma vez):
-//   { ops: [{ tipo: 'etapas-servicos' | 'entregaveis-servicos' | 'ordem', ...corpo da rota }] }
+//   { ops: [{ tipo: 'campos' | 'entregaveis-servicos' | 'entregaveis-categorias' | 'ordem', ...corpo da rota }] }
+//   campos: { tabela: 'pgt_fases'|'pgt_etapas'|'pgt_entregaveis'|'pgt_materiais', id, versao, campos: {...} } (= PATCH)
 // Executa em ordem; se uma falhar, as anteriores ficam e a resposta diz qual falhou (422 com `indice`).
-const OPS_LOTE = { 'etapas-servicos': etapaServico, 'entregaveis-servicos': entregaveisServico, ordem: reordenar };
-async function lote(env, ferramenta, c) {
+const TABELAS_LOTE = ['pgt_fases', 'pgt_etapas', 'pgt_entregaveis', 'pgt_materiais'];
+const OPS_LOTE = {
+  'entregaveis-servicos': entregaveisServico, 'entregaveis-categorias': entregavelCategorias, ordem: reordenar,
+  campos: (env, ferramenta, op, alterar) => {
+    if (!TABELAS_LOTE.includes(op.tabela)) throw new ErroApi(422, 'tabela: não aceita no lote');
+    return alterar(env, ferramenta, op.tabela, String(op.id || ''), { ...(op.campos || {}), versao: op.versao });
+  },
+};
+async function lote(env, ferramenta, c, alterar) {
   const ops = Array.isArray(c.ops) ? c.ops : [];
   if (!ops.length || ops.length > 500) throw new ErroApi(422, 'ops: de 1 a 500 mudanças');
   for (const [i, op] of ops.entries()) if (!OPS_LOTE[op?.tipo]) throw new ErroApi(422, `ops[${i}]: tipo desconhecido`);
   let feitas = 0;
   for (const [i, op] of ops.entries()) {
-    try { await OPS_LOTE[op.tipo](env, ferramenta, op); feitas++; }
+    try { await OPS_LOTE[op.tipo](env, ferramenta, op, alterar); feitas++; }
     catch (e) {
       if (e instanceof ErroApi) throw new ErroApi(e.status, `mudança ${i + 1} de ${ops.length}: ${e.message}`, { indice: i, feitas });
       throw e;
@@ -367,7 +384,7 @@ async function parametro(env, ferramenta, c) {
 
 // ---------------------------------------------------------------- roteador
 // Devolve a resposta (objeto) ou undefined se a rota não for daqui.
-export async function rotasPgt(env, ferramenta, m, [rota, id, acao], corpo, url, exigir) {
+export async function rotasPgt(env, ferramenta, m, [rota, id, acao], corpo, url, exigir, alterar) {
   if (rota === 'bases') {
     if (!id && m === 'GET') { exigir('bases_servicos', ferramenta, 'L'); return paginaBases(env); }
     if (id === 'publicar' && m === 'POST') { exigir('bases_servicos', ferramenta, 'E'); return publicar(env, ferramenta, 'bases', corpo); }
@@ -378,11 +395,11 @@ export async function rotasPgt(env, ferramenta, m, [rota, id, acao], corpo, url,
     if (m !== 'POST') throw new ErroApi(405, 'método não aceito');
     exigir('pgt_etapas', ferramenta, 'E');
     const c = corpo || {};
-    if (id === 'etapas-servicos') return etapaServico(env, ferramenta, c);
+    if (id === 'etapas-servicos') throw new ErroApi(422, 'a pertinência da etapa vem dos entregáveis (marque os entregáveis)');
     if (id === 'entregaveis-servicos') return entregaveisServico(env, ferramenta, c);
     if (id === 'entregaveis-categorias') return entregavelCategorias(env, ferramenta, c);
     if (id === 'ordem') return reordenar(env, ferramenta, c);
-    if (id === 'lote') return lote(env, ferramenta, c);
+    if (id === 'lote') return lote(env, ferramenta, c, alterar);
     if (id === 'publicar') return publicar(env, ferramenta, 'pgt', c);
     throw new ErroApi(404, 'rota não encontrada');
   }

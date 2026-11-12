@@ -92,9 +92,11 @@ const TIPOS = {
     if (c.max !== undefined && n > c.max) throw new Error(`no máximo ${c.max}`);
     return n;
   },
-  real: (v) => {
+  real: (v, c) => {
     const n = Number(v);
     if (!Number.isFinite(n)) throw new Error('número');
+    if (c.min !== undefined && n < c.min) throw new Error(`no mínimo ${c.min}`);
+    if (c.max !== undefined && n > c.max) throw new Error(`no máximo ${c.max}`);
     return n;
   },
   centavos: (v) => {

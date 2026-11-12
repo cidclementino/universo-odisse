@@ -766,7 +766,7 @@ export async function api(env, ferramenta, request, url, cors) {
     }
 
     // Bases e PGT: leituras juntadas, matrizes de pertinência e publicação (pgt.js)
-    const rp = await rotasPgt(env, ferramenta, m, [rota, id, acao], corpo, url, exigir);
+    const rp = await rotasPgt(env, ferramenta, m, [rota, id, acao], corpo, url, exigir, alterar);
     if (rp !== undefined) return json(rp);
 
     const tabela = ROTAS[rota];

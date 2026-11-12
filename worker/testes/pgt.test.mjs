@@ -44,7 +44,9 @@ const ce3 = P.entregaveis.find((x) => x.codigo === 'CE-03');
 ok(ce3.texto === 'Diagramas de zoneamento' && ce3.servicos.srv_am === 'O' && !ce3.servicos.srv_ev, 'CE-03 com pertinência por serviço');
 ok(P.entregaveis.find((x) => x.codigo === 'DE-03').categorias.length === 5, 'DE-03 restrito a 5 categorias');
 ok(P.entregaveis.filter((x) => x.etapa_id === 'pet_cr').every((x) => Object.keys(x.servicos).join() === 'srv_cr'), 'etapa-ilha CR só no serviço CR');
-ok(P.fases.find((f) => f.id === 'pfa_ilhas').ilha === 1, 'fase Ilhas marcada como ilha');
+ok(P.fases.find((f) => f.id === 'pfa_ilhas').ilha === 1 && P.fases.find((f) => f.id === 'pfa_ilhas').solta === 1, 'Ilhas: grupo solto, em estado de ilha (0007)');
+ok(P.fases.every((f) => !('travado' in f) || f.travado === 0) && P.fases.find((f) => f.id === 'pfa_legal').descricao.startsWith('Fase de preparação'), 'fases com descrição (0007)');
+ok(ce3.pessoas === 1 && ce3.prazo_fixo === 0 && ce3.prazo_turnos === null, 'entregável com pessoas 1, prazo vazio');
 
 // ---------------------------------------------------------------- permissões
 ok((await chamar('GET', 'pgt', null, 'vendas')).entregaveis.length === 87, 'vendas lê o PGT');
@@ -72,11 +74,22 @@ ok(await falha('POST', 'honorarios/parametros', { chave: 'parcela_entrada', valo
 H = await chamar('GET', 'honorarios', null, 'vendas');
 ok(H.etapas.find((e) => e.id === 'pet_ce').servicos.srv_in.peso === 18 && H.servicos.find((s) => s.id === 'srv_ne').modificador === 1.1
   && H.fases.find((f) => f.id === 'pfa_conceitual').parcela === 0.25 && H.parametros.parcela_entrada === 0.25, 'vendas edita peso, preço, parcela e entrada');
-// mexer na pertinência pelo Projetos não apaga o peso
-await chamar('POST', 'pgt/etapas-servicos', { etapa_id: 'pet_ce', servico_id: 'srv_in', pertinencia: 'O', semanas: null });
+// a pertinência da etapa vem dos entregáveis; tirar todos de um serviço some com a célula, mas o peso fica guardado
+ok(await falha('POST', 'pgt/etapas-servicos', { etapa_id: 'pet_ce', servico_id: 'srv_in', pertinencia: 'O' }) === 422, 'pertinência da etapa não se marca à mão');
+const ceIn = (await chamar('GET', 'pgt')).entregaveis.filter((x) => x.etapa_id === 'pet_ce' && x.servicos.srv_in);
+const pertCeIn = Object.fromEntries(ceIn.map((x) => [x.id, x.servicos.srv_in]));
+await chamar('POST', 'pgt/entregaveis-servicos', { entregavel_ids: ceIn.map((x) => x.id), servico_id: 'srv_in', pertinencia: null });
 H = await chamar('GET', 'honorarios', null, 'vendas');
-ok(H.etapas.find((e) => e.id === 'pet_ce').servicos.srv_in.peso === 18 && H.etapas.find((e) => e.id === 'pet_ce').servicos.srv_in.pertinencia === 'O', 'alternar a pertinência mantém o peso');
-await chamar('POST', 'pgt/etapas-servicos', { etapa_id: 'pet_ce', servico_id: 'srv_in', pertinencia: 'P', semanas: null });
+ok(!H.etapas.find((e) => e.id === 'pet_ce').servicos.srv_in, 'sem entregáveis de IN, CE deixa de valer para IN');
+ok(await falha('POST', 'honorarios/pesos', { etapa_id: 'pet_ce', servico_id: 'srv_in', peso: 5 }, 'vendas') === 422, 'peso onde a etapa não vale (calculado) → 422');
+await chamar('POST', 'pgt/entregaveis-servicos', { entregavel_ids: ceIn.filter((x) => pertCeIn[x.id] === 'O').map((x) => x.id), servico_id: 'srv_in', pertinencia: 'O' });
+H = await chamar('GET', 'honorarios', null, 'vendas');
+ok(H.etapas.find((e) => e.id === 'pet_ce').servicos.srv_in?.peso === 18 || !ceIn.some((x) => pertCeIn[x.id] === 'O'), 'o peso volta junto com a célula');
+for (const p of ['P', 'O']) {
+  const ids = ceIn.filter((x) => pertCeIn[x.id] === p).map((x) => x.id);
+  if (ids.length) await chamar('POST', 'pgt/entregaveis-servicos', { entregavel_ids: ids, servico_id: 'srv_in', pertinencia: p });
+}
+ok((await chamar('GET', 'honorarios', null, 'vendas')).etapas.find((e) => e.id === 'pet_ce').servicos.srv_in.pertinencia === 'P', 'CE volta a valer (P) para IN');
 const ph = await chamar('POST', 'honorarios/publicar', { nota: 'primeira' }, 'vendas');
 ok(ph.numero === 1, 'honorários publicados: versão 1');
 ok(await falha('POST', 'honorarios/publicar', {}, 'vendas') === 409, 'publicar honorários sem mudança → 409');
@@ -135,10 +148,17 @@ ok(P.entregaveis.find((x) => x.id === novo.id).categorias.length === 2, 'restri�
 await chamar('POST', 'pgt/entregaveis-categorias', { entregavel_id: novo.id, categorias: [] });
 ok((await chamar('GET', 'pgt')).entregaveis.find((x) => x.id === novo.id).categorias.length === 0, 'sem categorias = vale para todas');
 
-await chamar('POST', 'pgt/etapas-servicos', { etapa_id: 'pet_lv', servico_id: 'srv_ne', pertinencia: 'O', semanas: 2 });
-await chamar('POST', 'pgt/etapas-servicos', { etapa_id: 'pet_ev', servico_id: 'srv_rf', pertinencia: null });
+// prazo e pessoas do entregável; prazo da etapa = soma dos P do serviço
+const lvNe = P.entregaveis.filter((x) => x.etapa_id === 'pet_lv' && x.servicos.srv_ne === 'P');
+for (const x of lvNe) await chamar('PATCH', `pgt-entregaveis/${x.id}`, { versao: x.versao, prazo_turnos: 2, pessoas: 2 });
+ok(await falha('PATCH', `pgt-entregaveis/${lvNe[0].id}`, { versao: lvNe[0].versao + 1, prazo_turnos: 80 }) === 422, 'prazo acima de 1 mês → 422');
 P = await chamar('GET', 'pgt');
-ok(P.etapas.find((e) => e.id === 'pet_lv').servicos.srv_ne.semanas === 2 && !P.etapas.find((e) => e.id === 'pet_ev').servicos.srv_rf, 'matriz etapa × serviço: semanas e remoção');
+ok(P.etapas.find((e) => e.id === 'pet_lv').prazos.srv_ne === 2 * lvNe.length && P.entregaveis.find((x) => x.id === lvNe[0].id).pessoas === 2, 'prazo da etapa = soma dos entregáveis');
+// travar não mexe na publicação
+const pubAntes = (await chamar('GET', 'pgt')).pendente;
+await chamar('PATCH', 'pgt-etapas/pet_lv', { versao: P.etapas.find((e) => e.id === 'pet_lv').versao, travado: 1 });
+P = await chamar('GET', 'pgt');
+ok(P.etapas.find((e) => e.id === 'pet_lv').travado === 1 && !('travado' in (await chamar('GET', 'publicacoes/ultima?tipo=pgt')).dados.etapas[0]), 'cadeado gravado, fora do retrato');
 // reordenar etapas e mudar de fase (arrastar no PGT)
 await chamar('POST', 'pgt/ordem', { tabela: 'pgt_etapas', ids: ['pet_pp', 'pet_lv', 'pet_ev', 'pet_ce', 'pet_cb'] });
 P = await chamar('GET', 'pgt');
@@ -199,17 +219,23 @@ ok(ba.titulo === 'OA-2026-052 · Casa' && ba.texto.startsWith('oa-2026-052'), 'b
 ok(JSON.parse(ha.mudancas).codigo[1] === 'OA-2026-052', 'troca de código no histórico');
 
 // ---------------------------------------------------------------- lote (a página junta as edições e salva de uma vez)
+const fl = P.fases.find((f) => f.id === 'pfa_legal');
 const lt = await chamar('POST', 'pgt/lote', { ops: [
-  { tipo: 'etapas-servicos', etapa_id: 'pet_pl', servico_id: 'srv_am', pertinencia: 'O', semanas: null },
+  { tipo: 'campos', tabela: 'pgt_fases', id: 'pfa_legal', versao: fl.versao, campos: { nome: 'Legal e aprovação', ilha: 1 } },
+  { tipo: 'campos', tabela: 'pgt_entregaveis', id: 'pen_ce_03', versao: P.entregaveis.find((x) => x.id === 'pen_ce_03').versao, campos: { prazo_turnos: 4, pessoas: 3, prazo_fixo: 1 } },
   { tipo: 'entregaveis-servicos', entregavel_ids: ['pen_ce_03'], servico_id: 'srv_am', pertinencia: 'P' },
+  { tipo: 'entregaveis-categorias', entregavel_id: 'pen_ce_03', categorias: ['tca_hospedagem'] },
   { tipo: 'ordem', tabela: 'pgt_etapas', ids: ['pet_lv', 'pet_pp', 'pet_ev', 'pet_ce', 'pet_cb'] },
 ] });
 P = await chamar('GET', 'pgt');
-ok(lt.feitas === 3 && P.etapas.find((e) => e.id === 'pet_pl').servicos.srv_am.pertinencia === 'O'
-  && P.entregaveis.find((x) => x.id === 'pen_ce_03').servicos.srv_am === 'P' && P.etapas[0].sigla === 'LV', 'lote: três mudanças numa chamada');
-const lr = await pedir('POST', 'pgt/lote', { ops: [{ tipo: 'etapas-servicos', etapa_id: 'pet_pl', servico_id: 'srv_am', pertinencia: null }, { tipo: 'etapas-servicos', etapa_id: 'pet_zz', servico_id: 'srv_am', pertinencia: 'P' }] });
-ok(lr.status === 422 && lr.j.indice === 1 && lr.j.feitas === 1, 'lote: diz qual mudança falhou');
+const c3 = P.entregaveis.find((x) => x.id === 'pen_ce_03');
+ok(lt.feitas === 5 && P.fases.find((f) => f.id === 'pfa_legal').nome === 'Legal e aprovação' && P.fases.find((f) => f.id === 'pfa_legal').ilha === 1
+  && c3.servicos.srv_am === 'P' && c3.prazo_turnos === 4 && c3.pessoas === 3 && c3.prazo_fixo === 1 && c3.categorias.join() === 'tca_hospedagem'
+  && P.etapas[0].sigla === 'LV', 'lote: campos, pertinência, categorias e ordem numa chamada');
+const lr = await pedir('POST', 'pgt/lote', { ops: [{ tipo: 'entregaveis-servicos', entregavel_ids: ['pen_ce_03'], servico_id: 'srv_am', pertinencia: null }, { tipo: 'campos', tabela: 'pgt_etapas', id: 'pet_zz', versao: 1, campos: { nome: 'X' } }] });
+ok(lr.status >= 400 && lr.j.indice === 1 && lr.j.feitas === 1, 'lote: diz qual mudança falhou');
 ok(await falha('POST', 'pgt/lote', { ops: [{ tipo: 'apagar' }] }) === 422, 'lote: tipo desconhecido → 422');
+ok(await falha('POST', 'pgt/lote', { ops: [{ tipo: 'campos', tabela: 'pessoas', id: 'x', versao: 1, campos: {} }] }) === 422, 'lote: campos só nas tabelas do PGT');
 ok(await falha('POST', 'pgt/lote', { ops: [] }, 'vendas') === 403, 'lote: vendas não edita o PGT');
 
 console.log('TUDO CERTO');
