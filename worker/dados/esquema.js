@@ -31,6 +31,7 @@ export const PREFIXOS = {
   pfa: 'pgt_fases',
   pet: 'pgt_etapas',
   pen: 'pgt_entregaveis',
+  pev: 'pgt_eventos',
   pma: 'pgt_materiais',
 };
 
@@ -59,6 +60,8 @@ const PROJETO_PUBLICO = ['codigo', 'nome', 'nome_publico', 'nucleo_id', 'tipolog
 const PGT = { hub: 'E', vendas: 'L', projetos: 'E', maquina: 'E' };
 export const GRUPOS_TIPOLOGIA = ['residencial', 'comercial', 'institucional', 'diversos'];
 export const TIPOS_MATERIAL = ['modelo', 'formulario', 'checklist', 'referencia'];
+export const TIPOS_EVENTO = ['reuniao', 'apresentacao', 'envio', 'aprovacao', 'ajuste', 'visita', 'protocolo', 'revisao', 'encerramento'];
+export const TEMPOS_EVENTO = ['estudio', 'cliente', 'terceiros', 'pontual'];
 
 const TODOS_E = { hub: 'E', vendas: 'E', projetos: 'E', fornecedores: 'E', marketing: 'E', maquina: 'E' };
 
@@ -510,18 +513,42 @@ export const TABELAS = {
       prazo_turnos: T('real', { min: 0.5, max: 40, rotulo: 'Prazo (turnos)' }),
       pessoas: T('inteiro', { min: 1, max: 20, rotulo: 'Pessoas' }),
       prazo_fixo: T('sn', { rotulo: 'Prazo fixo' }),
+      junto_anterior: T('sn', { rotulo: 'Corre junto com a anterior' }),
       travado: T('sn', { rotulo: 'Travado' }),
     },
-    padroes: { pessoas: 1, prazo_fixo: 0, travado: 0 },
+    padroes: { pessoas: 1, prazo_fixo: 0, junto_anterior: 0, travado: 0 },
     permissoes: PGT,
     filtros: ['etapa_id'],
     ordem: 'etapa_id, ordem',
   },
 
+  // Eventos (0008): marcos de controle do fluxo, na mesma sequência das entregas da etapa.
+  // O Encerramento (encerramento = 1) é único e tem instâncias (JSON de etapas); conferido em regras.js.
+  pgt_eventos: {
+    prefixo: 'pev',
+    campos: {
+      etapa_id: T('ref', { obrig: true, prefixos: ['pet'], rotulo: 'Etapa' }),
+      nome: T('texto', { obrig: true, max: 200, rotulo: 'Nome' }),
+      tipo: T('lista', { obrig: true, valores: TIPOS_EVENTO, rotulo: 'Tipo' }),
+      cliente: T('sn', { rotulo: 'Com o cliente' }),
+      tempo: T('lista', { valores: TEMPOS_EVENTO, rotulo: 'De quem é o tempo' }),
+      prazo_turnos: T('real', { min: 0.5, max: 40, rotulo: 'Duração (turnos)' }),
+      quantidade: T('inteiro', { min: 1, max: 99, rotulo: 'Quantidade incluída' }),
+      clausula: T('textoLongo', { max: 1000, rotulo: 'Cláusula' }),
+      observacoes: T('textoLongo', { max: 4000, rotulo: 'Observações' }),
+      ordem: T('inteiro', { min: 0, max: 9999, rotulo: 'Ordem' }),
+      travado: T('sn', { rotulo: 'Travado' }),
+      instancias: T('json', { rotulo: 'Etapas onde o encerramento pode ficar' }),
+    },
+    padroes: { cliente: 0, tempo: 'pontual', travado: 0 },
+    permissoes: PGT,
+    filtros: ['etapa_id', 'tipo'],
+    ordem: 'etapa_id, ordem',
+  },
   pgt_materiais: {
     prefixo: 'pma',
     campos: {
-      alvo_id: T('ref', { obrig: true, prefixos: ['pet', 'pen'], rotulo: 'Etapa ou entregável' }),
+      alvo_id: T('ref', { obrig: true, prefixos: ['pet', 'pen', 'pev'], rotulo: 'Etapa, entrega ou evento' }),
       tipo: T('lista', { obrig: true, valores: TIPOS_MATERIAL, rotulo: 'Tipo' }),
       nome: T('texto', { obrig: true, max: 160, rotulo: 'Nome' }),
       descricao: T('textoLongo', { max: 2000, rotulo: 'Descrição' }),
@@ -560,6 +587,7 @@ export const ROTAS = {
   'pgt-fases': 'pgt_fases',
   'pgt-etapas': 'pgt_etapas',
   'pgt-entregaveis': 'pgt_entregaveis',
+  'pgt-eventos': 'pgt_eventos',
   'pgt-materiais': 'pgt_materiais',
 };
 

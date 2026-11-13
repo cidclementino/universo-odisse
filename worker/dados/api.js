@@ -381,6 +381,7 @@ async function alterar(env, ferramenta, tabela, id, corpo) {
 async function arquivar(env, ferramenta, tabela, id, corpo, arquivando) {
   const atual = await carregarParaEditar(env, ferramenta, tabela, id, corpo);
   if (!!atual.arquivado_em === arquivando) return { registro: visivel(tabela, ferramenta, atual), semMudanca: true };
+  if (REGRAS[tabela]?.arquivar) REGRAS[tabela].arquivar(atual, arquivando);
   const nova = await gravar(env, ferramenta, tabela, atual, { arquivado_em: arquivando ? agoraISO() : null },
     arquivando ? 'arquivar' : 'restaurar');
   return { registro: visivel(tabela, ferramenta, nova) };

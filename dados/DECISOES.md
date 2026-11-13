@@ -105,6 +105,17 @@ Compromissos aceitos: o hub é ponto único de falha para os dados comuns; mudan
 - O retrato dos honorários leva os números das Bases e do PGT publicados na hora (`bases_numero`, `pgt_numero`), fora da assinatura. A proposta vai registrar as três versões.
 - A 0006 refaz `pgt_publicacoes` para aceitar o tipo `honorarios` (o CHECK do SQLite não se altera), mantendo os retratos já publicados. Como os retratos de Bases e PGT mudaram de forma, as duas páginas aparecem "pendentes" uma vez depois desta mudança.
 
+## Eventos, sequência da etapa e Encerramento (migração 0008, casa: Projetos)
+
+- **Eventos** (`pgt_eventos`, `pev_`): marcos de controle do fluxo, ao lado das entregas. Têm tipo, se o cliente participa (`cliente`, base da futura plataforma do cliente), de quem é o tempo (`estudio` conta no prazo; `cliente`, `terceiros` e `pontual` não), duração, quantidade incluída e uma **cláusula** opcional. Não vão para o contrato como itens: o vendas vai ofertar a cláusula conforme a pertinência (P obrigatória e travada, O check disponível, sem marca não ofertável).
+- **4º estado de pertinência, `S` (perpétuo)**: só em eventos (`pgt_eventos_servicos`); vale sempre e não se desmarca. A pertinência da etapa continua vindo **só das entregas** (os eventos não fazem uma etapa valer para um serviço; o Encerramento, perpétuo em tudo, faria todas valerem).
+- **Encerramento**: um registro só (`encerramento = 1`, índice único), com `instancias` (JSON das etapas onde o serviço pode terminar). `etapa_id` é a instância ativa (padrão: PE). Não se arquiva, não muda de tipo, só fica numa instância e sua pertinência não muda por `pgt/eventos-servicos`. No projeto (Escopo, próxima implementação), ativa-se a instância da última etapa contratada.
+- **Sequência**: entregas e eventos dividem a coluna `ordem` dentro da etapa (`POST pgt/sequencia`). Item novo, ou que muda de etapa sem dizer a ordem, vai para o fim da sequência (antes do Encerramento). Desempate: entrega antes de evento, depois a data de criação.
+- **Cluster** = `junto_anterior` na entrega: corre junto com a entrega válida anterior. Guardado como marca na entrega, e não como grupo à parte, para sobreviver a filtros por serviço (cluster com uma só entrega válida vira entrega).
+- **Prazo da etapa** (`prazosDaEtapa` em `pgt.js`, com cópia na tela do PGT): soma das entregas P (cluster conta a mais longa) + duração dos eventos que valem (P ou S) e são tempo do estúdio.
+- **Faixas de prazo por área** (`bases_parametros.faixas_prazo`, no retrato das Bases, `POST bases/faixas-prazo`): estrutura, não custo; o retrato dos honorários passa a levar só os parâmetros de custo conhecidos.
+- A 0008 arquiva seis entregas que viraram eventos (PL-08, AS-01, CR-01, PX-01, PX-02, LR-05) e põe as entregas de cada etapa em 10, 20, 30… para os eventos semeados entrarem antes e depois.
+
 ## Como mudar a estrutura
 
 1. Nova migração em `dados/migracoes/NNNN_nome.sql` (nunca editar uma já aplicada).

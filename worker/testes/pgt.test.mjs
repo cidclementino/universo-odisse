@@ -34,7 +34,7 @@ const hotel = B.usos.find((u) => u.descricao === 'Hotéis de luxo');
 ok(hotel.categoria_id === 'tca_hospedagem' && hotel.cub_codigo === 'R-16-A' && hotel.fator_adequacao === 3 && hotel.categoria_cau === 4, 'uso Hotéis de luxo com CUB, fator e categoria do CAU');
 
 let P = await chamar('GET', 'pgt');
-ok(P.fases.length === 5 && P.etapas.length === 13 && P.entregaveis.length === 87, `PGT: 5 fases, 13 etapas, 87 entregáveis (${P.entregaveis.length})`);
+ok(P.fases.length === 5 && P.etapas.length === 13 && P.entregaveis.length === 81, `PGT: 5 fases, 13 etapas, 81 entregas (0008: seis viraram eventos) (${P.entregaveis.length})`);
 ok(P.etapas.map((e) => e.sigla).join(',') === 'LV,PP,EV,CE,CB,PL,PX,PE,DE,AS,AB,CR,LR', 'etapas na ordem');
 const ce = P.etapas.find((e) => e.sigla === 'CE');
 ok(ce.nbr_nome === 'Estudo Preliminar' && ce.nbr_sigla === 'EP-ARQ', 'CE ↔ Estudo Preliminar (EP-ARQ)');
@@ -49,7 +49,7 @@ ok(P.fases.every((f) => !('travado' in f) || f.travado === 0) && P.fases.find((f
 ok(ce3.pessoas === 1 && ce3.prazo_fixo === 0 && ce3.prazo_turnos === null, 'entregável com pessoas 1, prazo vazio');
 
 // ---------------------------------------------------------------- permissões
-ok((await chamar('GET', 'pgt', null, 'vendas')).entregaveis.length === 87, 'vendas lê o PGT');
+ok((await chamar('GET', 'pgt', null, 'vendas')).entregaveis.length === 81, "vendas lê o PGT");
 ok(await falha('POST', 'pgt/publicar', {}, 'vendas') === 403, 'vendas não publica');
 ok(await falha('PATCH', 'bases-servicos/srv_ne', { versao: 1, nome: 'X' }, 'vendas') === 403, 'vendas não edita a estrutura das Bases');
 ok(await falha('PATCH', 'pgt-fases/pfa_legal', { versao: 1, nome: 'X' }, 'vendas') === 403, 'vendas não edita a estrutura das fases');
@@ -171,19 +171,21 @@ ok(P.entregaveis.find((x) => x.id === novo.id).codigo === 'CE-01', 'reordenar mu
 ok(await falha('POST', 'pgt/ordem', { tabela: 'projetos', ids: daCE }) === 422, 'só tabelas do PGT/Bases se reordenam');
 
 const mover = (await chamar('PATCH', 'pgt-entregaveis/' + novo.id, { versao: novo.versao, etapa_id: 'pet_cb' })).registro;
-ok(mover.ordem === 16, 'mudar de etapa leva para o fim da etapa nova (CB-16)');
+{ const Pm = await chamar('GET', 'pgt');
+  const outros = [...Pm.entregaveis, ...Pm.eventos].filter((x) => x.etapa_id === 'pet_cb' && x.id !== novo.id && !x.encerramento).map((x) => x.ordem);
+  ok(mover.ordem > Math.max(...outros), 'mudar de etapa leva para o fim da sequência da etapa nova (depois dos eventos)'); }
 await chamar('POST', 'pgt-entregaveis/' + novo.id + '/arquivar', { versao: mover.versao });
 P = await chamar('GET', 'pgt');
 ok(!P.entregaveis.find((x) => x.id === novo.id) && P.arquivados.some((a) => a.id === novo.id), 'arquivado sai do PGT e aparece nos arquivados');
 
 const mat = (await chamar('POST', 'pgt-materiais', { alvo_id: 'pet_pp', tipo: 'formulario', nome: 'Questionário de briefing', link: 'https://drive.google.com/x' })).registro;
-ok(mat.ordem === 1 && (await chamar('GET', 'pgt')).materiais.length === 1, 'material ligado à etapa');
+ok(mat.ordem === 1 && (await chamar('GET', 'pgt')).materiais.length === 6, 'material ligado à etapa (além dos 5 do Encerramento)');
 ok(await falha('POST', 'pgt-materiais', { alvo_id: 'prj_x', tipo: 'modelo', nome: 'X' }) === 422, 'material só em etapa ou entregável');
 
 const pp2 = await chamar('POST', 'pgt/publicar', {});
 ok(pp2.numero === 2, 'PGT versão 2');
 const ult = await chamar('GET', 'publicacoes/ultima?tipo=pgt', null, 'vendas');
-ok(ult.numero === 2 && ult.dados.entregaveis.length === 87 && ult.dados.bases_numero === 2, 'vendas lê o último PGT publicado (com a versão das Bases)');
+ok(ult.numero === 2 && ult.dados.entregaveis.length === 81 && ult.dados.eventos.length === 59 && ult.dados.bases_numero === 2, 'vendas lê o último PGT publicado (com a versão das Bases)');
 ok((await chamar('GET', 'publicacoes?tipo=bases', null, 'vendas')).itens.length === 2, 'lista de publicações das Bases');
 
 // histórico da matriz
@@ -237,5 +239,70 @@ ok(lr.status >= 400 && lr.j.indice === 1 && lr.j.feitas === 1, 'lote: diz qual m
 ok(await falha('POST', 'pgt/lote', { ops: [{ tipo: 'apagar' }] }) === 422, 'lote: tipo desconhecido → 422');
 ok(await falha('POST', 'pgt/lote', { ops: [{ tipo: 'campos', tabela: 'pessoas', id: 'x', versao: 1, campos: {} }] }) === 422, 'lote: campos só nas tabelas do PGT');
 ok(await falha('POST', 'pgt/lote', { ops: [] }, 'vendas') === 403, 'lote: vendas não edita o PGT');
+
+// ---------------------------------------------------------------- 0008: eventos, sequência, Encerramento, faixas
+{
+  let Q = await chamar('GET', 'pgt');
+  const evs = Q.eventos;
+  ok(evs.length === 59 && evs.filter((e) => e.cliente).length === 37, `59 eventos, 37 com o cliente (${evs.length}/${evs.filter((e) => e.cliente).length})`);
+  ok(['pen_pl_08', 'pen_as_01', 'pen_cr_01', 'pen_px_01', 'pen_px_02', 'pen_lr_05'].every((id) => !Q.entregaveis.find((x) => x.id === id) && Q.arquivados.some((a) => a.id === id)),
+    'as seis entregas que viraram eventos estão arquivadas');
+  const ce2 = evs.find((e) => e.codigo === 'CE-M02');
+  ok(ce2.nome === 'Apresentação da Concepção Esquemática' && ce2.tipo === 'apresentacao' && ce2.cliente === 1 && ce2.servicos.srv_ne === 'P' && !ce2.servicos.srv_co, 'CE-M02 com tipo, cliente e pertinência');
+  ok(evs.find((e) => e.codigo === 'CE-M04').clausula === 'Dupla rodada de ajuste' && evs.find((e) => e.codigo === 'CE-M04').servicos.srv_ne === 'O', 'segunda rodada de ajuste: opcional, com cláusula');
+  const enc = evs.find((e) => e.encerramento);
+  ok(enc.codigo === 'ENC' && enc.etapa_id === 'pet_pe' && enc.instancias.length === 9 && Object.values(enc.servicos).every((p) => p === 'S') && Object.keys(enc.servicos).length === 9,
+    'Encerramento: ENC, padrão no PE, 9 instâncias, perpétuo nos 9 serviços');
+  ok(Q.materiais.filter((m) => m.alvo_id === enc.id).length === 5, 'Encerramento com 5 materiais');
+  // sequência: eventos de início antes das entregas
+  const lv = [...Q.entregaveis.filter((x) => x.etapa_id === 'pet_lv'), ...evs.filter((x) => x.etapa_id === 'pet_lv')].sort((a, b) => a.ordem - b.ordem);
+  ok(lv[0].id === 'pev_lv_m01' && lv.at(-1).id === 'pev_lv_m05', 'LV: reunião de início primeiro, revisão interna no fim');
+
+  // Encerramento: não se arquiva, não muda de tipo, só fica nas instâncias, pertinência travada
+  ok(await falha('POST', `pgt-eventos/${enc.id}/arquivar`, { versao: enc.versao }) === 422, 'Encerramento não se arquiva');
+  ok(await falha('PATCH', `pgt-eventos/${enc.id}`, { versao: enc.versao, tipo: 'reuniao' }) === 422, 'Encerramento não muda de tipo');
+  ok(await falha('PATCH', `pgt-eventos/${enc.id}`, { versao: enc.versao, etapa_id: 'pet_lv' }) === 422, 'Encerramento só fica numa das instâncias');
+  const encDE = (await chamar('PATCH', `pgt-eventos/${enc.id}`, { versao: enc.versao, etapa_id: 'pet_de' })).registro;
+  ok(encDE.etapa_id === 'pet_de', 'Encerramento ativado em outra instância (DE)');
+  ok(await falha('POST', 'pgt/eventos-servicos', { evento_ids: [enc.id], servico_id: 'srv_ne', pertinencia: null }) === 422, 'perpétuo não se desmarca');
+  ok(await falha('POST', 'pgt-eventos', { etapa_id: 'pet_ce', nome: 'Outro', tipo: 'encerramento' }) === 422, 'não nasce outro Encerramento');
+
+  // evento novo: no fim da sequência, com pertinência
+  const novoE = (await chamar('POST', 'pgt-eventos', { etapa_id: 'pet_ce', nome: 'Reunião extra', tipo: 'reuniao', cliente: 1, servicos: { srv_ne: 'O' } })).registro;
+  Q = await chamar('GET', 'pgt');
+  ok(Q.eventos.find((e) => e.id === novoE.id).codigo === 'CE-M06' && Q.eventos.find((e) => e.id === novoE.id).servicos.srv_ne === 'O', 'evento novo: CE-M06, opcional em NE');
+  await chamar('POST', 'pgt/lote', { ops: [{ tipo: 'eventos-servicos', evento_ids: [novoE.id], servico_id: 'srv_rf', pertinencia: 'P' }] });
+  ok((await chamar('GET', 'pgt')).eventos.find((e) => e.id === novoE.id).servicos.srv_rf === 'P', 'lote: pertinência de evento');
+
+  // prazo pela sequência, com cluster e evento do estúdio
+  const ents = Q.entregaveis.filter((x) => x.etapa_id === 'pet_ev');   // EV-01..04, todas P em EV
+  const ids = ents.map((x) => x.id);
+  await chamar('POST', 'pgt/lote', { ops: [
+    ...ids.map((id, i) => ({ tipo: 'campos', tabela: 'pgt_entregaveis', id, versao: ents[i].versao, campos: { prazo_turnos: [2, 4, 6, 2][i], junto_anterior: i === 1 || i === 2 ? 1 : 0 } })),
+    { tipo: 'campos', tabela: 'pgt_eventos', id: 'pev_ev_m01', versao: Q.eventos.find((e) => e.id === 'pev_ev_m01').versao, campos: { prazo_turnos: 1 } },
+  ] });
+  Q = await chamar('GET', 'pgt');
+  // EV-01 (2) ‖ EV-02 (4) ‖ EV-03 (6) → 6; EV-04 → 2; revisão interna (estúdio) → 1; apresentação e decisão não contam
+  ok(Q.etapas.find((e) => e.id === 'pet_ev').prazos.srv_ev === 9, `prazo do EV com cluster e evento: 9 turnos (${Q.etapas.find((e) => e.id === 'pet_ev').prazos.srv_ev})`);
+  ok(Q.etapas.find((e) => e.id === 'pet_ev').prazos.srv_ne === undefined || Q.etapas.find((e) => e.id === 'pet_ev').prazos.srv_ne >= 0, 'EV em NE: só opcionais, sem prazo somado');
+
+  // sequência: reordenar entregas e eventos juntos
+  const ceIds = [...Q.eventos.filter((e) => e.etapa_id === 'pet_ce'), ...Q.entregaveis.filter((x) => x.etapa_id === 'pet_ce')].map((x) => x.id);
+  await chamar('POST', 'pgt/sequencia', { etapa_id: 'pet_ce', ids: ceIds });
+  Q = await chamar('GET', 'pgt');
+  ok(Q.eventos.find((e) => e.id === 'pev_ce_m01').ordem === 1 && Q.entregaveis.find((x) => x.id === ceIds.at(-1)).ordem === ceIds.length, 'sequência: eventos e entregas numa ordem só');
+  ok(await falha('POST', 'pgt/sequencia', { etapa_id: 'pet_ce', ids: ['pev_lv_m01'] }) === 422, 'sequência: item de outra etapa → 422');
+  ok(await falha('POST', 'pgt/sequencia', { etapa_id: 'pet_de', ids: [enc.id] }) === 422, 'sequência: o Encerramento fica fora');
+
+  // faixas de prazo nas Bases
+  let Bf = await chamar('GET', 'bases');
+  ok(Bf.faixas_prazo.length === 5 && Bf.faixas_prazo[0].ate === 150 && Bf.faixas_prazo[4].ate === null && Bf.faixas_prazo[4].mult === 2.4, 'Bases: 5 faixas de prazo');
+  ok(await falha('POST', 'bases/faixas-prazo', { faixas: [{ ate: 300, mult: 1 }, { ate: 200, mult: 2 }, { mult: 3 }] }) === 422, 'faixas fora de ordem → 422');
+  await chamar('POST', 'bases/faixas-prazo', { faixas: [{ ate: 200, mult: 1 }, { ate: 999, mult: 7 }, { mult: 1.5 }] });
+  Bf = await chamar('GET', 'bases');
+  ok(Bf.faixas_prazo.length === 3 && Bf.faixas_prazo[2].ate === null && Bf.pendente === true, 'faixas gravadas; Bases pendentes de publicação');
+  ok(await falha('POST', 'bases/faixas-prazo', { faixas: [{ mult: 1 }] }, 'vendas') === 403, 'vendas não edita as faixas');
+  ok(!('faixas_prazo' in (await chamar('GET', 'honorarios', null, 'vendas')).parametros), 'faixas fora dos honorários');
+}
 
 console.log('TUDO CERTO');

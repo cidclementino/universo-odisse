@@ -12,8 +12,11 @@
 //   (desde a 0007 a pertinência da etapa é calculada dos entregáveis; POST pgt/etapas-servicos responde 422)
 //   POST pgt/entregaveis-servicos  { entregavel_ids: [...], servico_id, pertinencia: 'P'|'O'|null }   (em massa)
 //   POST pgt/entregaveis-categorias { entregavel_id, categorias: [tca_…] }   (substitui; vazio = todas)
+//   POST pgt/eventos-servicos      { evento_ids: [...], servico_id, pertinencia: 'P'|'O'|'S'|null }   (0008)
 //   POST pgt/ordem                 { tabela: 'pgt_entregaveis'|'pgt_etapas'|…, ids: [...] }  (ordem = posição)
-//   POST pgt/lote                  { ops: [{ tipo: 'campos'|'entregaveis-servicos'|'entregaveis-categorias'|'ordem', … }] }  (até 500)
+//   POST pgt/sequencia             { etapa_id, ids: [pen_…/pev_…] }  (entregas e eventos na mesma ordem; 0008)
+//   POST pgt/lote                  { ops: [{ tipo: 'campos'|'entregaveis-servicos'|'eventos-servicos'|'entregaveis-categorias'|'ordem'|'sequencia', … }] }  (até 500)
+//   POST bases/faixas-prazo        { faixas: [{ ate: 150, mult: 1 }, …, { ate: null, mult: 2.4 }] }  (0008)
 //   POST bases/publicar | pgt/publicar  { nota }  -> retrato numerado (409 nada_mudou se igual ao último)
 //   GET  honorarios                          -> preço dos serviços, fases com parcela, etapas com pesos, parâmetros
 //   POST honorarios/pesos       { etapa_id, servico_id, peso }   (só onde a etapa vale para o serviço)
@@ -34,7 +37,7 @@ const PARAMETROS = { parcela_entrada: { rotulo: 'Parcela de entrada (na assinatu
 const PRECO_SERVICO = ['modificador', 'com_preco', 'preco_por_etapa'];
 // quem edita os honorários (o Projetos só lê)
 const HONORARIOS = { hub: 'E', vendas: 'E', maquina: 'E', projetos: 'L' };
-const ORDENAVEIS = ['bases_servicos', 'bases_categorias', 'bases_usos', 'pgt_fases', 'pgt_etapas', 'pgt_entregaveis', 'pgt_materiais'];
+const ORDENAVEIS = ['bases_servicos', 'bases_categorias', 'bases_usos', 'pgt_fases', 'pgt_etapas', 'pgt_entregaveis', 'pgt_eventos', 'pgt_materiais'];
 
 async function sha256(texto) {
   const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(texto));
@@ -49,6 +52,22 @@ const sem = (r, ...fora) => {
   return o;
 };
 
+// Faixas de prazo por área (0008): o vendas multiplica o prazo das entregas pela faixa da área do projeto.
+// Entregas de prazo fixo e eventos não escalam. A última faixa não tem teto (ate: null).
+function conferirFaixas(l) {
+  if (!Array.isArray(l) || l.length < 1 || l.length > 10) throw new ErroApi(422, 'Faixas: de 1 a 10');
+  let antes = 0;
+  return l.map((f, i) => {
+    const ult = i === l.length - 1;
+    const ate = ult ? null : Number(f?.ate);
+    const mult = Number(f?.mult);
+    if (!ult && (!Number.isFinite(ate) || ate <= antes)) throw new ErroApi(422, `Faixa ${i + 1}: área máxima maior que a da faixa anterior`);
+    if (!Number.isFinite(mult) || mult <= 0 || mult > 10) throw new ErroApi(422, `Faixa ${i + 1}: multiplicador entre 0 e 10`);
+    if (!ult) antes = ate;
+    return { ate, mult };
+  });
+}
+
 export async function retratoBases(env) {
   const [srv, cat, uso] = await env.DB.batch([
     env.DB.prepare('SELECT * FROM bases_servicos WHERE arquivado_em IS NULL ORDER BY ordem, nome'),
@@ -60,6 +79,7 @@ export async function retratoBases(env) {
     servicos: srv.results.map((r) => ({ ...sem(r, ...PRECO_SERVICO), ic_ajustes: lerJson(r.ic_ajustes) || {} })),
     categorias: cat.results.map((r) => ({ ...sem(r), ic_preset: lerJson(r.ic_preset) || {} })),
     usos: uso.results.map((r) => sem(r)),
+    faixas_prazo: lerJson((await env.DB.prepare("SELECT valor FROM bases_parametros WHERE chave = 'faixas_prazo'").first())?.valor) || [],
   };
 }
 
@@ -77,8 +97,43 @@ async function pertinenciaDerivada(env) { return mapaDerivado((await env.DB.prep
 // campos só da tela (fora dos retratos e da assinatura)
 const SO_TELA = ['travado'];
 
+// Prazo da etapa por serviço (0008), em turnos: a sequência de entregas e eventos.
+//   * entrega marcada (P) soma o seu prazo; com junto_anterior, corre junto com a entrega válida anterior
+//     (cluster): conta só a mais longa do grupo;
+//   * evento que vale (P ou perpétuo) e é tempo do estúdio soma a sua duração; tempo do cliente, de
+//     terceiros e pontual não contam; opcionais (O) também não;
+//   * o Encerramento fica de fora (pontual, no fim).
+export function prazosDaEtapa(passos, servicos) {
+  const prazos = {}; const semPrazo = {};
+  for (const srv of servicos) {
+    let total = 0; let grupo = 0; let antesEntrega = false; let vale = false;
+    for (const x of passos) {
+      const p = x.servicos[srv];
+      if (x.tipo_passo === 'entrega') {
+        if (p !== 'P') continue;
+        vale = true;
+        const t = x.prazo_turnos || 0;
+        if (!x.prazo_turnos) semPrazo[srv] = (semPrazo[srv] || 0) + 1;
+        if (x.junto_anterior && antesEntrega) grupo = Math.max(grupo, t);
+        else { total += grupo; grupo = t; }
+        antesEntrega = true;
+      } else {
+        if (x.encerramento || (p !== 'P' && p !== 'S')) continue;
+        total += grupo; grupo = 0; antesEntrega = false;
+        if (x.tempo === 'estudio') total += x.prazo_turnos || 0;
+      }
+    }
+    total += grupo;
+    if (vale) prazos[srv] = total;
+  }
+  return { prazos, semPrazo };
+}
+// entregas e eventos da etapa na ordem (desempate: entrega antes, depois a data de criação)
+export const ordemDaSequencia = (a, b) => (a.ordem - b.ordem) || ((a.tipo_passo === 'entrega' ? 0 : 1) - (b.tipo_passo === 'entrega' ? 0 : 1))
+  || String(a.criado_em || '').localeCompare(String(b.criado_em || '')) || a.id.localeCompare(b.id);
+
 export async function retratoPgt(env) {
-  const [fas, eta, es, ent, ens, enc, mat] = await env.DB.batch([
+  const [fas, eta, es, ent, ens, enc, mat, evt, evs, srvs] = await env.DB.batch([
     env.DB.prepare('SELECT * FROM pgt_fases WHERE arquivado_em IS NULL ORDER BY ordem'),
     env.DB.prepare(`SELECT e.* FROM pgt_etapas e JOIN pgt_fases f ON f.id = e.fase_id
       WHERE e.arquivado_em IS NULL AND f.arquivado_em IS NULL ORDER BY f.ordem, e.ordem`),
@@ -89,6 +144,10 @@ export async function retratoPgt(env) {
     env.DB.prepare(`SELECT x.* FROM pgt_entregaveis_categorias x JOIN bases_categorias c ON c.id = x.categoria_id
       WHERE c.arquivado_em IS NULL ORDER BY x.entregavel_id, c.ordem`),
     env.DB.prepare('SELECT * FROM pgt_materiais WHERE arquivado_em IS NULL ORDER BY alvo_id, ordem'),
+    env.DB.prepare('SELECT * FROM pgt_eventos WHERE arquivado_em IS NULL ORDER BY etapa_id, ordem, criado_em'),
+    env.DB.prepare(`SELECT x.* FROM pgt_eventos_servicos x JOIN bases_servicos s ON s.id = x.servico_id
+      WHERE s.arquivado_em IS NULL ORDER BY x.evento_id, s.ordem`),
+    env.DB.prepare('SELECT id FROM bases_servicos WHERE arquivado_em IS NULL ORDER BY ordem'),
   ]);
   const derivada = mapaDerivado(es.results);
   const porEnt = {};
@@ -105,15 +164,23 @@ export async function retratoPgt(env) {
     return { ...sem(r, ...SO_TELA), codigo: `${sigla[r.etapa_id]}-${String(pos[r.etapa_id]).padStart(2, '0')}`,
       servicos: porEnt[r.id] || {}, categorias: catEnt[r.id] || [] };
   });
-  // prazo da etapa por serviço = soma dos entregáveis que vêm marcados (P) para ele, em turnos
+  // eventos: código = sigla da etapa + M + posição (CE-M02); o Encerramento é ENC
+  const porEvt = {};
+  for (const x of evs.results) (porEvt[x.evento_id] ||= {})[x.servico_id] = x.pertinencia;
+  const posM = {};
+  const eventos = evt.results.filter((r) => sigla[r.etapa_id] || r.encerramento).map((r) => {
+    let codigo = 'ENC';
+    if (!r.encerramento) { posM[r.etapa_id] = (posM[r.etapa_id] || 0) + 1; codigo = `${sigla[r.etapa_id]}-M${String(posM[r.etapa_id]).padStart(2, '0')}`; }
+    return { ...sem(r, ...SO_TELA), codigo, instancias: lerJson(r.instancias), servicos: porEvt[r.id] || {} };
+  });
+  // prazo da etapa por serviço, em turnos, pela sequência (ver prazosDaEtapa)
+  const servicos = srvs.results.map((x) => x.id);
   for (const e of etapas) {
-    e.prazos = {};
-    for (const x of entregaveis) {
-      if (x.etapa_id !== e.id) continue;
-      for (const [srv, p] of Object.entries(x.servicos)) if (p === 'P') e.prazos[srv] = (e.prazos[srv] || 0) + (x.prazo_turnos || 0);
-    }
+    const passos = [...entregaveis.filter((x) => x.etapa_id === e.id).map((x) => ({ ...x, tipo_passo: 'entrega' })),
+      ...eventos.filter((x) => x.etapa_id === e.id && !x.encerramento).map((x) => ({ ...x, tipo_passo: 'evento' }))].sort(ordemDaSequencia);
+    e.prazos = prazosDaEtapa(passos, servicos).prazos;
   }
-  return { fases: fas.results.map((r) => sem(r, 'parcela', ...SO_TELA)), etapas, entregaveis, materiais: mat.results.map((r) => sem(r)) };
+  return { fases: fas.results.map((r) => sem(r, 'parcela', ...SO_TELA)), etapas, entregaveis, eventos, materiais: mat.results.map((r) => sem(r)) };
 }
 
 // Honorários: o custo sobre a estrutura. Pesos só onde a etapa vale para o serviço (P ou O).
@@ -133,7 +200,7 @@ export async function retratoHonorarios(env) {
   for (const x of es.results) if (vale[x.etapa_id]?.[x.servico_id]) (pesos[x.etapa_id] ||= {})[x.servico_id] = x.peso;
   return {
     servicos: srv.results, fases: fas.results, pesos,
-    parametros: Object.fromEntries(par.results.map((p) => [p.chave, lerJson(p.valor)])),
+    parametros: Object.fromEntries(par.results.filter((p) => PARAMETROS[p.chave]).map((p) => [p.chave, lerJson(p.valor)])),
   };
 }
 
@@ -188,7 +255,7 @@ async function paginaBases(env) {
     UNION ALL SELECT id, 'categoria', nome, versao, arquivado_em FROM bases_categorias WHERE arquivado_em IS NOT NULL
     UNION ALL SELECT id, 'uso', descricao, versao, arquivado_em FROM bases_usos WHERE arquivado_em IS NOT NULL`).all();
   return {
-    servicos: marcar(r.servicos), categorias: marcar(r.categorias), usos: marcar(r.usos),
+    servicos: marcar(r.servicos), categorias: marcar(r.categorias), usos: marcar(r.usos), faixas_prazo: r.faixas_prazo,
     arquivados: arq, ...(await situacao(env, 'bases', r)),
   };
 }
@@ -196,16 +263,17 @@ async function paginaBases(env) {
 async function paginaPgt(env) {
   const r = await retratoPgt(env);
   const b = await retratoBases(env);
-  const tabelas = ['pgt_fases', 'pgt_etapas', 'pgt_entregaveis', 'pgt_materiais'];
+  const tabelas = ['pgt_fases', 'pgt_etapas', 'pgt_entregaveis', 'pgt_eventos', 'pgt_materiais'];
   const res = await env.DB.batch(tabelas.map((t) => env.DB.prepare(`SELECT id, versao${t === 'pgt_materiais' ? '' : ', travado'} FROM ${t}`)));
   const vers = Object.fromEntries(res.flatMap((x) => x.results).map((x) => [x.id, x]));
   const marcar = (l) => l.map((x) => ({ ...x, versao: vers[x.id].versao, ...('travado' in vers[x.id] ? { travado: vers[x.id].travado } : {}) }));
   const { results: arq } = await env.DB.prepare(`SELECT id, 'etapa' AS tipo, sigla || ' · ' || nome AS nome, versao, arquivado_em FROM pgt_etapas WHERE arquivado_em IS NOT NULL
     UNION ALL SELECT id, 'entregavel', texto, versao, arquivado_em FROM pgt_entregaveis WHERE arquivado_em IS NOT NULL
+    UNION ALL SELECT id, 'evento', nome, versao, arquivado_em FROM pgt_eventos WHERE arquivado_em IS NOT NULL
     UNION ALL SELECT id, 'material', nome, versao, arquivado_em FROM pgt_materiais WHERE arquivado_em IS NOT NULL
     ORDER BY arquivado_em DESC LIMIT 200`).all();
   return {
-    fases: marcar(r.fases), etapas: marcar(r.etapas), entregaveis: marcar(r.entregaveis), materiais: marcar(r.materiais),
+    fases: marcar(r.fases), etapas: marcar(r.etapas), entregaveis: marcar(r.entregaveis), eventos: marcar(r.eventos), materiais: marcar(r.materiais),
     servicos: b.servicos.map((s) => ({ id: s.id, sigla: s.sigla, nome: s.nome, ordem: s.ordem })),
     categorias: b.categorias.map((c) => ({ id: c.id, nome: c.nome, grupo: c.grupo })),
     arquivados: arq, ...(await situacao(env, 'pgt', r)),
@@ -307,6 +375,67 @@ async function entregaveisServico(env, ferramenta, c) {
   return { ok: true, mudaram };
 }
 
+// Pertinência dos eventos (0008). O Encerramento é perpétuo em todos os serviços e não se muda aqui.
+async function eventosServico(env, ferramenta, c) {
+  const ids = [...new Set(Array.isArray(c.evento_ids) ? c.evento_ids.map(String) : [])];
+  if (!ids.length || ids.length > 200) throw new ErroApi(422, 'evento_ids: de 1 a 200 eventos');
+  await ativo(env, 'bases_servicos', c.servico_id, 'Serviço');
+  const p = c.pertinencia === null || c.pertinencia === undefined || c.pertinencia === '' ? null : c.pertinencia;
+  if (p !== null && !['P', 'O', 'S'].includes(p)) throw new ErroApi(422, 'Pertinência: P (vem marcado), O (opcional), S (perpétuo) ou vazio');
+  const marcas = ids.map(() => '?').join(', ');
+  const { results: existem } = await env.DB.prepare(`SELECT id, encerramento FROM pgt_eventos WHERE id IN (${marcas}) AND arquivado_em IS NULL`).bind(...ids).all();
+  if (existem.length !== ids.length) throw new ErroApi(422, 'algum evento não foi encontrado (ou está arquivado)');
+  if (existem.some((x) => x.encerramento)) throw new ErroApi(422, 'o Encerramento é perpétuo: vale para todos os serviços');
+  const { results: antes } = await env.DB.prepare(
+    `SELECT evento_id, pertinencia FROM pgt_eventos_servicos WHERE servico_id = ? AND evento_id IN (${marcas})`,
+  ).bind(c.servico_id, ...ids).all();
+  const eraDe = Object.fromEntries(antes.map((a) => [a.evento_id, a.pertinencia]));
+  const stmts = [];
+  let mudaram = 0;
+  for (const id of ids) {
+    const era = eraDe[id] || null;
+    if (era === p) continue;
+    mudaram++;
+    stmts.push(p
+      ? env.DB.prepare(`INSERT INTO pgt_eventos_servicos (evento_id, servico_id, pertinencia) VALUES (?, ?, ?)
+          ON CONFLICT (evento_id, servico_id) DO UPDATE SET pertinencia = excluded.pertinencia`).bind(id, c.servico_id, p)
+      : env.DB.prepare('DELETE FROM pgt_eventos_servicos WHERE evento_id = ? AND servico_id = ?').bind(id, c.servico_id),
+    hist(env, id, 'pgt_eventos', ferramenta, { [`servico:${c.servico_id}`]: [era, p] }));
+  }
+  if (stmts.length) await env.DB.batch(stmts);
+  return { ok: true, mudaram };
+}
+
+// Sequência da etapa (0008): entregas e eventos recebem a posição na lista (1, 2, 3…). Todos precisam ser
+// da etapa; o Encerramento fica fora (é sempre o último). Não mexe na versão; fica no histórico.
+async function sequencia(env, ferramenta, c) {
+  await ativo(env, 'pgt_etapas', c.etapa_id, 'Etapa');
+  const ids = Array.isArray(c.ids) ? c.ids.map(String) : [];
+  if (!ids.length || ids.length > 300 || new Set(ids).size !== ids.length) throw new ErroApi(422, 'ids: lista sem repetição (até 300)');
+  if (ids.some((id) => !/^pe[nv]_/.test(id))) throw new ErroApi(422, 'ids: só entregas (pen_) e eventos (pev_)');
+  const agora = agoraISO();
+  const stmts = ids.map((id, i) => env.DB.prepare(`UPDATE ${id.startsWith('pen_') ? 'pgt_entregaveis' : 'pgt_eventos'}
+    SET ordem = ?, atualizado_em = ?, atualizado_por = ? WHERE id = ? AND etapa_id = ?${id.startsWith('pev_') ? ' AND encerramento = 0' : ''}`)
+    .bind(i + 1, agora, ferramenta, id, c.etapa_id));
+  stmts.push(...ids.map((id, i) => hist(env, id, id.startsWith('pen_') ? 'pgt_entregaveis' : 'pgt_eventos', ferramenta, { ordem: [null, i + 1] })));
+  const res = await env.DB.batch(stmts);
+  if (res.slice(0, ids.length).some((r) => r.meta.changes !== 1)) throw new ErroApi(422, 'algum item da lista não é desta etapa (ou é o Encerramento)');
+  return { ok: true };
+}
+
+async function faixasPrazo(env, ferramenta, c) {
+  const faixas = conferirFaixas(c.faixas);
+  const antes = await env.DB.prepare("SELECT valor FROM bases_parametros WHERE chave = 'faixas_prazo'").first();
+  const agora = agoraISO();
+  await env.DB.batch([
+    env.DB.prepare(`INSERT INTO bases_parametros (chave, valor, rotulo, atualizado_em, atualizado_por) VALUES ('faixas_prazo', ?, 'Faixas de prazo por área', ?, ?)
+      ON CONFLICT (chave) DO UPDATE SET valor = excluded.valor, atualizado_em = excluded.atualizado_em, atualizado_por = excluded.atualizado_por`)
+      .bind(JSON.stringify(faixas), agora, ferramenta),
+    hist(env, 'parametro:faixas_prazo', 'bases_parametros', ferramenta, { valor: [lerJson(antes?.valor), faixas] }),
+  ]);
+  return { ok: true, faixas };
+}
+
 async function entregavelCategorias(env, ferramenta, c) {
   await ativo(env, 'pgt_entregaveis', c.entregavel_id, 'Entregável');
   const cats = [...new Set(Array.isArray(c.categorias) ? c.categorias.map(String) : [])];
@@ -343,9 +472,10 @@ async function reordenar(env, ferramenta, c) {
 //   { ops: [{ tipo: 'campos' | 'entregaveis-servicos' | 'entregaveis-categorias' | 'ordem', ...corpo da rota }] }
 //   campos: { tabela: 'pgt_fases'|'pgt_etapas'|'pgt_entregaveis'|'pgt_materiais', id, versao, campos: {...} } (= PATCH)
 // Executa em ordem; se uma falhar, as anteriores ficam e a resposta diz qual falhou (422 com `indice`).
-const TABELAS_LOTE = ['pgt_fases', 'pgt_etapas', 'pgt_entregaveis', 'pgt_materiais'];
+const TABELAS_LOTE = ['pgt_fases', 'pgt_etapas', 'pgt_entregaveis', 'pgt_eventos', 'pgt_materiais'];
 const OPS_LOTE = {
-  'entregaveis-servicos': entregaveisServico, 'entregaveis-categorias': entregavelCategorias, ordem: reordenar,
+  'entregaveis-servicos': entregaveisServico, 'eventos-servicos': eventosServico, 'entregaveis-categorias': entregavelCategorias,
+  ordem: reordenar, sequencia,
   campos: (env, ferramenta, op, alterar) => {
     if (!TABELAS_LOTE.includes(op.tabela)) throw new ErroApi(422, 'tabela: não aceita no lote');
     return alterar(env, ferramenta, op.tabela, String(op.id || ''), { ...(op.campos || {}), versao: op.versao });
@@ -388,6 +518,7 @@ export async function rotasPgt(env, ferramenta, m, [rota, id, acao], corpo, url,
   if (rota === 'bases') {
     if (!id && m === 'GET') { exigir('bases_servicos', ferramenta, 'L'); return paginaBases(env); }
     if (id === 'publicar' && m === 'POST') { exigir('bases_servicos', ferramenta, 'E'); return publicar(env, ferramenta, 'bases', corpo); }
+    if (id === 'faixas-prazo' && m === 'POST') { exigir('bases_servicos', ferramenta, 'E'); return faixasPrazo(env, ferramenta, corpo || {}); }
     throw new ErroApi(404, 'rota não encontrada');
   }
   if (rota === 'pgt') {
@@ -397,7 +528,9 @@ export async function rotasPgt(env, ferramenta, m, [rota, id, acao], corpo, url,
     const c = corpo || {};
     if (id === 'etapas-servicos') throw new ErroApi(422, 'a pertinência da etapa vem dos entregáveis (marque os entregáveis)');
     if (id === 'entregaveis-servicos') return entregaveisServico(env, ferramenta, c);
+    if (id === 'eventos-servicos') return eventosServico(env, ferramenta, c);
     if (id === 'entregaveis-categorias') return entregavelCategorias(env, ferramenta, c);
+    if (id === 'sequencia') return sequencia(env, ferramenta, c);
     if (id === 'ordem') return reordenar(env, ferramenta, c);
     if (id === 'lote') return lote(env, ferramenta, c, alterar);
     if (id === 'publicar') return publicar(env, ferramenta, 'pgt', c);

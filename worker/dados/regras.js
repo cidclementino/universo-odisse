@@ -450,36 +450,83 @@ const pgt_fases = simples('pgt_fases', (o) => conferirFaixa(o, 'parcela', 'Parce
 const pgt_etapas = simples('pgt_etapas', (o) => { conferirSigla(o); conferirFaixa(o, 'semanas_base', 'Semanas', 0, 520); });
 const pgt_materiais = simples('pgt_materiais', () => {}, 'alvo_id');
 
-// Entregável novo: pode já nascer com a pertinência por serviço ({ servicos: { srv_ne: 'P', … } }).
+// Sequência da etapa (0008): entregas e eventos dividem a mesma ordem. Novo item (ou item que muda de
+// etapa sem dizer a ordem) vai para o fim da sequência, antes do Encerramento.
+async function fimDaSequencia(env, etapaId) {
+  const r = await env.DB.prepare(`SELECT MAX(m) AS m FROM (
+      SELECT MAX(ordem) AS m FROM pgt_entregaveis WHERE etapa_id = ? AND arquivado_em IS NULL
+      UNION ALL SELECT MAX(ordem) FROM pgt_eventos WHERE etapa_id = ? AND arquivado_em IS NULL AND encerramento = 0)`)
+    .bind(etapaId, etapaId).first();
+  return (r?.m || 0) + 1;
+}
+// pertinência ao nascer ({ servicos: { srv_ne: 'P', … } }); 'S' (perpétuo) só em eventos
+async function pertinenciaAoNascer(env, corpo, id, tabela, coluna, aceitas) {
+  const servs = corpo.servicos && typeof corpo.servicos === 'object' ? corpo.servicos : {};
+  const extras = [];
+  for (const [srv, p] of Object.entries(servs)) {
+    if (!p) continue;
+    if (!aceitas.includes(p)) throw new ErroApi(422, `Pertinência: ${aceitas.join(' ou ')}`);
+    const ok = await env.DB.prepare('SELECT 1 FROM bases_servicos WHERE id = ? AND arquivado_em IS NULL').bind(srv).first();
+    if (!ok) throw new ErroApi(422, `Serviço ${srv}: não encontrado`);
+    extras.push(env.DB.prepare(`INSERT INTO ${tabela} (${coluna}, servico_id, pertinencia) VALUES (?, ?, ?)`).bind(id, srv, p));
+  }
+  return extras;
+}
+
+// Entrega nova: pode já nascer com a pertinência por serviço.
 const pgt_entregaveis = {
   async criar(env, ferramenta, valores, corpo, id) {
-    await ordemNoFim(env, 'pgt_entregaveis', valores, ['etapa_id', valores.etapa_id]);
-    const servs = corpo.servicos && typeof corpo.servicos === 'object' ? corpo.servicos : {};
-    const extras = [];
-    for (const [srv, p] of Object.entries(servs)) {
-      if (!p) continue;
-      if (!['P', 'O'].includes(p)) throw new ErroApi(422, 'Pertinência: P ou O');
-      const ok = await env.DB.prepare('SELECT 1 FROM bases_servicos WHERE id = ? AND arquivado_em IS NULL').bind(srv).first();
-      if (!ok) throw new ErroApi(422, `Serviço ${srv}: não encontrado`);
-      extras.push(env.DB.prepare('INSERT INTO pgt_entregaveis_servicos (entregavel_id, servico_id, pertinencia) VALUES (?, ?, ?)')
-        .bind(id, srv, p));
-    }
-    return extras;
+    if (valores.ordem === null || valores.ordem === undefined) valores.ordem = await fimDaSequencia(env, valores.etapa_id);
+    return pertinenciaAoNascer(env, corpo, id, 'pgt_entregaveis_servicos', 'entregavel_id', ['P', 'O']);
   },
   async alterar(env, ferramenta, atual, mudancas) {
     // mudou de etapa sem dizer a ordem: vai para o fim da etapa nova
-    if (mudancas.etapa_id && !('ordem' in mudancas)) {
-      const v = { ordem: null };
-      await ordemNoFim(env, 'pgt_entregaveis', v, ['etapa_id', mudancas.etapa_id]);
-      mudancas.ordem = v.ordem;
-    }
+    if (mudancas.etapa_id && !('ordem' in mudancas)) mudancas.ordem = await fimDaSequencia(env, mudancas.etapa_id);
     return [];
+  },
+};
+
+// Evento: o Encerramento (único, criado pela migração 0008) não muda de tipo, não se arquiva e só fica numa
+// das suas instâncias; os demais não viram encerramento nem têm instâncias.
+async function conferirInstancias(env, texto) {
+  const l = JSON.parse(texto);
+  if (!Array.isArray(l) || !l.length || l.some((x) => typeof x !== 'string' || !x.startsWith('pet_'))) {
+    throw new ErroApi(422, 'Instâncias: lista de etapas (pet_…), ao menos uma');
+  }
+  for (const id of l) {
+    const ok = await env.DB.prepare('SELECT 1 FROM pgt_etapas WHERE id = ? AND arquivado_em IS NULL').bind(id).first();
+    if (!ok) throw new ErroApi(422, `Instâncias: etapa ${id} não encontrada`);
+  }
+  return l;
+}
+const pgt_eventos = {
+  async criar(env, ferramenta, valores, corpo, id) {
+    if (valores.tipo === 'encerramento') throw new ErroApi(422, 'Tipo: o Encerramento já existe (é um só)');
+    if (valores.instancias) throw new ErroApi(422, 'Instâncias: só o Encerramento tem');
+    if (valores.ordem === null || valores.ordem === undefined) valores.ordem = await fimDaSequencia(env, valores.etapa_id);
+    return pertinenciaAoNascer(env, corpo, id, 'pgt_eventos_servicos', 'evento_id', ['P', 'O', 'S']);
+  },
+  async alterar(env, ferramenta, atual, mudancas) {
+    if (atual.encerramento) {
+      if ('tipo' in mudancas && mudancas.tipo !== 'encerramento') throw new ErroApi(422, 'Tipo: o Encerramento não muda de tipo');
+      const inst = 'instancias' in mudancas ? await conferirInstancias(env, mudancas.instancias) : JSON.parse(atual.instancias || '[]');
+      const etapa = mudancas.etapa_id || atual.etapa_id;
+      if (!inst.includes(etapa)) throw new ErroApi(422, 'Etapa: o Encerramento só fica numa das suas instâncias');
+      return [];
+    }
+    if (mudancas.tipo === 'encerramento') throw new ErroApi(422, 'Tipo: o Encerramento já existe (é um só)');
+    if ('instancias' in mudancas && mudancas.instancias !== null) throw new ErroApi(422, 'Instâncias: só o Encerramento tem');
+    if (mudancas.etapa_id && !('ordem' in mudancas)) mudancas.ordem = await fimDaSequencia(env, mudancas.etapa_id);
+    return [];
+  },
+  arquivar(atual, arquivando) {
+    if (arquivando && atual.encerramento) throw new ErroApi(422, 'o Encerramento não se arquiva (vale para todos os serviços)');
   },
 };
 
 export const REGRAS = {
   oportunidades, propostas, contratos, projetos, horas,
-  bases_servicos, bases_categorias, bases_usos, pgt_fases, pgt_etapas, pgt_entregaveis, pgt_materiais,
+  bases_servicos, bases_categorias, bases_usos, pgt_fases, pgt_etapas, pgt_entregaveis, pgt_eventos, pgt_materiais,
 };
 
 // ---------------------------------------------------------------- painel do comercial
