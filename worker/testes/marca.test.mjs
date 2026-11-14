@@ -1,13 +1,22 @@
 // Teste das regras da Marca (worker/marca.js) sobre o odisse.json e o marca.css de verdade.
 // Rodar: node --no-warnings worker/testes/marca.test.mjs [caminho do marca-odisse]
-// Sem caminho, procura ../marca-odisse ao lado deste repositório.
+// Sem caminho, procura ../marca-odisse ao lado deste repositório; se não houver (GitHub Actions),
+// lê os arquivos do repositório marca-odisse no GitHub.
 import fs from 'node:fs';
 import path from 'node:path';
 import { aplicar, mudancas, gerarCss, validarSvg, incluirLogo, ehMono, coresDoSvg } from '../marca.js';
 
 const RAIZ = process.argv[2] || path.resolve(decodeURIComponent(new URL('../../../marca-odisse', import.meta.url).pathname));
-const dados = JSON.parse(fs.readFileSync(path.join(RAIZ, 'odisse.json'), 'utf8'));
-const css = fs.readFileSync(path.join(RAIZ, 'v1/marca.css'), 'utf8');
+const LOCAL = fs.existsSync(path.join(RAIZ, 'odisse.json'));
+const ler = async (rel) => {
+  if (LOCAL) return fs.readFileSync(path.join(RAIZ, rel), 'utf8');
+  const r = await fetch('https://raw.githubusercontent.com/cidclementino/marca-odisse/main/' + rel);
+  if (!r.ok) throw new Error(`não achei ${rel} (${r.status})`);
+  return r.text();
+};
+console.log('marca-odisse:', LOCAL ? RAIZ : 'GitHub');
+const dados = JSON.parse(await ler('odisse.json'));
+const css = await ler('v1/marca.css');
 const ok = (c, msg) => { if (!c) throw new Error('FALHOU: ' + msg); console.log('ok -', msg); };
 const falha = (fn, trecho, msg) => {
   try { fn(); } catch (e) { ok(!trecho || e.message.includes(trecho), `${msg} (${e.message})`); return; }
@@ -18,14 +27,14 @@ const falha = (fn, trecho, msg) => {
 ok(dados.nucleos.filter((n) => n.marca_mae).map((n) => n.id).join() === 'estudio', 'Estúdio é a marca-mãe');
 ok(dados.nucleos.map((n) => n.sigla).join() === 'OE,OA,OO,EL', 'siglas OE, OA, OO, EL');
 ok(dados.nucleos.map((n) => n.selo.nome).join() === 'Mão,Roda,Flor,Sol', 'selos com os nomes do manual');
-for (const n of dados.nucleos) for (const l of [...n.logos, n.selo]) ok(fs.existsSync(path.join(RAIZ, l.arquivo)), `existe ${l.arquivo}`);
+const svgs = {};
+for (const n of dados.nucleos) for (const l of [...n.logos, n.selo]) { svgs[l.arquivo] = await ler(l.arquivo); ok(svgs[l.arquivo].includes('<svg'), `existe ${l.arquivo}`); }
 ok(dados.paleta.find((p) => p.id === 'ambar').funcao === 'Luz do duotone da Elaia', 'âmbar com a função do manual');
 ok(gerarCss(css, dados) === css, 'CSS já bate com o odisse.json (nada a reescrever)');
-ok(ehMono(fs.readFileSync(path.join(RAIZ, 'logos/logotipo-odisse.svg'), 'utf8')), 'logotipo é de uma cor');
-ok(!ehMono(fs.readFileSync(path.join(RAIZ, 'logos/odisse-elaia-01.svg'), 'utf8')), 'Elaia 01 tem cores próprias');
-for (const f of fs.readdirSync(path.join(RAIZ, 'logos'))) validarSvg(fs.readFileSync(path.join(RAIZ, 'logos', f), 'utf8'));
-for (const f of fs.readdirSync(path.join(RAIZ, 'selos'))) validarSvg(fs.readFileSync(path.join(RAIZ, 'selos', f), 'utf8'));
-ok(true, 'todos os SVGs atuais passam na conferência');
+ok(ehMono(svgs['logos/logotipo-odisse.svg']), 'logotipo é de uma cor');
+ok(!ehMono(svgs['logos/odisse-elaia-01.svg']), 'Elaia 01 tem cores próprias');
+for (const t of Object.values(svgs)) validarSvg(t);
+ok(true, 'todos os SVGs da marca passam na conferência');
 
 // ---- aplicar: o arquivo inteiro de volta não muda nada
 const igual = aplicar(dados, structuredClone(dados), dados.atualizado);
