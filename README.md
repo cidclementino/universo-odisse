@@ -11,7 +11,7 @@ Cada ferramenta continua no seu próprio repositório e endereço. O Universo d�
 | **Início** | O que importa hoje | `#/` |
 | **Ferramentas** | Onde se trabalha (Marketing, Comercial, Produção) | `#/ferramentas` |
 | **Canais** | O que o público vê: sites, redes, publicações | `#/canais` |
-| **Marca** | Quem somos: identidade e dados institucionais | `#/marca` |
+| **Marca** | Quem somos: marca-mãe (que é o Estúdio), núcleos, paleta e tipografia; edição em PT/EN e envio de logos | `#/marca` |
 | **Biblioteca** | O que se reutiliza: acervo, referências, modelos, procedimentos | `#/biblioteca` |
 
 Os endereços das redes em Canais e os dados em Marca vêm do `odisse.json` da marca (fonte única); não se repetem aqui.
@@ -65,7 +65,10 @@ CRM no vendas.odisse (ligado à API de dados) · Projetos · Acervo + publicaç�
 
 Cloudflare Worker `universo-hub` (https://universo-hub.reservaprojectbasework.workers.dev), publicado pelo GitHub Actions (`.github/workflows/worker.yml`) a cada mudança em `worker/` ou `dados/migracoes/`.
 
-- `GET /api/marca` e `PUT /api/marca`: lê e grava o `odisse.json` do repositório `marca-odisse`. Cada gravação é um commit ("Dados: … (pelo Universo)"); o formulário fica na página Marca.
+- `GET /api/marca` e `PUT /api/marca`: lê e grava o `odisse.json` do repositório `marca-odisse`. Cada gravação é um commit ("Dados: … (pelo Universo)"); se a paleta, os papéis ou as cores dos núcleos mudarem, o mesmo commit reescreve os valores do `v1/marca.css`.
+- `POST /api/marca/logo`: recebe um SVG (conferido: só desenho, sem scripts, imagens embutidas ou links externos), acrescenta ou substitui uma peça de um núcleo e atualiza a lista de logos no `odisse.json`, tudo num commit ("Logo: … (pelo Universo)").
+- Regras puras da Marca em `worker/marca.js`; teste: `node --no-warnings worker/testes/marca.test.mjs ../marca-odisse`.
+- Página Marca no navegador: `assets/marca.js` (leitura, edição com a chave PT/EN, paleta, envio de logo).
 - `/api/v1/…`: **API de dados**, a única porta do banco D1 `universo` e do R2 `universo-arquivos`. Rotas em `worker/dados/api.js`; tabelas, campos e permissões por ferramenta em `worker/dados/esquema.js`; estrutura em `dados/migracoes/`; porquês em [`dados/DECISOES.md`](dados/DECISOES.md).
 - Secrets do repositório: `CLOUDFLARE_API_TOKEN` (precisa de Workers Scripts, D1 e Workers R2 Storage: Edit), `CLOUDFLARE_ACCOUNT_ID`, `UNIVERSO_SENHA` (senha da equipe), `MAQUINA_TOKEN` (rotinas automáticas) e `MARCA_GITHUB_TOKEN` (token fine-grained do GitHub, só para `marca-odisse`, Contents: Read and write).
 - Cópia semanal do banco: `.github/workflows/copia.yml` (domingo de madrugada) → R2 `universo-copias`, guardada por 90 dias.

@@ -23,14 +23,21 @@
 //   GET /api/estado  -> { ok, marca: true|false }  (confere senha e se o token existe)
 //   GET /api/marca   -> { dados, sha }              (odisse.json direto do repositório, sem atraso do Pages)
 //   PUT /api/marca   <- { dados, sha }              -> { dados, sha, commit }
-//                       409 se alguém salvou antes (sha diferente)
+//                       409 se alguém salvou antes (sha diferente). Se a paleta, os papéis ou as cores
+//                       dos núcleos mudarem, o mesmo commit reescreve os valores do v1/marca.css.
+//   POST /api/marca/logo <- { sha, nucleo, modo: 'novo'|'substituir', alvo?, nome?, svg }
+//                       -> { dados, sha, commit, caminho }. O SVG é conferido (só desenho) e entra no
+//                       mesmo commit que atualiza a lista de logos do núcleo no odisse.json.
 
 import { WorkerEntrypoint } from 'cloudflare:workers';
 import { api } from './dados/api.js';
+import { aplicar, mudancas, gerarCss, validarSvg, incluirLogo } from './marca.js';
 
 const REPO = 'cidclementino/marca-odisse';
 const ARQUIVO = 'odisse.json';
-const GH = `https://api.github.com/repos/${REPO}/contents/${ARQUIVO}`;
+const CSS = 'v1/marca.css';
+const GHR = `https://api.github.com/repos/${REPO}`;
+const GH = `${GHR}/contents/${ARQUIVO}`;
 
 // Qualquer origem pode chamar: a proteção é a senha no cabeçalho (sem cookies), como no marketing.
 // Restringir a origem só fazia o navegador descartar a resposta quando o hub era aberto por
@@ -81,99 +88,47 @@ const ghHeaders = (env) => ({
   'User-Agent': 'universo-odisse',
 });
 
-const paraBase64 = (texto) => {
-  const bytes = new TextEncoder().encode(texto);
-  let bin = '';
-  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-  return btoa(bin);
-};
 const deBase64 = (b64) => new TextDecoder().decode(Uint8Array.from(atob(b64.replace(/\n/g, '')), (c) => c.charCodeAt(0)));
 
-async function lerMarca(env) {
-  const r = await fetch(GH + '?ref=main', { headers: ghHeaders(env) });
+async function lerMarca(env, ref = 'main') {
+  const r = await fetch(GH + '?ref=' + ref, { headers: ghHeaders(env) });
   if (!r.ok) throw new Error(`GitHub respondeu ${r.status} ao ler ${ARQUIVO}`);
   const j = await r.json();
   return { dados: JSON.parse(deBase64(j.content)), sha: j.sha };
 }
 
-// ---- validação ------------------------------------------------------------
-// O formulário só mexe nos campos conhecidos; o resto do arquivo (versao, núcleos ids…) é preservado.
-
-const txt = (v, max, obrig = false, nome = 'campo') => {
-  const s = String(v ?? '').replace(/\s+/g, ' ').trim();
-  if (obrig && !s) throw new Error(`${nome}: obrigatório`);
-  if (s.length > max) throw new Error(`${nome}: no máximo ${max} caracteres`);
-  return s;
-};
-const link = (v, nome) => {
-  const s = txt(v, 300, false, nome);
-  if (s && !/^https:\/\/[^\s/$.?#][^\s]*$/i.test(s)) throw new Error(`${nome}: precisa começar com https://`);
-  return s;
-};
-
-function hojeBrasilia() {
-  return new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10);
+async function lerTexto(env, caminho) {
+  const r = await fetch(`${GHR}/contents/${caminho}?ref=main`, { headers: ghHeaders(env) });
+  if (!r.ok) throw new Error(`GitHub respondeu ${r.status} ao ler ${caminho}`);
+  return deBase64((await r.json()).content);
 }
 
-function aplicar(atual, novo) {
-  const d = structuredClone(atual);
-  d.nome = txt(novo.nome, 60, true, 'Nome');
-  d.nome_completo = txt(novo.nome_completo, 120, true, 'Nome completo');
-  d.nome_completo_en = txt(novo.nome_completo_en, 120, false, 'Nome completo (inglês)');
-  d.descricao = txt(novo.descricao, 400, true, 'Descrição');
-  d.descricao_en = txt(novo.descricao_en, 400, false, 'Descrição (inglês)');
-
-  const fund = (Array.isArray(novo.fundadores) ? novo.fundadores : String(novo.fundadores || '').split(/\n|,/))
-    .map((f) => txt(f, 80, false, 'Fundadores')).filter(Boolean);
-  if (!fund.length) throw new Error('Fundadores: informe ao menos um nome');
-  d.fundadores = fund;
-
-  const c = novo.contato || {};
-  const email = txt(c.email, 120, true, 'E-mail');
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error('E-mail: endereço inválido');
-  const telefone = txt(c.telefone, 40, true, 'Telefone');
-  const digitos = telefone.replace(/\D/g, '');
-  if (digitos.length < 10 || digitos.length > 15) throw new Error('Telefone: número incompleto (use +55 DDD número)');
-  // WhatsApp sai do telefone: um número só, sem chance de ficarem diferentes
-  d.contato = { ...d.contato, email, telefone, whatsapp: digitos, whatsapp_link: 'https://wa.me/' + digitos };
-
-  const e = novo.endereco || {};
-  d.endereco = {
-    ...d.endereco,
-    logradouro: txt(e.logradouro, 160, true, 'Logradouro'),
-    bairro: txt(e.bairro, 80, true, 'Bairro'),
-    cidade: txt(e.cidade, 80, true, 'Cidade'),
-    uf: txt(e.uf, 2, true, 'UF').toUpperCase(),
-    cep: txt(e.cep, 12, true, 'CEP'),
-    caixa_postal: txt(e.caixa_postal, 20, false, 'Caixa postal'),
+// Vários arquivos num commit só (Git Data API): ou entra tudo, ou nada.
+// arquivos: [{ caminho, texto }]. Devolve { commit (url), sha (do commit) } ou { conflito: true }.
+async function gravarVarios(env, mensagem, arquivos) {
+  const h = { ...ghHeaders(env), 'Content-Type': 'application/json' };
+  const gh = async (caminho, opcoes = {}) => {
+    const r = await fetch(`${GHR}/git/${caminho}`, { headers: h, ...opcoes });
+    if (!r.ok) { const e = new Error(`GitHub respondeu ${r.status} (${caminho.split('/')[0]})`); e.status = r.status; throw e; }
+    return r.json();
   };
-
-  for (const grupo of ['redes', 'sites']) {
-    const vindo = novo[grupo] || {};
-    d[grupo] = { ...d[grupo] };
-    for (const k of Object.keys(d[grupo])) d[grupo][k] = link(vindo[k], `${grupo}.${k}`);
+  const ref = await gh('ref/heads/main');
+  const pai = await gh('commits/' + ref.object.sha);
+  const arvore = await gh('trees', { method: 'POST', body: JSON.stringify({
+    base_tree: pai.tree.sha,
+    tree: arquivos.map((a) => ({ path: a.caminho, mode: '100644', type: 'blob', content: a.texto })),
+  }) });
+  const commit = await gh('commits', { method: 'POST', body: JSON.stringify({ message: mensagem, tree: arvore.sha, parents: [ref.object.sha] }) });
+  try {
+    await gh('refs/heads/main', { method: 'PATCH', body: JSON.stringify({ sha: commit.sha, force: false }) });
+  } catch (e) {
+    if (e.status === 422) return { conflito: true }; // alguém gravou entre a leitura e agora
+    throw e;
   }
-
-  // núcleos: ids fixos (os sites dependem deles); só nome e conteúdo mudam
-  const vindos = Object.fromEntries((novo.nucleos || []).map((n) => [n.id, n]));
-  d.nucleos = d.nucleos.map((n) => ({
-    ...n,
-    nome: txt(vindos[n.id]?.nome ?? n.nome, 60, true, `Núcleo ${n.id}`),
-    conteudo: txt(vindos[n.id]?.conteudo ?? n.conteudo, 120, false, `Núcleo ${n.id}`),
-  }));
-
-  d.atualizado = hojeBrasilia();
-  return d;
+  return { commit: commit.html_url, sha: commit.sha };
 }
 
-function mudancas(antes, depois) {
-  const out = [];
-  const nomes = { nome: 'nome', nome_completo: 'nome completo', nome_completo_en: 'nome em inglês', descricao: 'descrição',
-    descricao_en: 'descrição em inglês', fundadores: 'fundadores', contato: 'contato', endereco: 'endereço',
-    redes: 'redes', sites: 'sites', nucleos: 'núcleos' };
-  for (const [k, n] of Object.entries(nomes)) if (JSON.stringify(antes[k]) !== JSON.stringify(depois[k])) out.push(n);
-  return out;
-}
+// ---- validação: ver marca.js -----------------------------------------------
 
 // ---- rotas ----------------------------------------------------------------
 
@@ -212,22 +167,41 @@ export default {
           const lista = mudancas(atual.dados, novo);
           if (!lista.length) return json({ ...atual, semMudanca: true });
 
-          const r = await fetch(GH, {
-            method: 'PUT',
-            headers: { ...ghHeaders(env), 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              message: `Dados: ${lista.join(', ')} (pelo Universo)`,
-              content: paraBase64(JSON.stringify(novo, null, 2) + '\n'),
-              sha: atual.sha,
-              branch: 'main',
-            }),
-          });
-          if (r.status === 409) return json({ error: 'conflito', ...(await lerMarca(env)) }, 409);
-          if (!r.ok) return erro(`GitHub respondeu ${r.status} ao gravar`, 502);
-          const j = await r.json();
-          return json({ dados: novo, sha: j.content.sha, commit: j.commit.html_url, mudou: lista });
+          const arquivos = [{ caminho: ARQUIVO, texto: JSON.stringify(novo, null, 2) + '\n' }];
+          const coresMudaram = ['paleta', 'papéis das cores', 'núcleos'].some((k) => lista.includes(k));
+          if (coresMudaram) {
+            const css = await lerTexto(env, CSS);
+            const novoCss = gerarCss(css, novo);
+            if (novoCss !== css) arquivos.push({ caminho: CSS, texto: novoCss });
+          }
+          const g = await gravarVarios(env, `Dados: ${lista.join(', ')} (pelo Universo)`, arquivos);
+          if (g.conflito) return json({ error: 'conflito', ...(await lerMarca(env)) }, 409);
+          const lido = await lerMarca(env, g.sha);
+          return json({ dados: lido.dados, sha: lido.sha, commit: g.commit, mudou: lista });
         }
         return erro('método não aceito', 405);
+      }
+      if (pathname === '/api/marca/logo') {
+        if (!env.MARCA_GITHUB_TOKEN) return erro('falta o token do GitHub (MARCA_GITHUB_TOKEN) no servidor', 503);
+        if (request.method !== 'POST') return erro('método não aceito', 405);
+        const corpo = await request.json().catch(() => null);
+        if (!corpo?.sha || !corpo.svg) return erro('envie { sha, nucleo, modo, svg }', 400);
+        const atual = await lerMarca(env);
+        if (atual.sha !== corpo.sha) return json({ error: 'conflito', ...atual }, 409);
+
+        let svg, r;
+        try {
+          svg = validarSvg(corpo.svg);
+          r = incluirLogo(atual.dados, corpo, svg);
+        } catch (e) { return erro(e.message, 422); }
+        const acao = corpo.modo === 'substituir' ? 'substitui' : 'acrescenta';
+        const g = await gravarVarios(env, `Logo: ${acao} ${r.nome} (${r.caminho}) (pelo Universo)`, [
+          { caminho: r.caminho, texto: svg },
+          { caminho: ARQUIVO, texto: JSON.stringify(r.dados, null, 2) + '\n' },
+        ]);
+        if (g.conflito) return json({ error: 'conflito', ...(await lerMarca(env)) }, 409);
+        const lido = await lerMarca(env, g.sha);
+        return json({ dados: lido.dados, sha: lido.sha, commit: g.commit, caminho: r.caminho, nome: r.nome });
       }
       return erro('rota não encontrada', 404);
     } catch (e) {
