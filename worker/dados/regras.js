@@ -499,14 +499,40 @@ async function conferirInstancias(env, texto) {
   }
   return l;
 }
+// Decisão (0009): 2 a 4 resultados, o primeiro é o caminho esperado; cada um libera (tira de suspensão)
+// entregas ou eventos ativos, sem o próprio evento nem o Encerramento, e um cartão só é liberado por um resultado.
+async function conferirDecisao(env, texto, proprioId) {
+  if (texto === null || texto === undefined) return;
+  let l;
+  try { l = JSON.parse(texto); } catch (_) { throw new ErroApi(422, 'Decisão: JSON inválido'); }
+  if (!Array.isArray(l) || l.length < 2 || l.length > 4) throw new ErroApi(422, 'Decisão: de 2 a 4 resultados');
+  const ids = new Set(); const liberados = new Set();
+  for (const r of l) {
+    if (!r || typeof r.id !== 'string' || !/^[a-z0-9_-]{1,24}$/.test(r.id) || ids.has(r.id)) throw new ErroApi(422, 'Decisão: cada resultado precisa de um id curto e único');
+    if (typeof r.nome !== 'string' || !r.nome.trim() || r.nome.length > 60) throw new ErroApi(422, 'Decisão: nome do resultado (até 60 caracteres)');
+    if (!Array.isArray(r.libera)) throw new ErroApi(422, 'Decisão: "libera" é uma lista');
+    ids.add(r.id);
+    for (const x of r.libera) {
+      if (typeof x !== 'string' || !/^pe[nv]_/.test(x) || x === proprioId) throw new ErroApi(422, 'Decisão: relacionados são outras entregas ou eventos');
+      if (liberados.has(x)) throw new ErroApi(422, `Decisão: ${x} aparece em mais de um resultado`);
+      liberados.add(x);
+      const tab = x.startsWith('pen_') ? 'pgt_entregaveis' : 'pgt_eventos';
+      const ok = await env.DB.prepare(`SELECT 1 FROM ${tab} WHERE id = ? AND arquivado_em IS NULL${tab === 'pgt_eventos' ? ' AND encerramento = 0' : ''}`).bind(x).first();
+      if (!ok) throw new ErroApi(422, `Decisão: ${x} não encontrado`);
+    }
+  }
+}
 const pgt_eventos = {
   async criar(env, ferramenta, valores, corpo, id) {
     if (valores.tipo === 'encerramento') throw new ErroApi(422, 'Tipo: o Encerramento já existe (é um só)');
     if (valores.instancias) throw new ErroApi(422, 'Instâncias: só o Encerramento tem');
+    await conferirDecisao(env, valores.decisao, id);
     if (valores.ordem === null || valores.ordem === undefined) valores.ordem = await fimDaSequencia(env, valores.etapa_id);
     return pertinenciaAoNascer(env, corpo, id, 'pgt_eventos_servicos', 'evento_id', ['P', 'O', 'S']);
   },
   async alterar(env, ferramenta, atual, mudancas) {
+    if (atual.encerramento && 'decisao' in mudancas && mudancas.decisao !== null) throw new ErroApi(422, 'Decisão: o Encerramento não é evento de decisão');
+    if ('decisao' in mudancas) await conferirDecisao(env, mudancas.decisao, atual.id);
     if (atual.encerramento) {
       if ('tipo' in mudancas && mudancas.tipo !== 'encerramento') throw new ErroApi(422, 'Tipo: o Encerramento não muda de tipo');
       const inst = 'instancias' in mudancas ? await conferirInstancias(env, mudancas.instancias) : JSON.parse(atual.instancias || '[]');

@@ -524,6 +524,7 @@ export const TABELAS = {
 
   // Eventos (0008): marcos de controle do fluxo, na mesma sequência das entregas da etapa.
   // O Encerramento (encerramento = 1) é único e tem instâncias (JSON de etapas); conferido em regras.js.
+  // Decisão (0009): JSON [{ id, nome, libera: [pen_/pev_…] }]; conferido em regras.js.
   pgt_eventos: {
     prefixo: 'pev',
     campos: {
@@ -531,6 +532,7 @@ export const TABELAS = {
       nome: T('texto', { obrig: true, max: 200, rotulo: 'Nome' }),
       tipo: T('lista', { obrig: true, valores: TIPOS_EVENTO, rotulo: 'Tipo' }),
       cliente: T('sn', { rotulo: 'Com o cliente' }),
+      terceiros: T('sn', { rotulo: 'Com terceiros' }),
       tempo: T('lista', { valores: TEMPOS_EVENTO, rotulo: 'De quem é o tempo' }),
       prazo_turnos: T('real', { min: 0.5, max: 40, rotulo: 'Duração (turnos)' }),
       quantidade: T('inteiro', { min: 1, max: 99, rotulo: 'Quantidade incluída' }),
@@ -539,8 +541,9 @@ export const TABELAS = {
       ordem: T('inteiro', { min: 0, max: 9999, rotulo: 'Ordem' }),
       travado: T('sn', { rotulo: 'Travado' }),
       instancias: T('json', { rotulo: 'Etapas onde o encerramento pode ficar' }),
+      decisao: T('json', { max: 8000, rotulo: 'Decisão (resultados e cartões relacionados)' }),
     },
-    padroes: { cliente: 0, tempo: 'pontual', travado: 0 },
+    padroes: { cliente: 0, terceiros: 0, tempo: 'pontual', travado: 0 },
     permissoes: PGT,
     filtros: ['etapa_id', 'tipo'],
     ordem: 'etapa_id, ordem',

@@ -249,7 +249,7 @@ ok(await falha('POST', 'pgt/lote', { ops: [] }, 'vendas') === 403, 'lote: vendas
     'as seis entregas que viraram eventos estão arquivadas');
   const ce2 = evs.find((e) => e.codigo === 'CE-M02');
   ok(ce2.nome === 'Apresentação da Concepção Esquemática' && ce2.tipo === 'apresentacao' && ce2.cliente === 1 && ce2.servicos.srv_ne === 'P' && !ce2.servicos.srv_co, 'CE-M02 com tipo, cliente e pertinência');
-  ok(evs.find((e) => e.codigo === 'CE-M04').clausula === 'Dupla rodada de ajuste' && evs.find((e) => e.codigo === 'CE-M04').servicos.srv_ne === 'O', 'segunda rodada de ajuste: opcional, com cláusula');
+  ok(evs.find((e) => e.id === 'pev_ce_m04').clausula === 'Dupla rodada de ajuste' && evs.find((e) => e.id === 'pev_ce_m04').servicos.srv_ne === 'O', 'segunda rodada de ajuste: opcional, com cláusula');
   const enc = evs.find((e) => e.encerramento);
   ok(enc.codigo === 'ENC' && enc.etapa_id === 'pet_pe' && enc.instancias.length === 9 && Object.values(enc.servicos).every((p) => p === 'S') && Object.keys(enc.servicos).length === 9,
     'Encerramento: ENC, padrão no PE, 9 instâncias, perpétuo nos 9 serviços');
@@ -303,6 +303,33 @@ ok(await falha('POST', 'pgt/lote', { ops: [] }, 'vendas') === 403, 'lote: vendas
   ok(Bf.faixas_prazo.length === 3 && Bf.faixas_prazo[2].ate === null && Bf.pendente === true, 'faixas gravadas; Bases pendentes de publicação');
   ok(await falha('POST', 'bases/faixas-prazo', { faixas: [{ mult: 1 }] }, 'vendas') === 403, 'vendas não edita as faixas');
   ok(!('faixas_prazo' in (await chamar('GET', 'honorarios', null, 'vendas')).parametros), 'faixas fora dos honorários');
+}
+
+// ---------------------------------------------------------------- 0009: decisões e terceiros
+{
+  let Q = await chamar('GET', 'pgt');
+  const ev = (id) => Q.eventos.find((e) => e.id === id);
+  const dec = Q.eventos.filter((e) => e.decisao);
+  ok(dec.length === 6, `seis eventos de decisão (${dec.map((e) => e.codigo).join(', ')})`);
+  ok(ev('pev_ce_m05').decisao[1].libera[0] === 'pev_ce_m04' && ev('pev_ce_m05').decisao[0].id === 'aprovado', 'aprovação da CE: aprovada · segunda rodada (libera CE 2ª rodada)');
+  ok(ev('pev_ev_m03').decisao.length === 3, 'decisão do EV: seguir · ajustar · parar');
+  ok(ev('pev_as_m01').terceiros === 1 && ev('pev_as_m01').cliente === 1 && ev('pev_px_m02').terceiros === 1 && ev('pev_ce_m02').terceiros === 0, 'terceiros: AS-M01 com cliente e construtora; PX-M02 com complementares');
+  // a decisão passou para antes do que ela libera (a sequência da CE foi refeita acima: confere no PL, intacto)
+  ok(ev('pev_pl_m06').ordem < ev('pev_pl_m05').ordem, 'alvará antes do atendimento de exigências');
+  // validação
+  const d = ev('pev_cb_m09');
+  ok(await falha('PATCH', `pgt-eventos/${d.id}`, { versao: d.versao, decisao: [{ id: 'a', nome: 'Só um', libera: [] }] }) === 422, 'decisão com um resultado só → 422');
+  ok(await falha('PATCH', `pgt-eventos/${d.id}`, { versao: d.versao, decisao: [{ id: 'a', nome: 'A', libera: [d.id] }, { id: 'b', nome: 'B', libera: [] }] }) === 422, 'decisão que libera a si mesma → 422');
+  ok(await falha('PATCH', `pgt-eventos/${d.id}`, { versao: d.versao, decisao: [{ id: 'a', nome: 'A', libera: ['pev_cb_m08'] }, { id: 'b', nome: 'B', libera: ['pev_cb_m08'] }] }) === 422, 'cartão em dois resultados → 422');
+  ok(await falha('PATCH', `pgt-eventos/${d.id}`, { versao: d.versao, decisao: [{ id: 'a', nome: 'A', libera: ['pev_encerramento'] }, { id: 'b', nome: 'B', libera: [] }] }) === 422, 'o Encerramento não é relacionado → 422');
+  const enc = Q.eventos.find((e) => e.encerramento);
+  ok(await falha('PATCH', `pgt-eventos/${enc.id}`, { versao: enc.versao, decisao: [{ id: 'a', nome: 'A', libera: [] }, { id: 'b', nome: 'B', libera: [] }] }) === 422, 'o Encerramento não é decisão');
+  const r = (await chamar('PATCH', `pgt-eventos/${d.id}`, { versao: d.versao, decisao: [{ id: 'premiado', nome: 'Premiado', libera: [] }, { id: 'nao', nome: 'Não premiado', libera: ['pen_cb_01'] }] })).registro;
+  Q = await chamar('GET', 'pgt');
+  ok(ev(d.id).decisao[1].libera[0] === 'pen_cb_01' && r.versao === d.versao + 1, 'decisão gravada com uma entrega relacionada');
+  await chamar('POST', 'pgt/lote', { ops: [{ tipo: 'campos', tabela: 'pgt_eventos', id: d.id, versao: r.versao, campos: { decisao: null, terceiros: 0 } }] });
+  Q = await chamar('GET', 'pgt');
+  ok(ev(d.id).decisao === null && ev(d.id).terceiros === 0, 'lote: deixa de ser decisão; sem terceiros');
 }
 
 console.log('TUDO CERTO');

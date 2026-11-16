@@ -116,6 +116,13 @@ Compromissos aceitos: o hub é ponto único de falha para os dados comuns; mudan
 - **Faixas de prazo por área** (`bases_parametros.faixas_prazo`, no retrato das Bases, `POST bases/faixas-prazo`): estrutura, não custo; o retrato dos honorários passa a levar só os parâmetros de custo conhecidos.
 - A 0008 arquiva seis entregas que viraram eventos (PL-08, AS-01, CR-01, PX-01, PX-02, LR-05) e põe as entregas de cada etapa em 10, 20, 30… para os eventos semeados entrarem antes e depois.
 
+## Decisões e terceiros nos eventos (migração 0009, casa: Projetos)
+
+- **Evento de decisão** (`pgt_eventos.decisao`, JSON): 2 a 4 resultados `{ id, nome, libera: [pen_/pev_…] }`; o primeiro é o caminho esperado. Os cartões citados em `libera` são **relacionados**: ficam suspensos até a decisão e só entram se sair o resultado que os libera; com outro resultado, somem. Um cartão só pode estar num resultado; nem o próprio evento nem o Encerramento entram. Guardado no evento (e não no cartão suspenso) porque é na decisão que se "marcam os relacionados".
+- Upgrade dos eventos que já funcionavam como decisão: CE-M05 e CB-M07 (Aprovada · Segunda rodada → libera a 2ª rodada), PL-M06 (Aprovado · Com exigências → libera o atendimento de exigências), LR-M03 (idem), EV-M03 (Seguir · Ajustar · Parar) e CB-M09 (Premiado · Não premiado), estes dois ainda sem relacionados. A aprovação passou para antes do que ela libera (troca de posição na sequência; os códigos CE-M04/M05 etc. se invertem, os ids não).
+- **Terceiros** (`pgt_eventos.terceiros`): fornecedores, complementares, órgãos, construtora ou júri participam. Com `cliente`, diz o ator na linha do tempo: pontual com o cliente = 1ª linha; com terceiros = 2ª linha; com os dois = os três atores.
+- O prazo da etapa não mudou: um cartão suspenso que vale (P) continua somando, por precaução.
+
 ## Como mudar a estrutura
 
 1. Nova migração em `dados/migracoes/NNNN_nome.sql` (nunca editar uma já aplicada).

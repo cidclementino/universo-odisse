@@ -171,7 +171,7 @@ export async function retratoPgt(env) {
   const eventos = evt.results.filter((r) => sigla[r.etapa_id] || r.encerramento).map((r) => {
     let codigo = 'ENC';
     if (!r.encerramento) { posM[r.etapa_id] = (posM[r.etapa_id] || 0) + 1; codigo = `${sigla[r.etapa_id]}-M${String(posM[r.etapa_id]).padStart(2, '0')}`; }
-    return { ...sem(r, ...SO_TELA), codigo, instancias: lerJson(r.instancias), servicos: porEvt[r.id] || {} };
+    return { ...sem(r, ...SO_TELA), codigo, instancias: lerJson(r.instancias), decisao: lerJson(r.decisao), servicos: porEvt[r.id] || {} };
   });
   // prazo da etapa por serviço, em turnos, pela sequência (ver prazosDaEtapa)
   const servicos = srvs.results.map((x) => x.id);
