@@ -77,6 +77,66 @@ async function prepararAssinatura(arquivo) {
   return { blob, w: out.width, h: out.height, fundoTirado: !transparente };
 }
 
+// Enquadramento da foto: recorte quadrado com zoom e arraste (o círculo mostra o recorte dos cartões).
+// Devolve um canvas quadrado na resolução da foto (até 2400 px de lado) ou null se cancelar.
+function enquadrar(bmp) {
+  return new Promise((ok) => {
+    const L = 360, W = bmp.width, H = bmp.height, menor = Math.min(W, H);
+    const d = document.createElement('dialog');
+    d.className = 'eq-dialogo';
+    d.innerHTML = `<form method="dialog" class="dialogo-logo">
+        <div class="dl-cab"><div><span class="u-rotulo">Foto</span><h2 class="u-subtitulo">Enquadrar</h2></div></div>
+        <div class="eq-enq"><canvas width="${L * 2}" height="${L * 2}"></canvas><span class="eq-enq-guia"></span></div>
+        <div class="eq-enq-ctl"><label>Zoom <input type="range" min="1" max="4" step="0.01" value="1" data-zoom aria-label="Zoom"></label>
+          <button type="button" class="u-botao" data-centro>Centralizar</button></div>
+        <p class="u-apoio">Arraste para posicionar; roda do mouse para o zoom; setas para ajuste fino.</p>
+        <div class="dl-acoes"><button class="u-botao" value="nao">Cancelar</button><button class="u-botao forte" value="sim">Usar este enquadramento</button></div>
+      </form>`;
+    document.body.appendChild(d);
+    const cv = d.querySelector('canvas'), ctx = cv.getContext('2d'), zoom = d.querySelector('[data-zoom]');
+    let z = 1, cx = W / 2, cy = H / 2;
+    const lado = () => menor / z;
+    const prender = () => { const h = lado() / 2; cx = Math.min(W - h, Math.max(h, cx)); cy = Math.min(H - h, Math.max(h, cy)); };
+    const desenhar = () => {
+      prender();
+      ctx.imageSmoothingQuality = 'high';
+      ctx.clearRect(0, 0, cv.width, cv.height);
+      ctx.drawImage(bmp, cx - lado() / 2, cy - lado() / 2, lado(), lado(), 0, 0, cv.width, cv.height);
+    };
+    const zoomPara = (nz) => { z = Math.min(4, Math.max(1, nz)); zoom.value = z; desenhar(); };
+    zoom.addEventListener('input', () => zoomPara(Number(zoom.value)));
+    d.querySelector('[data-centro]').addEventListener('click', () => { cx = W / 2; cy = H / 2; zoomPara(1); });
+    const area = d.querySelector('.eq-enq');
+    let arraste = null;
+    area.addEventListener('pointerdown', (ev) => { arraste = { x: ev.clientX, y: ev.clientY, cx, cy }; area.setPointerCapture(ev.pointerId); });
+    area.addEventListener('pointermove', (ev) => {
+      if (!arraste) return;
+      const k = lado() / area.clientWidth;
+      cx = arraste.cx - (ev.clientX - arraste.x) * k; cy = arraste.cy - (ev.clientY - arraste.y) * k; desenhar();
+    });
+    area.addEventListener('pointerup', () => { arraste = null; });
+    area.addEventListener('wheel', (ev) => { ev.preventDefault(); zoomPara(z * (ev.deltaY < 0 ? 1.06 : 1 / 1.06)); }, { passive: false });
+    d.addEventListener('keydown', (ev) => {
+      const passo = lado() / 60, mv = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[ev.key];
+      if (!mv || ev.target === zoom) return;
+      ev.preventDefault(); cx += mv[0] * passo; cy += mv[1] * passo; desenhar();
+    });
+    d.addEventListener('close', () => {
+      let out = null;
+      if (d.returnValue === 'sim') {
+        prender();
+        const n = Math.min(2400, Math.round(lado()));
+        out = document.createElement('canvas'); out.width = n; out.height = n;
+        const c2 = out.getContext('2d'); c2.imageSmoothingQuality = 'high';
+        c2.drawImage(bmp, cx - lado() / 2, cy - lado() / 2, lado(), lado(), 0, 0, n, n);
+      }
+      d.remove(); ok(out);
+    });
+    desenhar();
+    d.showModal();
+  });
+}
+
 export function criarEquipe({ esc, api, apiBinario, toque }) {
   let avisoSaida = () => false;
   window.addEventListener('beforeunload', (ev) => { if (avisoSaida()) { ev.preventDefault(); ev.returnValue = ''; } });
@@ -111,31 +171,46 @@ export function criarEquipe({ esc, api, apiBinario, toque }) {
 
   function desenharLista(raiz, q) {
     const ativos = q.itens.filter((p) => p.ativo), inativos = q.itens.filter((p) => !p.ativo);
-    const cartao = (p) => `<a class="u-cartao eq-pessoa${p.ativo ? '' : ' inativa'}" href="#/equipe/${esc(p.id)}">
+    const cartao = (p) => {
+      const marcas = [p.socio ? '<span class="socio">Sócio</span>' : '', p.publico ? '<span>No site</span>' : '',
+        p.ativo ? '' : `<span>Desligado${p.ate ? ' em ' + esc(dataBr(p.ate)) : ''}</span>`].filter(Boolean).join('');
+      return `<a class="u-cartao eq-pessoa${p.ativo ? '' : ' inativa'}" href="#/equipe/${esc(p.id)}">
         <span class="eq-foto" data-foto="${esc(p.id)}">${p.foto_id ? '' : `<i>${esc(iniciais(p.nome))}</i>`}</span>
         <span class="eq-dados"><b>${esc(p.nome)}</b>
-          <span>${esc(p.cargo || 'Sem cargo')}</span>
-          ${linhaTitulo(p) ? `<small>${esc(linhaTitulo(p))}</small>` : ''}
-          <span class="eq-chips">${p.socio ? '<span class="chip forte">sócio</span>' : ''}${p.publico ? '<span class="chip">no site</span>' : ''}
-            ${p.assina.length ? `<span class="chip">assina: ${esc(p.assina.map((u) => (USOS.find((x) => x[0] === u) || [u, u])[1].toLowerCase()).join(', '))}</span>` : ''}
-            ${p.assina.length && !p.tem_assinatura ? '<span class="chip falta-chip">sem rubrica</span>' : ''}
-            ${p.ativo ? '' : '<span class="chip">inativo</span>'}</span></span></a>`;
-    raiz.innerHTML = `<div class="cab"><div><h1 class="u-titulo">Equipe</h1>
-        <p class="u-apoio">Quem faz o Odisse. Todas as ferramentas leem daqui: quem assina propostas, contratos e documentos,
-        o banco de horas, os responsáveis pelos projetos e a página Sobre do site.</p></div>
-        <div class="acoes-cab"><a class="u-botao forte" href="#/equipe/nova">+ Pessoa</a></div></div>
+          <span class="eq-cargo">${esc(p.cargo || 'Sem cargo')}</span>
+          ${linhaTitulo(p) ? `<span class="eq-reg">${esc(linhaTitulo(p))}</span>` : ''}
+          ${marcas ? `<span class="eq-marcas">${marcas}</span>` : ''}</span></a>`;
+    };
+    raiz.innerHTML = `<div class="cab"><div><h1 class="u-titulo">Equipe</h1></div>
+        <div class="acoes-cab"><a class="u-botao" href="#/equipe/cargos">Cargos e títulos</a>
+          <a class="u-botao forte" href="#/equipe/nova">+ Pessoa</a></div></div>
       <section class="bloco"><span class="u-rotulo">Na equipe</span>
         <div class="eq-grade">${ativos.map(cartao).join('') || '<p class="u-apoio">Ninguém ainda.</p>'}</div></section>
       ${inativos.length ? `<section class="bloco"><span class="u-rotulo">Já passaram pela equipe</span>
-        <p class="u-apoio">Não aparecem nos seletores nem no banco de horas; as horas e os documentos antigos continuam com o nome.</p>
-        <div class="eq-grade">${inativos.map(cartao).join('')}</div></section>` : ''}
-      <section class="bloco"><span class="u-rotulo">Cargos e títulos</span>
-        <p class="u-apoio">Opções de cada pessoa, com a forma masculina, a feminina e a inglesa (site em inglês).
-        Na ficha aparece só a masculina; o sexo da pessoa escolhe a forma. Mudar aqui muda em todo lugar que mostra o cargo.</p>
-        <div class="duas eq-listas"><div data-lista="cargos"></div><div data-lista="titulos"></div></div></section>`;
+        <div class="eq-grade">${inativos.map(cartao).join('')}</div></section>` : ''}`;
     preencherFotos(raiz, q.itens);
-    listaEditavel(raiz.querySelector('[data-lista="cargos"]'), 'cargos', 'Cargos', q.cargos);
-    listaEditavel(raiz.querySelector('[data-lista="titulos"]'), 'titulos', 'Títulos profissionais', q.titulos);
+  }
+
+  // ---- cargos e títulos (subpágina #/equipe/cargos) ------------------------------
+  async function cargosTitulos(raiz) {
+    avisoSaida = () => false;
+    const desenhar = (q) => {
+      raiz.innerHTML = `<div class="cab"><div>${trilha(['Equipe', '#/equipe'], ['Cargos e títulos'])}<h1 class="u-titulo">Cargos e títulos</h1>
+          <p class="u-apoio">Na ficha aparece só a forma masculina; o sexo da pessoa escolhe a forma. A inglesa vai para o site em inglês.
+          Mudar aqui muda em todo lugar que mostra o cargo.</p></div></div>
+        <section class="bloco"><div class="duas eq-listas"><div data-lista="cargos"></div><div data-lista="titulos"></div></div></section>`;
+      listaEditavel(raiz.querySelector('[data-lista="cargos"]'), 'cargos', 'Cargos', q.cargos);
+      listaEditavel(raiz.querySelector('[data-lista="titulos"]'), 'titulos', 'Títulos profissionais', q.titulos);
+    };
+    const copia = lerCopia('equipe:quadro');
+    if (copia) desenhar(copia); else raiz.innerHTML = '<p class="u-apoio">Carregando…</p>';
+    const q = await api('/api/v1/equipe/quadro?todos=1');
+    if (q.status !== 200) { if (!copia) raiz.innerHTML = `<p class="u-apoio">Não foi possível ler as listas (${esc(q.erro || q.status)}).</p>`; return; }
+    const novo = { itens: q.itens, cargos: q.cargos, titulos: q.titulos };
+    gravarCopia('equipe:quadro', novo);
+    if (!raiz.isConnected || (copia && igual({ c: copia.cargos, t: copia.titulos }, { c: novo.cargos, t: novo.titulos }))) return;
+    if (copia && raiz.contains(document.activeElement) && document.activeElement.matches('input')) return;
+    desenhar(novo);
   }
 
   // Lista de cargos ou títulos: cada linha grava ao sair do campo.
@@ -157,6 +232,7 @@ export function criarEquipe({ esc, api, apiBinario, toque }) {
         body: JSON.stringify({ versao: Number(tr.dataset.versao), [ev.target.dataset.k]: ev.target.value }) });
       if (r.status >= 400) { toque('Não foi possível salvar: ' + (r.erro || r.status)); return; }
       tr.dataset.versao = r.registro.versao;
+      apagarCopia('equipe:quadro');
       toque('Salvo');
     });
     caixa.addEventListener('click', async (ev) => {
@@ -167,6 +243,7 @@ export function criarEquipe({ esc, api, apiBinario, toque }) {
       const r = await api(`/api/v1/${rota}/${tr.dataset.id}/arquivar`, { method: 'POST', body: JSON.stringify({ versao: Number(tr.dataset.versao) }) });
       if (r.status >= 400) { toque('Não foi possível tirar: ' + (r.erro || r.status)); return; }
       tr.remove();
+      apagarCopia('equipe:quadro');
     });
     caixa.querySelector('[data-nova]').addEventListener('submit', async (ev) => {
       ev.preventDefault();
@@ -176,6 +253,7 @@ export function criarEquipe({ esc, api, apiBinario, toque }) {
       if (r.status >= 400) { toque('Não foi possível acrescentar: ' + (r.erro || r.status)); return; }
       itens.push(r.registro);
       caixa.querySelector('tbody').insertAdjacentHTML('beforeend', linha(r.registro));
+      apagarCopia('equipe:quadro');
       f.reset();
     });
   }
@@ -250,8 +328,9 @@ export function criarEquipe({ esc, api, apiBinario, toque }) {
           <div class="eq-tres">
             <div class="eq-foto-grande"><span class="eq-foto g" data-foto="${esc(id)}" data-variante="m">${reg.foto_id ? '' : `<i>${esc(iniciais(pes.nome))}</i>`}</span>
               <div class="eq-assin-acoes"><label class="u-botao eq-arquivo">${reg.foto_id ? 'Trocar foto' : 'Enviar foto'}<input type="file" accept="image/*" data-arquivo="foto"></label>
+              ${reg.foto_id ? '<button type="button" class="u-botao" data-acao="enquadrar">Enquadrar</button>' : ''}
               ${reg.foto_id ? '' : `<button type="button" class="u-botao" data-acao="foto-site">Trazer do site</button>`}</div>
-              <small class="u-apoio">Foto quadrada, rosto ao centro. Vai para o acervo, nos três tamanhos do site.</small></div>
+              <small class="u-apoio">Ao enviar, você enquadra a foto (zoom e posição). Vai para o acervo, nos três tamanhos do site.</small></div>
             <div class="eq-col">
               <label class="u-campo"><span>Nome</span><input name="nome" value="${esc(pes.nome)}" required></label>
               <label class="u-campo"><span>E-mail</span><input name="email" type="email" value="${esc(pes.email || '')}"></label>
@@ -295,10 +374,8 @@ export function criarEquipe({ esc, api, apiBinario, toque }) {
 
         <section class="u-cartao eq-sec"><h2 class="u-subtitulo">Site</h2>
           <div class="eq-tres">
-            <div class="eq-col">
-              <div class="u-campo">${chk('publico', reg.publico, 'Aparece na página Sobre do site')}</div>
-              <label class="u-campo"><span>Ordem</span><input type="number" name="ordem" min="0" max="999" value="${esc(reg.ordem ?? '')}"><small>Menor primeiro.</small></label>
-            </div>
+            <div class="u-campo">${chk('publico', reg.publico, 'Aparece na página Sobre do site')}
+              <small>Quem aparece entra em ordem aleatória a cada visita.</small></div>
             <label class="u-campo"><span>Bio <span class="lingua">PT</span></span><textarea name="bio_pt" rows="7" maxlength="2000">${esc(reg.bio_pt || '')}</textarea></label>
             <label class="u-campo"><span>Bio <span class="lingua en">EN</span></span><textarea name="bio_en" rows="7" maxlength="2000">${esc(reg.bio_en || '')}</textarea>
               <small>Vazia = no site em inglês a pessoa aparece sem bio (em vez do texto em português).</small></label>
@@ -306,14 +383,14 @@ export function criarEquipe({ esc, api, apiBinario, toque }) {
 
         <section class="u-cartao eq-sec"><h2 class="u-subtitulo">Vínculo e custo</h2>
           <div class="eq-tres">
+            <label class="u-campo"><span>Custo por hora (R$)</span><input name="custo_hora" inputmode="decimal" value="${reg.custo_hora != null ? (reg.custo_hora / 100).toFixed(2).replace('.', ',') : ''}">
+              <small>Só sócios. Não aparece para o vendas, os fornecedores nem o marketing.</small></label>
             <label class="u-campo"><span>Na equipe desde</span><input type="date" name="desde" value="${esc(reg.desde || '')}"></label>
             <label class="u-campo"><span>Até</span><input type="date" name="ate" value="${esc(reg.ate || '')}"${ativo ? '' : ' readonly'}>
               <small>${ativo ? 'Preenchida ao desligar.' : 'Data do desligamento.'}</small></label>
-            <label class="u-campo"><span>Custo por hora (R$)</span><input name="custo_hora" inputmode="decimal" value="${reg.custo_hora != null ? (reg.custo_hora / 100).toFixed(2).replace('.', ',') : ''}">
-              <small>Só sócios. Não aparece para o vendas, os fornecedores nem o marketing.</small></label>
           </div>
           <div class="eq-vinculo">${ativo
-            ? `<button type="button" class="u-botao perigo" data-acao="desligar">Desligar da equipe</button>
+            ? `<button type="button" class="u-botao forte" data-acao="desligar">Desligar da equipe</button>
                <small class="u-apoio">Preenche “Até” com hoje (ou a data já escrita) e tira a pessoa dos seletores e do banco de horas.
                Horas e documentos antigos continuam com o nome.</small>`
             : `<button type="button" class="u-botao" data-acao="religar">Trazer de volta à equipe</button>
@@ -383,7 +460,7 @@ export function criarEquipe({ esc, api, apiBinario, toque }) {
           tratamento: v('tratamento'), desde: v('desde'), ate: v('ate'),
           cargo_id: v('cargo_id'), titulo_id: v('titulo_id'), conselho: v('conselho'), registro_uf: v('registro_uf'), registro: v('registro'),
           assina: f.getAll('assina'), nome_assinatura: v('nome_assinatura'),
-          publico: form.elements.publico.checked ? 1 : 0, ordem: v('ordem') === null ? null : Number(v('ordem')),
+          publico: form.elements.publico.checked ? 1 : 0,
           bio_pt: v('bio_pt'), bio_en: v('bio_en'),
           // "1.500,00" ou "150,5" (vírgula decimal) e também "150.5"
           custo_hora: custo === null ? null : Math.round(Number(custo.includes(',') ? custo.replace(/\./g, '').replace(',', '.') : custo) * 100),
@@ -429,11 +506,13 @@ export function criarEquipe({ esc, api, apiBinario, toque }) {
 
     // ---- foto
     async function enviarFoto(arquivo, origem) {
-      estado.textContent = 'enviando a foto…';
       const bmp = await createImageBitmap(arquivo, { imageOrientation: 'from-image' });
-      const g = await reduzir(bmp, 2400), m = await reduzir(bmp, 1200), s = await reduzir(bmp, 960);
+      const quadro = await enquadrar(bmp);
       bmp.close?.();
-      const sha = await sha256(arquivo);
+      if (!quadro) return false;
+      estado.textContent = 'enviando a foto…';
+      const g = await reduzir(quadro, 2400), m = await reduzir(quadro, 1200), s = await reduzir(quadro, 960);
+      const sha = await sha256(g.blob);
       let r = await api('/api/v1/arquivos', { method: 'POST', body: JSON.stringify({
         dono_id: id, nome_original: arquivo.name || `${semAcento(pes.nome).replace(/\s+/g, '-')}.jpg`, tipo_mime: g.blob.type,
         categoria: 'imagem', sha256: sha, largura: g.w, altura: g.h, direitos: 'livre',
@@ -454,11 +533,24 @@ export function criarEquipe({ esc, api, apiBinario, toque }) {
       estado.textContent = sujo ? 'não salvo' : 'foto salva';
       esquecer();
       ficha(raiz, id); // redesenha com a foto nova (mantém o que foi salvo)
+      return true;
     }
+    // reenquadrar a foto atual (a maior guardada); só dá para aproximar, não para mostrar além da foto
+    raiz.querySelector('[data-acao="enquadrar"]')?.addEventListener('click', async () => {
+      if (!quandoSujo()) return;
+      try {
+        const r = await apiBinario(`/api/v1/equipe/${id}/foto?variante=g`);
+        if (!r.ok) throw new Error('foto não encontrada (' + r.status + ')');
+        const b = await r.blob();
+        sujo = false;
+        await enviarFoto(new File([b], `${semAcento(pes.nome).replace(/\s+/g, '-')}.jpg`, { type: b.type }), 'Reenquadrada no Universo');
+      } catch (e) { toque('Não foi possível enquadrar: ' + e.message); estado.textContent = ''; }
+    });
     const quandoSujo = () => !sujo || confirm('Há mudanças não salvas na ficha. A foto é salva já, e a página recarrega. Continuar sem salvar o resto?');
 
     raiz.querySelector('[data-arquivo="foto"]').addEventListener('change', async (ev) => {
       const a = ev.target.files[0];
+      ev.target.value = '';
       if (!a || !quandoSujo()) return;
       try { sujo = false; await enviarFoto(a); } catch (e) { toque('Não foi possível enviar a foto: ' + e.message); estado.textContent = ''; }
     });
@@ -527,6 +619,7 @@ export function criarEquipe({ esc, api, apiBinario, toque }) {
     ligar(raiz) {
       const partes = location.hash.split('?')[0].split('/').slice(2); // [] | ['nova'] | ['eqp_…']
       if (partes[0] === 'nova') return nova(raiz);
+      if (partes[0] === 'cargos') return cargosTitulos(raiz);
       if (partes[0]) { avisoSaida = () => false; return ficha(raiz, partes[0]); }
       return lista(raiz);
     },

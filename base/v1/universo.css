@@ -73,7 +73,9 @@
 }
 .u-botao:hover { border-color: var(--u-tinta-2); }
 .u-botao:disabled { opacity: .4; cursor: default; }
-.u-botao.forte { background: var(--u-tinta); border-color: var(--u-tinta); color: var(--u-superficie); }
+/* ação principal de cada página: Ocre da paleta do Odisse (decisão de 18/11/2026) */
+.u-botao.forte { background: var(--odisse-ocre, #BB8248); border-color: var(--odisse-ocre, #BB8248); color: #fff; font-weight: 600; }
+.u-botao.forte:hover { border-color: var(--odisse-terra, #4A3726); filter: brightness(.94); }
 .u-botao.perigo:hover { color: var(--u-perigo); border-color: var(--u-perigo); }
 
 /* campos */
