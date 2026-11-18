@@ -84,8 +84,8 @@ ok(em2027.codigo === 'OA-2027-001', 'em 2027 recomeça do 001');
 ok(await falha('POST', 'projetos', { nome: 'x' }, 'vendas') === 403, 'vendas não cria projeto à mão');
 
 // equipe e horas
-const cid = (await chamar('POST', 'producao/equipe', { nome: 'Cid Clementino', email: 'cid@odisse.com.br', papel: 'socio' }, 'projetos')).registro;
-const de2 = await chamar('POST', 'producao/equipe', { nome: 'Cid Clementino', email: 'cid@odisse.com.br' }, 'projetos');
+const cid = (await chamar('POST', 'producao/equipe', { nome: 'Cid Clementino', email: 'cid@odisse.com.br', papel: 'socio' }, 'hub')).registro;
+const de2 = await chamar('POST', 'producao/equipe', { nome: 'Cid Clementino', email: 'cid@odisse.com.br' }, 'hub');
 ok(de2.ja_estava && de2.registro.id === cid.id, 'mesma pessoa não entra duas vezes na equipe');
 const eta1 = ficha.etapas[0];
 await chamar('POST', 'horas', { equipe_id: cid.id, projeto_id: prj.id, etapa_id: eta1.id, data: '2026-11-17', minutos: 150, descricao: 'visita' }, 'projetos');

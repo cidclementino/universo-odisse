@@ -206,8 +206,9 @@ export const TABELAS = {
     },
     imutaveis: ['pessoa_id'],
     padroes: { ativo: 1, socio: 0, publico: 0 },
-    // Projetos continua editando até a página dele sair (passo 5 do universo-equipe.md); depois, só custo_hora.
-    permissoes: { hub: 'E', projetos: 'E', vendas: 'L', fornecedores: 'L', marketing: 'L', maquina: 'E' },
+    // A página da equipe saiu do Projetos (18/11): ele lê tudo e só muda o custo por hora.
+    permissoes: { hub: 'E', projetos: 'L', vendas: 'L', fornecedores: 'L', marketing: 'L', maquina: 'E' },
+    editaveis_por: { projetos: ['custo_hora'] },
     campos_restritos: { vendas: EQUIPE_LEITURA, fornecedores: EQUIPE_LEITURA, marketing: EQUIPE_LEITURA },
     filtros: ['papel', 'ativo', 'socio', 'cargo_id', 'publico'],
     ordem: 'ordem, criado_em',

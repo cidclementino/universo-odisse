@@ -45,8 +45,13 @@ q = await chamar('GET', 'equipe/quadro');
 ok(q.itens[0].registro_formatado === 'CAU A123456-7', 'registro formatado com o conselho');
 
 // ---- sócio x cargo x papel antigo
-const nova = (await chamar('POST', 'producao/equipe', { nome: 'Ana Souza', papel: 'estagiario' }, 'projetos')).registro;
+const nova = (await chamar('POST', 'producao/equipe', { nome: 'Ana Souza', papel: 'estagiario' })).registro;
 ok(nova.socio === 0 && nova.cargo_id === 'crg_estagiario' && nova.papel === 'estagiario', 'tela antiga (só papel) vira cargo; sócio = não');
+ok((await pedir('POST', 'producao/equipe', { nome: 'Beto' }, 'projetos')).status === 403, 'o Projetos não cadastra mais na equipe');
+ok((await pedir('PATCH', 'equipe/' + nova.id, { versao: nova.versao, bio_pt: 'x' }, 'projetos')).status === 403, 'o Projetos só muda o custo por hora');
+const custo = (await chamar('PATCH', 'equipe/' + nova.id, { versao: nova.versao, custo_hora: 8000 }, 'projetos')).registro;
+ok(custo.custo_hora === 8000, 'o Projetos muda o custo por hora');
+nova.versao = custo.versao;
 let a = (await chamar('PATCH', 'equipe/' + nova.id, { versao: nova.versao, cargo_id: 'crg_arquiteto', tratamento: 'f', titulo_id: 'tit_arq_urb' })).registro;
 ok(a.papel === 'arquiteto', 'papel antigo acompanha o cargo');
 r = await pedir('PATCH', 'equipe/' + nova.id, { versao: a.versao, assina: ['contrato'] });
