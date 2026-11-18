@@ -93,7 +93,7 @@ const marca = criarMarca({
   gravarOdisse: (d) => { ODISSE = d; },
 });
 
-const documentos = criarDocumentos({ esc, api, toque, lerOdisse: () => ODISSE });
+const documentos = criarDocumentos({ esc, api, apiBinario, toque, lerOdisse: () => ODISSE });
 const equipe = criarEquipe({ esc, api, apiBinario, toque });
 
 // ---- páginas -------------------------------------------------------------

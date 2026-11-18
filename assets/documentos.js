@@ -3,6 +3,12 @@
 // da folha vem da Marca (marca.odisse.com.br/v1/documentos/documentos.js), que todas as ferramentas usam.
 //
 // Rotas: #/documentos (lista) · #/documentos/novo/<tipo>[?modelo=ficha] · #/documentos/<id>
+//
+// Quem assina: seletor comum (base/v1/assinantes.js) com a equipe que pode assinar documentos. O documento guarda a
+// cópia de cada assinante. A rubrica (iniciais) sai abaixo da identificação: na prévia, só a caixa do lugar dela;
+// a imagem é lida da Equipe só ao baixar o PDF (cada leitura vai para o histórico).
+
+import { seletorAssinantes } from '../base/v1/assinantes.js';
 
 const MONTADOR = 'https://marca.odisse.com.br/v1/documentos/documentos.js';
 
@@ -20,8 +26,9 @@ const curta = (d) => (d ? d.split('-').reverse().join('/') : '');
 const paragrafos = (t) => String(t || '').split(/\n\s*\n/).map((p) => p.replace(/\s*\n\s*/g, ' ').trim()).filter(Boolean);
 
 // Registro do banco → conteúdo para o montador da Marca. É aqui que o tipo decide os campos;
-// a folha (Coluna ou Ficha) é só formatação.
-export function paraMontador(d) {
+// a folha (Coluna ou Ficha) é só formatação. `rubricas` (equipe_id → endereço da imagem) só na emissão;
+// sem ele, quem tem rubrica aparece com a caixa do lugar dela.
+export function paraMontador(d, rubricas = null) {
   const ficha = d.modelo === 'ficha';
   const data = ficha ? curta(d.data) : [d.local, porExtenso(d.data)].filter(Boolean).join(', ');
   const num = { rotulo: 'Nº', valor: d.codigo || 'ao salvar' };
@@ -43,7 +50,9 @@ export function paraMontador(d) {
     modelo: d.modelo || 'coluna', miolo: 'texto', codigo: d.codigo || '', campos: c,
     titulo: d.tipo === 'declaracao' ? (d.titulo || 'Declaração') : d.titulo || '',
     saudacao: d.saudacao || '', paragrafos: paragrafos(d.corpo), fecho: d.fecho || '',
-    assinaturas: ass, anexos: d.oficio ? d.anexos || '' : '',
+    assinaturas: ass.map((a) => ({ nome: a.nome, cargo: a.cargo, registro: a.registro,
+      rubrica: !a.equipe_id || !a.rubrica ? undefined : rubricas ? rubricas[a.equipe_id] : 'caixa' })),
+    anexos: d.oficio ? d.anexos || '' : '',
   };
 }
 
@@ -70,7 +79,7 @@ const ROTULOS = {
   observacoes: ['Observações internas', 'Não aparecem no documento.'],
 };
 
-export function criarDocumentos({ esc, api, toque, lerOdisse }) {
+export function criarDocumentos({ esc, api, apiBinario, toque, lerOdisse }) {
   let avisoSaida = () => false;
   window.addEventListener('beforeunload', (ev) => { if (avisoSaida()) { ev.preventDefault(); ev.returnValue = ''; } });
   let copia = null; // conteúdo levado pelo Duplicar até o editor novo
@@ -122,6 +131,22 @@ export function criarDocumentos({ esc, api, toque, lerOdisse }) {
     carregar();
   }
 
+  // Rubricas para a emissão: lidas da Equipe agora (a atual de cada pessoa), uma leitura por assinante,
+  // ligada ao documento no histórico. Quem não tem, ou não pode mais assinar documentos, sai sem.
+  async function lerRubricas(d) {
+    let ass = [];
+    try { ass = JSON.parse(d.assinaturas || '[]'); } catch { ass = []; }
+    const saida = {}, faltou = [];
+    for (const a of ass) {
+      if (!a.equipe_id || !a.rubrica || saida[a.equipe_id]) continue;
+      const r = await apiBinario(`/api/v1/equipe/${a.equipe_id}/assinatura?uso=documento&registro=${encodeURIComponent(d.id)}`);
+      if (r.ok) saida[a.equipe_id] = URL.createObjectURL(await r.blob());
+      else faltou.push(a.nome);
+    }
+    if (faltou.length) toque(`Sem rubrica no PDF: ${faltou.join(', ')} (não encontrada na Equipe).`);
+    return saida;
+  }
+
   // ---- editor ---------------------------------------------------------------
   async function editor(raiz, id, novoTipo, base) {
     let reg;
@@ -142,7 +167,6 @@ export function criarDocumentos({ esc, api, toque, lerOdisse }) {
     try { assin = JSON.parse(reg.assinaturas || '[]'); } catch { assin = []; }
     let sujo = false;
     const campos = CAMPOS[reg.tipo];
-    const fundadores = lerOdisse()?.fundadores || [];
 
     const campo = (k) => {
       const v = reg[k] ?? '';
@@ -151,8 +175,7 @@ export function criarDocumentos({ esc, api, toque, lerOdisse }) {
       if (k === 'oficio') return `<label class="docs-check"><input type="checkbox" name="oficio"${reg.oficio ? ' checked' : ''}> Ofício (acrescenta referência e anexos)</label>`;
       if (k === 'data') return `<label class="u-campo"><span>Data</span><input type="date" name="data" value="${esc(v)}" required></label>`;
       if (k === 'assinaturas') return `<div class="u-campo"><span>Assinaturas</span><div data-assin></div>
-        <div class="docs-mais">${fundadores.map((n) => `<button type="button" class="u-botao" data-add="${esc(n)}">+ ${esc(n)}</button>`).join('')}
-        <button type="button" class="u-botao" data-add="">+ Outra pessoa</button></div></div>`;
+        <small>A rubrica de quem tem iniciais na Equipe sai abaixo da identificação, só no PDF.</small></div>`;
       const [rot, ajuda] = ROTULOS[k] || [k, ''];
       const oficioSo = ['referencia', 'anexos'].includes(k) ? ` data-oficio${reg.oficio ? '' : ' hidden'}` : '';
       const longo = ['destinatario', 'remetente', 'corpo', 'anexos', 'observacoes'].includes(k);
@@ -174,21 +197,29 @@ export function criarDocumentos({ esc, api, toque, lerOdisse }) {
     const form = raiz.querySelector('form');
     const estado = raiz.querySelector('[data-estado]');
     const caixaAssin = raiz.querySelector('[data-assin]');
-    const desenharAssin = () => {
-      if (!caixaAssin) return;
-      caixaAssin.innerHTML = assin.map((a, i) => `<div class="docs-assin" data-i="${i}">
-          <input placeholder="Nome" data-k="nome" value="${esc(a.nome || '')}"><input placeholder="Cargo" data-k="cargo" value="${esc(a.cargo || '')}">
-          <input placeholder="Registro (ex.: CAU A000000-0)" data-k="registro" value="${esc(a.registro || '')}">
-          <button type="button" class="u-botao" data-tirar="${i}" aria-label="Tirar assinatura">×</button></div>`).join('') ||
-        '<p class="u-apoio">Sem assinatura.</p>';
-    };
-    desenharAssin();
+    if (caixaAssin) {
+      seletorAssinantes(caixaAssin, {
+        uso: 'documento',
+        valor: assin,
+        novo: !reg.id && !base,
+        carregar: async () => {
+          const r = await api('/api/v1/equipe/assinantes?para=documento');
+          if (r.status !== 200) throw new Error(r.erro || String(r.status));
+          return r.itens;
+        },
+        foto: async (p) => {
+          const r = await apiBinario(`/api/v1/equipe/${p.id}/foto?variante=s`);
+          return r.ok ? URL.createObjectURL(await r.blob()) : null;
+        },
+        aoMudar: (lista) => { assin = lista; mudou(); },
+      });
+    }
 
     const ler = () => {
       const f = new FormData(form);
       const d = { ...reg };
       for (const k of campos) {
-        if (k === 'assinaturas') d.assinaturas = JSON.stringify(assin.filter((a) => a.nome || a.cargo || a.registro));
+        if (k === 'assinaturas') d.assinaturas = JSON.stringify(assin.filter((a) => a.equipe_id || a.nome || a.cargo || a.registro));
         else if (k === 'oficio') d.oficio = form.elements.oficio.checked ? 1 : 0;
         else d[k] = (f.get(k) ?? '').toString();
       }
@@ -215,15 +246,8 @@ export function criarDocumentos({ esc, api, toque, lerOdisse }) {
     const mudou = () => { sujo = true; estado.textContent = 'não salvo'; clearTimeout(tPrevia); tPrevia = setTimeout(previa, 250); };
     form.addEventListener('input', (ev) => {
       if (ev.target.name === 'oficio') form.querySelectorAll('[data-oficio]').forEach((x) => { x.hidden = !ev.target.checked; });
-      const linha = ev.target.closest('.docs-assin');
-      if (linha) assin[Number(linha.dataset.i)][ev.target.dataset.k] = ev.target.value;
+      if (ev.target.closest('[data-assin]')) return; // o seletor avisa pelo aoMudar
       mudou();
-    });
-    form.addEventListener('click', (ev) => {
-      const add = ev.target.closest('[data-add]');
-      if (add) { assin.push({ nome: add.dataset.add, cargo: '', registro: '' }); desenharAssin(); mudou(); }
-      const tirar = ev.target.closest('[data-tirar]');
-      if (tirar) { assin.splice(Number(tirar.dataset.tirar), 1); desenharAssin(); mudou(); }
     });
     window.addEventListener('resize', () => { clearTimeout(tPrevia); tPrevia = setTimeout(previa, 150); }, { once: true });
 
@@ -255,7 +279,10 @@ export function criarDocumentos({ esc, api, toque, lerOdisse }) {
             if (!(await salvar())) return;
           }
           const m = await carregarMontador();
-          await m.imprimir(paraMontador(reg), rec, `${reg.codigo} ${reg.assunto || reg.titulo || NOME_TIPO(reg)}`.trim());
+          const rubricas = await lerRubricas(reg);
+          try {
+            await m.imprimir(paraMontador(reg, rubricas), rec, `${reg.codigo} ${reg.assunto || reg.titulo || NOME_TIPO(reg)}`.trim());
+          } finally { Object.values(rubricas).forEach((u) => URL.revokeObjectURL(u)); }
         }
         if (b.dataset.acao === 'duplicar') {
           if (sujo && !confirm('As mudanças não salvas vão só para a cópia. Continuar?')) return;

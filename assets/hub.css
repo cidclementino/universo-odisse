@@ -244,10 +244,6 @@
 .docs-escolha label, .docs-check { display: flex; gap: var(--u-esp-2); align-items: center; font-size: var(--u-t-corpo); cursor: pointer; }
 .u-campo .docs-escolha input, .docs-check input { width: auto; margin: 0; }
 .docs-check { margin-bottom: var(--u-esp-4); }
-.docs-assin { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: var(--u-esp-2); padding-bottom: var(--u-esp-2); border-bottom: 1px solid var(--u-linha); }
-.docs-assin input[data-k="registro"] { grid-column: 1; }
-.docs-assin button { grid-column: 2; justify-self: end; }
-.docs-mais { display: flex; gap: 6px; flex-wrap: wrap; }
 .docs-previa { min-width: 0; }
 .docs-escala { position: relative; overflow: hidden; }
 .docs-escala [data-folhas] { transform-origin: 0 0; width: 794px; display: flex; flex-direction: column; gap: 24px; }
@@ -303,13 +299,14 @@
 /* bloco de assinatura sobre um pedaço de folha */
 .eq-folha { margin-top: 8px; padding: 28px 32px 32px; background: var(--odisse-papel, #FAFAF7); border: 1px solid var(--u-linha);
   border-radius: 2px; box-shadow: 0 6px 18px rgba(46,48,54,.08); }
-.eq-bloco { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; font-size: 12px; line-height: 1.45; color: var(--odisse-ardosia, #3F4B57); }
-.eq-bloco img { height: 64px; max-width: 260px; object-fit: contain; object-position: left bottom; margin-bottom: -8px; }
-.eq-bloco .eq-traco { width: 240px; height: 1px; background: currentColor; opacity: .6; margin-bottom: 6px; }
-.eq-bloco b { font-weight: 600; font-size: 12.5px; }
-/* prévia dos documentos: só a caixa do lugar da assinatura, tracejada e com rótulo */
-.eq-caixa-assin { box-sizing: border-box; width: 240px; height: 56px; margin-bottom: 4px; border: 1.5px dashed var(--u-linha-forte); border-radius: 3px;
-  display: grid; place-items: center; font-size: 10.5px; font-weight: 650; letter-spacing: .08em; text-transform: uppercase; color: var(--u-tinta-2); }
+/* mesmas proporções da folha (corpo 15/23, rubrica 120 × 40 abaixo da identificação), em escala de 0,8 */
+.eq-bloco { font-size: 12px; line-height: 18.4px; color: var(--odisse-ardosia, #3F4B57); }
+.eq-bloco b { font-weight: 600; }
+.eq-bloco img, .eq-caixa-assin { display: block; box-sizing: border-box; width: 96px; height: 32px; margin-top: 8px; object-fit: contain; object-position: left center; }
+/* prévia dos documentos: só a caixa do lugar da rubrica, tracejada e com rótulo */
+.eq-caixa-assin { border: 1px dashed currentColor; border-radius: 2px; opacity: .45; font-size: 7.5px; line-height: 30px;
+  letter-spacing: .08em; text-transform: uppercase; text-align: center; }
+.eq-sem-rubrica { display: block; margin-top: 8px; font-size: 11px; color: var(--u-tinta-2); }
 .eq-alterna { display: flex; gap: 16px; font-size: 12.5px; margin-top: 10px; color: var(--u-tinta-2); }
 .eq-dialogo { width: min(640px, calc(100vw - 32px)); padding: 0; border-radius: 10px; border: 1px solid var(--u-linha); box-shadow: 0 12px 32px rgba(46,48,54,.18); color: var(--u-tinta); }
 .eq-dialogo::backdrop { background: rgba(46,48,54,.35); }

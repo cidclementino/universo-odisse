@@ -28,6 +28,7 @@ Os endereços das redes em Canais e os dados em Marca vêm do `odisse.json` da m
 | `ferramentas.json` | **O mapa do Universo:** seções, grupos e itens. Alimenta as páginas do hub e a barra de todas as ferramentas |
 | `base/v1/barra.js` | Barra e menu do Universo, para incluir em cada ferramenta |
 | `base/v1/universo.css` | Camada de interface das ferramentas internas (botões, campos, tabelas, cartões) |
+| `base/v1/assinantes.js` | Seletor de quem assina (módulo): equipe com foto, nome e registro, vários assinantes, último lembrado, pessoa de fora. Devolve a cópia que o documento guarda; a rubrica entra só na emissão |
 
 A marca (cores, fonte, logos, dados institucionais) **não** fica aqui: vem de [marca.odisse.com.br](https://marca.odisse.com.br) (repositório `marca-odisse`), que também atende os sites públicos.
 

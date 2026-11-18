@@ -3,8 +3,9 @@
 //
 // Rotas: #/equipe (lista, cargos e títulos) · #/equipe/nova · #/equipe/<eqp_…> (ficha da pessoa)
 //
-// Assinatura manuscrita: guardada à parte (arquivo protegido). Aqui ela aparece só para conferência; nos
-// documentos, a prévia mostra a caixa do lugar dela e o PNG entra só na emissão.
+// Rubrica (as iniciais, não uma assinatura formal): guardada à parte (arquivo protegido; na API, "assinatura").
+// Sai abaixo da identificação (nome; cargo · registro), sem mudar o bloco da folha. Aqui aparece só para
+// conferência; nos documentos, a prévia mostra a caixa do lugar dela e o PNG entra só na emissão.
 
 const SITE = 'https://www.odisse.com.br/images/equipe/';
 const USOS = [
@@ -107,7 +108,7 @@ export function criarEquipe({ esc, api, apiBinario, toque }) {
           ${linhaTitulo(p) ? `<small>${esc(linhaTitulo(p))}</small>` : ''}
           <span class="eq-chips">${p.socio ? '<span class="chip forte">sócio</span>' : ''}${p.publico ? '<span class="chip">no site</span>' : ''}
             ${p.assina.length ? `<span class="chip">assina: ${esc(p.assina.map((u) => (USOS.find((x) => x[0] === u) || [u, u])[1].toLowerCase()).join(', '))}</span>` : ''}
-            ${p.assina.length && !p.tem_assinatura ? '<span class="chip falta-chip">sem assinatura</span>' : ''}
+            ${p.assina.length && !p.tem_assinatura ? '<span class="chip falta-chip">sem rubrica</span>' : ''}
             ${p.ativo ? '' : '<span class="chip">inativo</span>'}</span></span></a>`;
     raiz.innerHTML = `<div class="cab"><div><h1 class="u-titulo">Equipe</h1>
         <p class="u-apoio">Quem faz o Odisse. Todas as ferramentas leem daqui: quem assina propostas, contratos e documentos,
@@ -174,7 +175,7 @@ export function criarEquipe({ esc, api, apiBinario, toque }) {
     avisoSaida = () => false;
     raiz.innerHTML = `<div class="cab"><div><a class="u-apoio" href="#/equipe">← Equipe</a><h1 class="u-titulo">Pessoa nova</h1>
         <p class="u-apoio">Se a pessoa já estiver nos Contatos (mesmo nome ou e-mail), o cadastro dela é aproveitado.
-        O resto (cargo, registro, foto, assinatura) se preenche na ficha.</p></div></div>
+        O resto (cargo, registro, foto, rubrica) se preenche na ficha.</p></div></div>
       <form class="u-cartao eq-form-nova">
         <label class="u-campo"><span>Nome</span><input name="nome" required autofocus></label>
         <label class="u-campo"><span>E-mail</span><input name="email" type="email"></label>
@@ -247,10 +248,10 @@ export function criarEquipe({ esc, api, apiBinario, toque }) {
                 `<label class="eq-check"><input type="checkbox" name="assina" value="${k}"${assina.includes(k) ? ' checked' : ''}> ${n} <small>${ajuda}</small></label>`).join('')}</div>
               <label class="u-campo"><span>Nome na assinatura</span><input name="nome_assinatura" value="${esc(reg.nome_assinatura || '')}" placeholder="${esc(pes.nome)}">
                 <small>Vazio = o nome da pessoa.</small></label>
-              <div class="u-campo"><span>Assinatura manuscrita</span>
-                <div class="eq-assin-acoes"><label class="u-botao eq-arquivo">${reg.assinatura_id ? 'Trocar assinatura' : 'Enviar assinatura'}<input type="file" accept="image/png,image/jpeg,image/webp" data-arquivo="assinatura"></label>
+              <div class="u-campo"><span>Rubrica (iniciais)</span>
+                <div class="eq-assin-acoes"><label class="u-botao eq-arquivo">${reg.assinatura_id ? 'Trocar rubrica' : 'Enviar rubrica'}<input type="file" accept="image/png,image/jpeg,image/webp" data-arquivo="assinatura"></label>
                   ${reg.assinatura_id ? '<button type="button" class="u-botao perigo" data-acao="tirar-assinatura">Tirar</button>' : ''}</div>
-                <small>PNG com fundo transparente, ou foto/digitalização em papel branco (o fundo é tirado aqui).
+                <small>Sai abaixo da identificação. PNG com fundo transparente, ou foto/digitalização em papel branco (o fundo é tirado aqui).
                 Fica guardada à parte e só entra no PDF na hora de emitir; cada uso fica registrado.</small></div>
             </div>
             <div><span class="u-rotulo">Como sai no documento</span>
@@ -298,11 +299,11 @@ export function criarEquipe({ esc, api, apiBinario, toque }) {
       const a = atual();
       const previa = form.elements['vista-assin'].value === 'previa';
       const img = previa || !assinUrl
-        ? `<span class="eq-caixa-assin">${previa ? 'assinatura' : 'sem assinatura enviada'}</span>`
-        : `<img src="${assinUrl}" alt="Assinatura de ${esc(a.nome)}">`;
-      caixaBloco.innerHTML = `<div class="eq-bloco">${img}<span class="eq-traco"></span>
-        <b>${esc(a.nome)}</b>${a.cargo ? `<span>${esc(a.cargo)}</span>` : ''}
-        ${a.titulo || a.registro ? `<span>${esc([a.titulo, a.registro].filter(Boolean).join(' · '))}</span>` : ''}</div>`;
+        ? (previa && assinUrl ? '<span class="eq-caixa-assin">rubrica</span>' : previa ? '' : '<span class="eq-sem-rubrica">sem rubrica enviada</span>')
+        : `<img src="${assinUrl}" alt="Rubrica de ${esc(a.nome)}">`;
+      // igual à folha da Marca: nome; cargo · registro; a rubrica abaixo
+      const linha = [a.cargo, a.registro].filter(Boolean).join(' · ');
+      caixaBloco.innerHTML = `<div class="eq-bloco"><div><b>${esc(a.nome)}</b>${linha ? `<br>${esc(linha)}` : ''}</div>${img}</div>`;
       raiz.querySelector('[data-resumo]').textContent = [a.cargo, a.titulo, a.registro].filter(Boolean).join(' · ');
     };
     const carregarAssinatura = async () => {
@@ -423,12 +424,12 @@ export function criarEquipe({ esc, api, apiBinario, toque }) {
         const j = await r.json().catch(() => ({}));
         if (!r.ok) throw new Error(j.erro || r.status);
         sujo = false;
-        toque('Assinatura guardada');
+        toque('Rubrica guardada');
         ficha(raiz, id);
-      } catch (e) { toque('Não foi possível usar a assinatura: ' + e.message); }
+      } catch (e) { toque('Não foi possível usar a rubrica: ' + e.message); }
     });
     raiz.querySelector('[data-acao="tirar-assinatura"]')?.addEventListener('click', async () => {
-      if (!confirm('Tirar a assinatura manuscrita? Os documentos já emitidos não mudam.') || !quandoSujo()) return;
+      if (!confirm('Tirar a rubrica? Os PDFs já baixados não mudam; os próximos saem sem ela.') || !quandoSujo()) return;
       const r = await api(`/api/v1/equipe/${id}/assinatura/remover`, { method: 'POST', body: JSON.stringify({ versao: reg.versao }) });
       if (r.status >= 400) { toque('Não foi possível tirar: ' + (r.erro || r.status)); return; }
       sujo = false;
@@ -446,17 +447,17 @@ Para quem só saiu, prefira desmarcar “ativo” e preencher a data de saída.`
     });
   }
 
-  // Confirmação da assinatura antes de enviar: mostra sobre papel e sobre fundo quadriculado.
+  // Confirmação da rubrica antes de enviar: mostra sobre papel e sobre fundo quadriculado.
   function confirmarAssinatura(url, x) {
     return new Promise((ok) => {
       const d = document.createElement('dialog');
       d.className = 'eq-dialogo';
       d.innerHTML = `<form method="dialog" class="dialogo-logo">
-          <div class="dl-cab"><div><span class="u-rotulo">Assinatura</span><h2 class="u-subtitulo">Conferir antes de guardar</h2></div></div>
+          <div class="dl-cab"><div><span class="u-rotulo">Rubrica</span><h2 class="u-subtitulo">Conferir antes de guardar</h2></div></div>
           <div class="duas"><div class="pv"><div class="eq-pv papel"><img src="${url}" alt=""></div>Sobre o papel</div>
             <div class="pv"><div class="eq-pv pv-q xadrez"><img src="${url}" alt=""></div>Transparência</div></div>
           <p class="u-apoio">${x.w} × ${x.h} px${x.fundoTirado ? ' · o fundo claro foi tirado aqui; confira se o traço ficou inteiro' : ''}.</p>
-          <div class="dl-acoes"><button class="u-botao" value="nao">Cancelar</button><button class="u-botao forte" value="sim">Guardar assinatura</button></div>
+          <div class="dl-acoes"><button class="u-botao" value="nao">Cancelar</button><button class="u-botao forte" value="sim">Guardar rubrica</button></div>
         </form>`;
       document.body.appendChild(d);
       d.addEventListener('close', () => { ok(d.returnValue === 'sim'); d.remove(); });
