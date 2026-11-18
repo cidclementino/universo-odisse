@@ -33,6 +33,7 @@ export const PREFIXOS = {
   pen: 'pgt_entregaveis',
   pev: 'pgt_eventos',
   pma: 'pgt_materiais',
+  doc: 'documentos',
 };
 
 // Ferramentas que podem chamar a API. 'hub' = o próprio Universo (senha da equipe);
@@ -61,6 +62,8 @@ const PGT = { hub: 'E', vendas: 'L', projetos: 'E', maquina: 'E' };
 export const GRUPOS_TIPOLOGIA = ['residencial', 'comercial', 'institucional', 'diversos'];
 export const TIPOS_MATERIAL = ['modelo', 'formulario', 'checklist', 'referencia'];
 export const TIPOS_EVENTO = ['reuniao', 'apresentacao', 'envio', 'aprovacao', 'ajuste', 'visita', 'protocolo', 'revisao', 'encerramento'];
+export const TIPOS_DOCUMENTO = ['carta', 'declaracao', 'memorando'];
+export const SIGLAS_DOCUMENTO = { carta: 'CA', declaracao: 'DE', memorando: 'MI' };
 export const TEMPOS_EVENTO = ['estudio', 'cliente', 'terceiros', 'pontual'];
 
 const TODOS_E = { hub: 'E', vendas: 'E', projetos: 'E', fornecedores: 'E', marketing: 'E', maquina: 'E' };
@@ -563,6 +566,40 @@ export const TABELAS = {
     filtros: ['alvo_id', 'tipo'],
     ordem: 'alvo_id, ordem',
   },
+
+  // ---------------------------------------------------------------- documentos (0010)
+  // Grupo 1 do estúdio: carta (com a opção ofício), declaração e memorando. O conteúdo fica aqui; o desenho
+  // da folha vem da Marca (v1/documentos/). numero, ano e codigo são gravados pela API (regras.js).
+  documentos: {
+    prefixo: 'doc',
+    campos: {
+      tipo: T('lista', { obrig: true, valores: TIPOS_DOCUMENTO, rotulo: 'Tipo' }),
+      modelo: T('lista', { valores: ['coluna', 'ficha'], rotulo: 'Modelo da folha' }),
+      oficio: T('sn', { rotulo: 'Ofício' }),
+      data: T('data', { rotulo: 'Data' }),
+      local: T('texto', { max: 80, rotulo: 'Local' }),
+      destinatario: T('textoLongo', { max: 1000, rotulo: 'Para' }),
+      remetente: T('textoLongo', { max: 400, rotulo: 'De' }),
+      assunto: T('texto', { max: 300, rotulo: 'Assunto' }),
+      referencia: T('texto', { max: 300, rotulo: 'Referência' }),
+      titulo: T('texto', { max: 160, rotulo: 'Título' }),
+      saudacao: T('texto', { max: 200, rotulo: 'Saudação' }),
+      corpo: T('textoLongo', { max: 60000, rotulo: 'Texto' }),
+      fecho: T('texto', { max: 200, rotulo: 'Fecho' }),
+      assinaturas: T('json', { max: 4000, rotulo: 'Assinaturas' }),
+      anexos: T('textoLongo', { max: 2000, rotulo: 'Anexos' }),
+      projeto_id: T('ref', { prefixos: ['prj'], rotulo: 'Projeto' }),
+      observacoes: T('textoLongo', { max: 4000, rotulo: 'Observações internas' }),
+    },
+    imutaveis: ['tipo'],
+    padroes: { modelo: 'coluna', oficio: 0 },
+    versoes: true,
+    permissoes: { hub: 'E', vendas: 'L', projetos: 'L', maquina: 'E' },
+    filtros: ['tipo', 'modelo', 'ano', 'projeto_id', 'codigo'],
+    ordem: 'criado_em DESC',
+    busca: (r) => ({ titulo: [r.codigo, r.assunto || r.titulo].filter(Boolean).join(' · '),
+      partes: [r.codigo, r.assunto, r.titulo, r.destinatario, r.remetente, r.referencia] }),
+  },
 };
 
 // Rotas da API → tabela. Pessoas sensíveis têm rota própria, pendurada na pessoa.
@@ -592,6 +629,7 @@ export const ROTAS = {
   'pgt-entregaveis': 'pgt_entregaveis',
   'pgt-eventos': 'pgt_eventos',
   'pgt-materiais': 'pgt_materiais',
+  documentos: 'documentos',
 };
 
 export const COMUNS = ['id', 'criado_em', 'atualizado_em', 'criado_por', 'atualizado_por', 'versao', 'arquivado_em'];

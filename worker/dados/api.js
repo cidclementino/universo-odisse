@@ -33,6 +33,7 @@
 //   POST   propostas/numeracao  { minimo }    -> leva a numeração até pelo menos `minimo` (nunca volta)
 // propostas: POST normal numera sozinho; { revisao_de } cria a revisão seguinte; { importada_de, numero,
 //   codigo, revisao } traz uma proposta antiga. Com o PDF congelado (arquivo_pdf_id), cálculo e valores travam.
+// documentos: POST numera CA-/DE-/MI-AAAA-NNNN pela data (regras.js); a data não pode mudar de ano.
 // pessoas-sensiveis: só por id (o mesmo da pessoa); só o vendas; cada leitura vai para o histórico.
 
 import { TABELAS, ROTAS, PREFIXOS, COMUNS } from './esquema.js';

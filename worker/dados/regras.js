@@ -6,7 +6,7 @@
 //   alterar(env, ferramenta, atual, mudancas) -> pode completar `mudancas` ou recusar (ErroApi)
 
 import { hojeBrasilia, agoraISO } from './util.js';
-import { TABELAS } from './esquema.js';
+import { TABELAS, SIGLAS_DOCUMENTO } from './esquema.js';
 
 export class ErroApi extends Error {
   constructor(status, erro, extra = {}) {
@@ -550,7 +550,32 @@ const pgt_eventos = {
   },
 };
 
+// ---------------------------------------------------------------- documentos (0010)
+// Número por sigla e por ano (CA-2026-0001): o ano é o da data do documento (sem data = hoje, que fica gravado).
+const documentos = {
+  async criar(env, ferramenta, valores) {
+    if (!valores.data) valores.data = hojeBrasilia();
+    const ano = Number(valores.data.slice(0, 4));
+    const sigla = SIGLAS_DOCUMENTO[valores.tipo];
+    const numero = await proximoNumero(env, `documentos-${sigla}-${ano}`);
+    Object.assign(valores, { numero, ano, codigo: `${sigla}-${ano}-${quatro(numero)}` });
+    if (valores.tipo !== 'carta') valores.oficio = 0;
+    return [];
+  },
+  async alterar(env, ferramenta, atual, mudancas) {
+    if ('data' in mudancas) {
+      if (!mudancas.data) throw new ErroApi(422, 'Data: o documento numerado precisa de data');
+      if (Number(mudancas.data.slice(0, 4)) !== atual.ano) {
+        throw new ErroApi(409, 'a data mudaria o ano do número; crie um documento novo', { codigo: atual.codigo });
+      }
+    }
+    if (atual.tipo !== 'carta' && mudancas.oficio) mudancas.oficio = 0;
+    return [];
+  },
+};
+
 export const REGRAS = {
+  documentos,
   oportunidades, propostas, contratos, projetos, horas,
   bases_servicos, bases_categorias, bases_usos, pgt_fases, pgt_etapas, pgt_entregaveis, pgt_eventos, pgt_materiais,
 };

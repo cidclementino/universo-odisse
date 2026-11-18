@@ -123,6 +123,12 @@
       "acesso": "interna", "status": "em-breve"
     },
     {
+      "id": "documentos", "nome": "Documentos", "secao": "biblioteca", "grupo": "acervo",
+      "descricao": "Cartas, ofícios, declarações e memorandos numerados; folhas em branco da marca",
+      "url": "https://universo.odisse.com.br/#/documentos",
+      "acesso": "interna", "status": "no-ar"
+    },
+    {
       "id": "modelos", "nome": "Modelos", "secao": "biblioteca", "grupo": "acervo",
       "descricao": "Contratos, propostas e documentos por tipo de serviço",
       "acesso": "interna", "status": "em-breve"

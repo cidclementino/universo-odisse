@@ -232,3 +232,24 @@
 @media (max-width: 640px) {
   .linha-cor .principal .sr { position: static; width: auto; height: auto; clip: auto; font-size: 12.5px; margin-left: 8px; }
 }
+
+/* ---- Documentos (#/documentos) ---- */
+.hub.largo { max-width: 1440px; }
+.docs-filtros { display: flex; gap: var(--u-esp-4); flex-wrap: wrap; }
+.docs-filtros .u-campo { min-width: 220px; }
+.docs-tabela td:first-child { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.docs-editor { display: grid; grid-template-columns: minmax(320px, 420px) 1fr; gap: var(--u-esp-6); align-items: start; margin-top: var(--u-esp-6); }
+.docs-form { position: sticky; top: var(--u-esp-4); max-height: calc(100vh - 32px); overflow: auto; padding-right: var(--u-esp-2); }
+.docs-escolha { display: flex; gap: var(--u-esp-5); }
+.docs-escolha label, .docs-check { display: flex; gap: var(--u-esp-2); align-items: center; font-size: var(--u-t-corpo); cursor: pointer; }
+.u-campo .docs-escolha input, .docs-check input { width: auto; margin: 0; }
+.docs-check { margin-bottom: var(--u-esp-4); }
+.docs-assin { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: var(--u-esp-2); padding-bottom: var(--u-esp-2); border-bottom: 1px solid var(--u-linha); }
+.docs-assin input[data-k="registro"] { grid-column: 1; }
+.docs-assin button { grid-column: 2; justify-self: end; }
+.docs-mais { display: flex; gap: 6px; flex-wrap: wrap; }
+.docs-previa { min-width: 0; }
+.docs-escala { position: relative; overflow: hidden; }
+.docs-escala [data-folhas] { transform-origin: 0 0; width: 794px; display: flex; flex-direction: column; gap: 24px; }
+.docs-escala .odd-folha { box-shadow: 0 1px 2px rgba(0,0,0,.08), 0 8px 24px rgba(0,0,0,.06); }
+@media (max-width: 900px) { .docs-editor { grid-template-columns: 1fr; } .docs-form { position: static; max-height: none; } }

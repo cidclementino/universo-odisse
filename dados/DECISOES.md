@@ -130,3 +130,13 @@ Compromissos aceitos: o hub é ponto único de falha para os dados comuns; mudan
 3. Testar localmente: `cd worker && npx wrangler d1 migrations apply universo --local && npx wrangler dev --local` (com `.dev.vars` contendo `UNIVERSO_SENHA=…`).
 4. Atualizar este documento e o doc do projeto.
 5. Push em `main`: o workflow aplica a migração e publica.
+
+## Documentos do estúdio (migração 0010, casa: Universo)
+
+- **Grupo 1 (identidade e correspondência) mora no Universo**: carta, ofício, declaração e memorando (decisão do Cid, 17/11). Comercial e financeiro vão para o vendas; levantamento, projeto e obra, para o Projetos; jurídico e marketing, para a ferramenta de cada um. Todas usam a mesma folha.
+- **Formatação separada do conteúdo.** O banco guarda só o conteúdo (`documentos`); a folha (Coluna ou Ficha) é desenhada pela Marca (`marca.odisse.com.br/v1/documentos/documentos.js`). O tipo do documento decide os campos; o modelo decide a folha. Por isso não há "modelo de carta", "modelo de ofício" etc.: o hub converte o registro em `{ campos, paragrafos, assinaturas… }` (`paraMontador`, em `assets/documentos.js`) e a Marca monta.
+- **Ofício é uma opção da carta** (`oficio = 1`), com referência e anexos; usa a numeração da carta. Declaração e memorando nunca são ofício (a API zera).
+- **Numeração por sigla e por ano**: `CA-2026-0001` (carta e ofício), `DE-…` (declaração), `MI-…` (memorando), sequências `documentos-<sigla>-<ano>` em `sequencias`, recomeçando a cada ano. O ano é o da data do documento; mudar a data para outro ano é recusado (409): crie um documento novo.
+- **Só a marca-mãe** no timbrado (decisão de 17/11): sem variação por núcleo.
+- **PDF pela janela de impressão** do navegador (vetor, texto selecionável, fonte embutida). Ainda não fica congelado no R2, como o das propostas: entra quando houver necessidade (ex.: ofícios protocolados).
+- **Folhas em branco** (Coluna, Ficha, Levantamento com pontos) não viram registro: saem direto da página, sem número. O .docx da folha em branco fica na pasta de template do Drive.

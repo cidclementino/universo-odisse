@@ -13,6 +13,7 @@ Cada ferramenta continua no seu próprio repositório e endereço. O Universo d�
 | **Canais** | O que o público vê: sites, redes, publicações | `#/canais` |
 | **Marca** | Quem somos: marca-mãe (que é o Estúdio), núcleos, paleta e tipografia; edição em PT/EN e envio de logos | `#/marca` |
 | **Biblioteca** | O que se reutiliza: acervo, referências, modelos, procedimentos | `#/biblioteca` |
+| Documentos (na Biblioteca) | Cartas, ofícios, declarações e memorandos numerados; folhas em branco da marca | `#/documentos` |
 
 Os endereços das redes em Canais e os dados em Marca vêm do `odisse.json` da marca (fonte única); não se repetem aqui.
 
@@ -21,6 +22,7 @@ Os endereços das redes em Canais e os dados em Marca vêm do `odisse.json` da m
 | Caminho | Conteúdo |
 |---|---|
 | `index.html`, `assets/hub.js`, `assets/hub.css` | As páginas do hub (uma por seção, por rota) |
+| `assets/documentos.js` | Página Documentos: lista, editor com prévia e PDF. O desenho da folha vem da Marca (`marca.odisse.com.br/v1/documentos/`) |
 | `ferramentas.json` | **O mapa do Universo:** seções, grupos e itens. Alimenta as páginas do hub e a barra de todas as ferramentas |
 | `base/v1/barra.js` | Barra e menu do Universo, para incluir em cada ferramenta |
 | `base/v1/universo.css` | Camada de interface das ferramentas internas (botões, campos, tabelas, cartões) |

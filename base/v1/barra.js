@@ -86,7 +86,10 @@
   function secaoAtual(dados, item) {
     if (NO_HUB) {
       const id = (location.hash.match(/^#\/([^/?]+)/) || [])[1];
-      return dados.secoes.some((s) => s.id === id) ? id : 'inicio';
+      if (dados.secoes.some((s) => s.id === id)) return id;
+      // páginas do próprio hub fora das seções (ex.: #/documentos): a seção do item que aponta para elas
+      const dono = id && (dados.itens || []).find((f) => (f.url || '').endsWith('#/' + id));
+      return dono ? dono.secao : 'inicio';
     }
     return item ? item.secao : null;
   }

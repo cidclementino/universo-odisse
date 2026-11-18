@@ -1,8 +1,9 @@
 // Páginas do hub. Rotas por hash: #/ (Início), #/ferramentas, #/canais, #/marca, #/biblioteca.
 // Tudo vem de dois arquivos: ferramentas.json (aqui) e odisse.json (marca.odisse.com.br).
-// A página Marca mora em assets/marca.js.
+// A página Marca mora em assets/marca.js; a página Documentos (#/documentos, aberta pela Biblioteca), em assets/documentos.js.
 
 import { criarMarca } from './marca.js';
+import { criarDocumentos } from './documentos.js';
 
 const MARCA = 'https://marca.odisse.com.br/';
 const API = 'https://universo-hub.reservaprojectbasework.workers.dev';
@@ -82,6 +83,8 @@ const marca = criarMarca({
   gravarOdisse: (d) => { ODISSE = d; },
 });
 
+const documentos = criarDocumentos({ esc, api, toque, lerOdisse: () => ODISSE });
+
 // ---- páginas -------------------------------------------------------------
 
 const PAGINAS = {
@@ -123,10 +126,15 @@ const PAGINAS = {
   marca() {
     return '<div id="pagina-marca" class="pagina-marca"></div>';
   },
+
+  documentos() {
+    return '<div id="pagina-documentos" class="pagina-documentos"></div>';
+  },
 };
 
 function depois(rota) {
   if (rota === 'marca') marca.ligar(vista.querySelector('#pagina-marca'));
+  if (rota === 'documentos') documentos.ligar(vista.querySelector('#pagina-documentos'));
 }
 
 function rota() {
@@ -137,8 +145,9 @@ function rota() {
 function mostrar() {
   if (document.body.classList.contains('u-trancado')) return;
   const r = rota();
-  const sec = MAPA.secoes.find((s) => s.id === r);
+  const sec = MAPA.secoes.find((s) => s.id === r) || { nome: 'Documentos' };
   document.title = (r === 'inicio' ? 'Universo' : sec.nome + ' — Universo') + ' — Odisse';
+  vista.classList.toggle('largo', r === 'documentos');
   vista.innerHTML = PAGINAS[r]() +
     '<footer class="rodape-hub"><button class="u-botao" data-acao="sair">Sair do Universo</button></footer>';
   depois(r);
