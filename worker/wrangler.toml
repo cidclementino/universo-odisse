@@ -19,3 +19,10 @@ migrations_dir = "../dados/migracoes"
 binding = "ARQUIVOS"
 bucket_name = "universo-arquivos"
 # --- fim dos dados ---
+
+# Site odisse.com.br: o hub pede a regeneração das páginas estáticas quando a equipe muda
+# (ponto de entrada "Universo" do Worker site-odisse, método gerar).
+[[services]]
+binding = "SITE_ODISSE"
+service = "site-odisse"
+entrypoint = "Universo"

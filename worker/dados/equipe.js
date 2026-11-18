@@ -33,7 +33,8 @@ const SELECT = `SELECT e.id, e.pessoa_id, e.versao, e.ativo, e.socio, e.papel, e
     COALESCE(e.nome_assinatura, p.nome) AS nome_assinatura, p.nome, p.apelido, p.email,
     ${forma('c')} AS cargo, c.nome_en AS cargo_en, ${forma('t')} AS titulo, t.nome_en AS titulo_en,
     e.conselho, e.registro, e.foto_id, (e.assinatura_id IS NOT NULL) AS tem_assinatura, e.assina,
-    e.bio_pt, e.bio_en, e.publico, e.ordem, e.desde, e.ate, e.atualizado_em
+    e.bio_pt, e.bio_en, e.publico, e.ordem, e.desde, e.ate,
+    max(e.atualizado_em, p.atualizado_em, COALESCE(c.atualizado_em, ''), COALESCE(t.atualizado_em, '')) AS atualizado_em
   FROM equipe e JOIN pessoas p ON p.id = e.pessoa_id
   LEFT JOIN cargos c ON c.id = e.cargo_id LEFT JOIN titulos t ON t.id = e.titulo_id`;
 const ORDEM = 'ORDER BY e.ativo DESC, e.socio DESC, e.ordem IS NULL, e.ordem, p.nome';
@@ -77,7 +78,7 @@ export async function equipePublica(env) {
   return {
     itens: results.map((r) => ({
       id: r.id, nome: r.nome, cargo: r.cargo, cargo_en: r.cargo_en, titulo: r.titulo, titulo_en: r.titulo_en,
-      bio_pt: r.bio_pt, bio_en: r.bio_en, foto_id: r.foto_id, ordem: r.ordem,
+      bio_pt: r.bio_pt, bio_en: r.bio_en, foto_id: r.foto_id, ordem: r.ordem, atualizado_em: r.atualizado_em,
     })),
   };
 }

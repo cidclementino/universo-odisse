@@ -133,7 +133,7 @@ async function gravarVarios(env, mensagem, arquivos) {
 // ---- rotas ----------------------------------------------------------------
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const CORS = cors();
     const json = (data, status = 200) =>
       new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json; charset=utf-8', ...CORS } });
@@ -145,7 +145,11 @@ export default {
     const ferramenta = quemChama(request, env);
     if (!ferramenta) return erro('senha incorreta', 401);
 
-    if (pathname.startsWith('/api/v1/') || pathname === '/api/v1') return api(env, ferramenta, request, url, CORS);
+    if (pathname.startsWith('/api/v1/') || pathname === '/api/v1') {
+      const resposta = await api(env, ferramenta, request, url, CORS);
+      if (resposta.ok && request.method !== 'GET') avisarSite(env, ctx, ferramenta, pathname);
+      return resposta;
+    }
     if (ferramenta !== 'hub') return erro('rota não encontrada', 404);
 
     try {
@@ -209,6 +213,17 @@ export default {
     }
   },
 };
+
+// ---- site (odisse.com.br) -------------------------------------------------
+// A página Sobre do site lê a equipe daqui (equipe/publica). Quando a equipe, os cargos ou os títulos mudam
+// (ou o nome de uma pessoa, pelo hub), pede ao site que regere as páginas estáticas, como o painel do site faz.
+// Ligação: [[services]] SITE_ODISSE → site-odisse, ponto de entrada "Universo" (método gerar).
+const MUDA_O_SITE = /^\/api\/v1\/(equipe|cargos|titulos)(\/|$)/;
+function avisarSite(env, ctx, ferramenta, pathname) {
+  if (!env.SITE_ODISSE || !ctx) return;
+  if (!(MUDA_O_SITE.test(pathname) || (ferramenta === 'hub' && pathname.startsWith('/api/v1/pessoas/')))) return;
+  ctx.waitUntil(Promise.resolve().then(() => env.SITE_ODISSE.gerar('universo:equipe')).catch((e) => console.warn('site: não pedi a geração', e)));
+}
 
 // ---- pontos de entrada para outras ferramentas (Worker a Worker) ----------
 // Na ferramenta: [[services]] binding = "UNIVERSO", service = "universo-hub", entrypoint = "Vendas"

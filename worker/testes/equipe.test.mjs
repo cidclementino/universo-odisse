@@ -82,6 +82,7 @@ ok(cg.id.startsWith('crg_'), 'o hub cria cargo novo');
 // ---- site: só a parte pública
 const pub = await chamar('GET', 'equipe/publica', null, 'site');
 ok(pub.itens.length === 2 && pub.itens[0].cargo_en === 'Creative Director' && !('email' in pub.itens[0]), 'site vê só quem é público, com cargo em inglês');
+ok(pub.itens[0].atualizado_em >= '2026-11-18', 'a parte pública diz quando mudou (o site redesenha a página Sobre)');
 ok((await pedir('GET', 'equipe', null, 'site')).status === 403, 'site não lista a equipe inteira');
 ok((await pedir('GET', 'equipe/quadro', null, 'site')).status === 403, 'site não vê o quadro');
 ok((await pedir('GET', 'pessoas', null, 'site')).status === 403, 'site não vê contatos');
