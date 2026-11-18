@@ -34,11 +34,14 @@ export const PREFIXOS = {
   pev: 'pgt_eventos',
   pma: 'pgt_materiais',
   doc: 'documentos',
+  crg: 'cargos',
+  tit: 'titulos',
 };
 
 // Ferramentas que podem chamar a API. 'hub' = o próprio Universo (senha da equipe);
-// 'maquina' = rotinas do GitHub Actions (token próprio).
-export const FERRAMENTAS = ['hub', 'vendas', 'projetos', 'fornecedores', 'marketing', 'maquina'];
+// 'maquina' = rotinas do GitHub Actions (token próprio); 'site' = odisse.com.br (0011: só o que é público
+// da equipe, pelas rotas equipe/publica e equipe/:id/foto).
+export const FERRAMENTAS = ['hub', 'vendas', 'projetos', 'fornecedores', 'marketing', 'site', 'maquina'];
 
 const NUCLEOS = ['estudio', 'arquitetos', 'objetos', 'elaia'];
 export const ETAPAS_FUNIL = ['lead', 'contato', 'briefing', 'proposta', 'negociacao', 'ganha', 'perdida'];
@@ -65,6 +68,14 @@ export const TIPOS_EVENTO = ['reuniao', 'apresentacao', 'envio', 'aprovacao', 'a
 export const TIPOS_DOCUMENTO = ['carta', 'declaracao', 'memorando'];
 export const SIGLAS_DOCUMENTO = { carta: 'CA', declaracao: 'DE', memorando: 'MI' };
 export const TEMPOS_EVENTO = ['estudio', 'cliente', 'terceiros', 'pontual'];
+// Equipe (0011): o que cada pessoa pode assinar e os conselhos profissionais.
+export const USOS_ASSINATURA = ['proposta', 'contrato', 'documento', 'rrt'];
+export const CONSELHOS = { cau: 'CAU', crea: 'CREA', abd: 'ABD' };
+// o que as ferramentas que só leem a equipe enxergam (sem custo por hora e sem o id da assinatura)
+const EQUIPE_LEITURA = ['pessoa_id', 'papel', 'ativo', 'socio', 'tratamento', 'cargo_id', 'titulo_id', 'nome_assinatura',
+  'conselho', 'registro', 'foto_id', 'assina', 'bio_pt', 'bio_en', 'publico', 'ordem', 'desde', 'ate'];
+// listas de cargos e títulos: o hub edita, todas leem
+const LISTAS_EQUIPE = { hub: 'E', vendas: 'L', projetos: 'L', fornecedores: 'L', marketing: 'L', site: 'L', maquina: 'E' };
 
 const TODOS_E = { hub: 'E', vendas: 'E', projetos: 'E', fornecedores: 'E', marketing: 'E', maquina: 'E' };
 
@@ -167,19 +178,65 @@ export const TABELAS = {
     ordem: 'data DESC',
   },
 
+  // Equipe (0001 + 0011): cadastro comum, editado na página Equipe do hub. Sócio é estado; cargo e título
+  // vêm das listas `cargos` e `titulos`, na forma do `tratamento`. `papel` é antigo: a API o mantém em dia
+  // (regras.js). A assinatura manuscrita não é campo: entra e sai pelas rotas equipe/:id/assinatura.
   equipe: {
     prefixo: 'eqp',
     campos: {
       pessoa_id: T('ref', { obrig: true, prefixos: ['pes'], rotulo: 'Pessoa' }),
-      papel: T('lista', { obrig: true, valores: ['socio', 'arquiteto', 'estagiario', 'colaborador'], rotulo: 'Papel' }),
+      papel: T('lista', { valores: ['socio', 'arquiteto', 'estagiario', 'colaborador'], rotulo: 'Papel' }),
       ativo: T('sn', { rotulo: 'Ativo' }),
       custo_hora: T('centavos', { rotulo: 'Custo por hora' }),
+      socio: T('sn', { rotulo: 'Sócio' }),
+      tratamento: T('lista', { valores: ['m', 'f'], rotulo: 'Tratamento' }),
+      cargo_id: T('ref', { prefixos: ['crg'], rotulo: 'Cargo' }),
+      titulo_id: T('ref', { prefixos: ['tit'], rotulo: 'Título profissional' }),
+      nome_assinatura: T('texto', { max: 120, rotulo: 'Nome na assinatura' }),
+      conselho: T('lista', { valores: Object.keys(CONSELHOS), rotulo: 'Conselho' }),
+      registro: T('registro', { rotulo: 'Registro no conselho' }),
+      foto_id: T('ref', { prefixos: ['arq'], rotulo: 'Foto' }),
+      assina: T('conjunto', { valores: USOS_ASSINATURA, rotulo: 'Pode assinar' }),
+      bio_pt: T('textoLongo', { max: 2000, rotulo: 'Bio (português)' }),
+      bio_en: T('textoLongo', { max: 2000, rotulo: 'Bio (inglês)' }),
+      publico: T('sn', { rotulo: 'Aparece no site' }),
+      ordem: T('inteiro', { min: 0, max: 999, rotulo: 'Ordem' }),
+      desde: T('data', { rotulo: 'Na equipe desde' }),
+      ate: T('data', { rotulo: 'Na equipe até' }),
     },
     imutaveis: ['pessoa_id'],
-    padroes: { ativo: 1 },
-    permissoes: { hub: 'E', projetos: 'E', maquina: 'E' },
-    filtros: ['papel', 'ativo'],
-    ordem: 'criado_em',
+    padroes: { ativo: 1, socio: 0, publico: 0 },
+    // Projetos continua editando até a página dele sair (passo 5 do universo-equipe.md); depois, só custo_hora.
+    permissoes: { hub: 'E', projetos: 'E', vendas: 'L', fornecedores: 'L', marketing: 'L', maquina: 'E' },
+    campos_restritos: { vendas: EQUIPE_LEITURA, fornecedores: EQUIPE_LEITURA, marketing: EQUIPE_LEITURA },
+    filtros: ['papel', 'ativo', 'socio', 'cargo_id', 'publico'],
+    ordem: 'ordem, criado_em',
+  },
+
+  cargos: {
+    prefixo: 'crg',
+    campos: {
+      nome_m: T('texto', { obrig: true, max: 80, rotulo: 'Nome (masculino)' }),
+      nome_f: T('texto', { obrig: true, max: 80, rotulo: 'Nome (feminino)' }),
+      nome_en: T('texto', { max: 80, rotulo: 'Nome (inglês)' }),
+      ordem: T('inteiro', { min: 0, max: 999, rotulo: 'Ordem' }),
+    },
+    permissoes: LISTAS_EQUIPE,
+    filtros: [],
+    ordem: 'ordem, nome_m',
+  },
+
+  titulos: {
+    prefixo: 'tit',
+    campos: {
+      nome_m: T('texto', { obrig: true, max: 80, rotulo: 'Nome (masculino)' }),
+      nome_f: T('texto', { obrig: true, max: 80, rotulo: 'Nome (feminino)' }),
+      nome_en: T('texto', { max: 80, rotulo: 'Nome (inglês)' }),
+      ordem: T('inteiro', { min: 0, max: 999, rotulo: 'Ordem' }),
+    },
+    permissoes: LISTAS_EQUIPE,
+    filtros: [],
+    ordem: 'ordem, nome_m',
   },
 
   sinteses: {
@@ -199,7 +256,7 @@ export const TABELAS = {
   arquivos: {
     prefixo: 'arq',
     campos: {
-      dono_id: T('ref', { prefixos: ['ppt', 'ctr', 'cot', 'ped', 'prj', 'opo', 'org', 'pes'], rotulo: 'Documento de' }),
+      dono_id: T('ref', { prefixos: ['ppt', 'ctr', 'cot', 'ped', 'prj', 'opo', 'org', 'pes', 'eqp'], rotulo: 'Documento de' }),
       nome_original: T('texto', { obrig: true, max: 200, rotulo: 'Nome do arquivo' }),
       tipo_mime: T('texto', { obrig: true, max: 100, rotulo: 'Tipo' }),
       tamanho: T('inteiro', { min: 0, rotulo: 'Tamanho' }),
@@ -610,6 +667,8 @@ export const ROTAS = {
   atuacoes: 'atuacoes',
   interacoes: 'interacoes',
   equipe: 'equipe',
+  cargos: 'cargos',
+  titulos: 'titulos',
   sinteses: 'sinteses',
   arquivos: 'arquivos',
   vinculos: 'vinculos',

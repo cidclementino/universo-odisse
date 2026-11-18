@@ -114,6 +114,20 @@ const TIPOS = {
     if (!c.valores.includes(s)) throw new Error(`um destes: ${c.valores.join(', ')}`);
     return s;
   },
+  // vários valores de uma lista fechada, guardados como texto separado por vírgula ("proposta,documento"),
+  // na ordem da lista; aceita array ou texto com vírgulas
+  conjunto: (v, c) => {
+    const dados = (Array.isArray(v) ? v : String(v).split(',')).map((x) => String(x).trim()).filter(Boolean);
+    const fora = dados.filter((x) => !c.valores.includes(x));
+    if (fora.length) throw new Error(`só estes: ${c.valores.join(', ')}`);
+    return c.valores.filter((x) => dados.includes(x)).join(',') || null;
+  },
+  // número de registro num conselho profissional (CAU A123456-7): sem a sigla do conselho, que é outro campo
+  registro: (v) => {
+    const s = String(v).trim().toUpperCase().replace(/^(CAU|CREA|ABD)\s*[:nNº°.]*\s*/, '').replace(/\s+/g, '');
+    if (!/^[A-Z0-9][A-Z0-9./-]{2,29}$/.test(s)) throw new Error('só letras, números, ponto, barra e hífen (ex.: A123456-7)');
+    return s;
+  },
   url: (v) => {
     const s = String(v).trim();
     if (!/^https:\/\/[^\s/$.?#][^\s]*$/i.test(s) || s.length > 300) throw new Error('endereço precisa começar com https://');

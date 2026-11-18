@@ -26,6 +26,9 @@
 //   GET    comercial/contatos/:id             -> ficha: registro, atuações, oportunidades (titular/co-cliente/contato), interações
 //   GET    producao/painel | producao/projetos/:id | producao/horas?de=&ate=   (ver producao.js)
 //   POST   producao/equipe { nome, email, papel }  -> cadastra na equipe (usa a pessoa que já existe)
+//   GET    equipe/quadro | equipe/assinantes?para=… | equipe/publica | equipe/:id/foto
+//   PUT    equipe/:id/assinatura?versao=N, GET equipe/:id/assinatura?uso=…, POST equipe/:id/assinatura/remover
+//                                              -> equipe comum e assinatura manuscrita (ver equipe.js)
 // projetos: POST numera OA-AAAA-NNN (ou aceita { codigo } de projeto antigo) e aceita { etapas, local, coclientes }.
 //   GET    bases | pgt | publicacoes[/ultima]?tipo=…, POST bases/… e pgt/…   -> Bases e PGT (ver pgt.js)
 // contratos: situacao 'assinado' no principal cria o projeto (ver regras.js: assinar).
@@ -40,6 +43,7 @@ import { TABELAS, ROTAS, PREFIXOS, COMUNS } from './esquema.js';
 import { novoId, prefixoDe, agoraISO, normalizar, limpar } from './util.js';
 import { painelProducao, fichaProjeto, horasPeriodo } from './producao.js';
 import { rotasPgt } from './pgt.js';
+import { rotasEquipe } from './equipe.js';
 import { ErroApi, REGRAS, proximoNumero, ajustarSequencia, valorSequencia, painelComercial, listaContatos, fichaContato } from './regras.js';
 
 export { proximoNumero };
@@ -375,6 +379,8 @@ async function alterar(env, ferramenta, tabela, id, corpo) {
   if (!Object.keys(mudancas).length) return { registro: visivel(tabela, ferramenta, atual), semMudanca: true };
   await conferirReferencias(env, tabela, mudancas);
   const extras = REGRAS[tabela]?.alterar ? (await REGRAS[tabela].alterar(env, ferramenta, atual, mudancas, corpo, AUX)) || [] : [];
+  // as regras podem concluir que nada muda de fato (ex.: papel antigo que já corresponde ao cargo)
+  if (!Object.keys(mudancas).length && !extras.length) return { registro: visivel(tabela, ferramenta, atual), semMudanca: true };
   const nova = await gravar(env, ferramenta, tabela, atual, mudancas, 'alterar', { extras });
   return { registro: visivel(tabela, ferramenta, nova) };
 }
@@ -618,6 +624,7 @@ async function enviarConteudo(env, ferramenta, id, url, request) {
   if (!(variante in VARIANTES)) throw new ErroApi(400, 'variante: g, m ou s');
   const reg = await buscarLinha(env, 'arquivos', id);
   if (!reg || reg.arquivado_em) throw new ErroApi(404, 'arquivo não encontrado');
+  if (reg.protegido) throw new ErroApi(403, 'arquivo protegido: tem rota própria');
   const ja = (reg.variantes || '').split(',').filter(Boolean);
   // o conteúdo de um id nunca muda (é isso que permite cache longo): trocar = arquivo novo
   if (ja.includes(variante)) throw new ErroApi(409, 'esta versão do arquivo já foi enviada; para trocar, envie um arquivo novo');
@@ -645,6 +652,10 @@ async function lerConteudo(env, ferramenta, id, url, cors) {
   if (!env.ARQUIVOS) throw new ErroApi(503, 'armazenamento de arquivos (R2) ainda não ligado');
   const pedida = url.searchParams.get('variante') || 'g';
   if (!(pedida in VARIANTES)) throw new ErroApi(400, 'variante: g, m ou s');
+  // assinaturas manuscritas (protegido) só saem por equipe/:id/assinatura, com o uso registrado
+  const reg = await env.DB.prepare('SELECT protegido FROM arquivos WHERE id = ?').bind(id).first();
+  if (!reg) throw new ErroApi(404, 'arquivo não encontrado');
+  if (reg.protegido) throw new ErroApi(403, 'arquivo protegido: tem rota própria');
   // como no site: se faltar a pequena, entrega a média; se faltar a média, a grande
   const ordem = { s: ['s', 'm', 'g'], m: ['m', 'g'], g: ['g'] }[pedida];
   for (const v of ordem) {
@@ -766,6 +777,14 @@ export async function api(env, ferramenta, request, url, cors) {
         return json({ valor: await ajustarSequencia(env, 'propostas', minimo) });
       }
     }
+
+    // Equipe: quadro, seletor de quem assina, parte pública (site), foto e assinatura manuscrita (equipe.js)
+    const re = await rotasEquipe(env, ferramenta, m, [rota, id, acao, n], corpo, url, request, cors,
+      { exigir, gravar });
+    if (re instanceof Response) return re;
+    if (re !== undefined) return json(re);
+    // o site só enxerga as rotas públicas da equipe
+    if (ferramenta === 'site') throw new ErroApi(403, 'esta ferramenta não pode ver isto');
 
     // Bases e PGT: leituras juntadas, matrizes de pertinência e publicação (pgt.js)
     const rp = await rotasPgt(env, ferramenta, m, [rota, id, acao], corpo, url, exigir, alterar);

@@ -10,7 +10,7 @@
 //   - o próprio hub, pelo navegador: Authorization: Bearer <UNIVERSO_SENHA>     -> ferramenta 'hub'
 //   - rotinas do GitHub Actions: Authorization: Bearer <MAQUINA_TOKEN>          -> ferramenta 'maquina'
 //   - outras ferramentas, Worker a Worker (service binding com entrypoint = "Vendas", "Projetos",
-//     "Fornecedores" ou "Marketing"): sem senha, porque esses pontos de entrada não são acessíveis
+//     "Fornecedores", "Marketing" ou "Site"): sem senha, porque esses pontos de entrada não são acessíveis
 //     pela internet, só por outro Worker da mesma conta. Cada um tem as permissões da sua ferramenta.
 //
 // Secrets (enviados pelo GitHub Actions; nunca no código):
@@ -228,3 +228,5 @@ export const Vendas = entrada('vendas');
 export const Projetos = entrada('projetos');
 export const Fornecedores = entrada('fornecedores');
 export const Marketing = entrada('marketing');
+// odisse.com.br (0011): só equipe/publica e equipe/:id/foto
+export const Site = entrada('site');

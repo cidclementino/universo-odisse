@@ -23,6 +23,9 @@ const opo2 = (await chamar('POST', 'oportunidades', { titulo: 'Sede Lins', clien
 await chamar('POST', 'interacoes', { sobre_id: opo.id, pessoa_id: raf.id, tipo: 'ligacao', data: '2026-11-10', proxima_acao: 'mandar proposta' });
 
 const lista = await chamar('GET', 'comercial/contatos');
+// a migração 0011 já traz Cid e Nathalia (equipe) entre as pessoas
+const SEMENTE = ['pes_cid', 'pes_nathalia'];
+lista.pessoas = lista.pessoas.filter((p) => !SEMENTE.includes(p.id));
 ok(lista.pessoas.length === 2 && lista.organizacoes.length === 1, 'lista traz 2 pessoas e 1 organização');
 const r = lista.pessoas.find((p) => p.id === raf.id);
 ok(r.ligacoes[0].nome === 'Lins Engenharia' && r.ligacoes[0].papel === 'socio', 'pessoa mostra a organização e o papel');
@@ -47,8 +50,9 @@ ok(painel.itens.find((x) => x.id === opo2.id).coclientes.length === 0, 'sem co-c
 
 // arquivados e permissões
 await chamar('POST', `pessoas/${ana.id}/arquivar`, { versao: ana.versao });
-ok((await chamar('GET', 'comercial/contatos')).pessoas.length === 1, 'arquivada sai da lista');
-ok((await chamar('GET', 'comercial/contatos?arquivados=1')).pessoas.length === 2, '?arquivados=1 inclui');
+const fora = (l) => l.pessoas.filter((p) => !SEMENTE.includes(p.id));
+ok(fora(await chamar('GET', 'comercial/contatos')).length === 1, 'arquivada sai da lista');
+ok(fora(await chamar('GET', 'comercial/contatos?arquivados=1')).length === 2, '?arquivados=1 inclui');
 let negado = false; try { await chamar('GET', 'comercial/contatos', null, 'marketing'); } catch (e) { negado = /403/.test(e.message); }
 ok(negado, 'marketing não lê a lista de contatos');
 let nf = false; try { await chamar('GET', 'comercial/contatos/opo_123'); } catch (e) { nf = /404/.test(e.message); }
