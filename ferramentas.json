@@ -4,6 +4,7 @@
     { "id": "inicio",      "nome": "Início",      "descricao": "O que importa hoje" },
     { "id": "ferramentas", "nome": "Ferramentas", "descricao": "Onde se trabalha" },
     { "id": "canais",      "nome": "Canais",      "descricao": "O que o público vê" },
+    { "id": "equipe",      "nome": "Equipe",      "descricao": "Quem faz" },
     { "id": "marca",       "nome": "Marca",       "descricao": "Quem somos" },
     { "id": "biblioteca",  "nome": "Biblioteca",  "descricao": "O que se reutiliza" }
   ],

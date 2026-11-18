@@ -103,6 +103,9 @@ ok(lida.status === 200 && lida.r.headers.get('Cache-Control') === 'no-store', 'o
 const h = await chamar('GET', `equipe/${cid.id}/historico`);
 ok(h.itens.some((x) => x.acao === 'ler_sensivel' && x.mudancas.uso === 'contrato' && x.mudancas.registro === 'ctr_TESTE'), 'leitura registrada no histórico com uso e documento');
 
+ok((await pedir('GET', `equipe/${cid.id}/assinatura?uso=conferencia`)).status === 200, 'o hub confere a assinatura guardada');
+ok((await pedir('GET', `equipe/${cid.id}/assinatura?uso=conferencia`, null, 'vendas')).status === 403, 'só o hub usa a conferência');
+
 // trocar: o arquivo anterior é arquivado; remover
 c = (await chamar('GET', 'equipe/' + cid.id)).registro;
 ok((await pedir('PUT', `equipe/${cid.id}/assinatura?versao=${c.versao - 1}`, null, 'hub', png)).status === 409, 'versão velha: conflito');

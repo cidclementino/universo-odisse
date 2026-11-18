@@ -15,6 +15,8 @@
 //                                       -> o PNG, só na emissão: hub, vendas e Projetos; só para um uso que a
 //                                          pessoa pode assinar; cada leitura vai para o histórico (ler_sensivel).
 //                                          Na prévia, as telas mostram só a caixa do lugar da assinatura.
+//                                          uso=conferencia: só o hub, para a página Equipe mostrar a assinatura
+//                                          guardada (também vai para o histórico, como conferência).
 
 import { ErroApi } from './regras.js';
 import { CONSELHOS, USOS_ASSINATURA } from './esquema.js';
@@ -191,13 +193,15 @@ async function removerAssinatura(env, ferramenta, id, corpo, h) {
 async function lerAssinatura(env, ferramenta, id, url) {
   if (!LEEM_ASSINATURA.includes(ferramenta)) throw new ErroApi(403, 'esta ferramenta não pode ver isto');
   const uso = url.searchParams.get('uso');
-  if (!USOS_ASSINATURA.includes(uso)) throw new ErroApi(422, `uso: ${USOS_ASSINATURA.join(', ')}`);
+  const conferencia = uso === 'conferencia';
+  if (conferencia && ferramenta !== 'hub') throw new ErroApi(403, 'só o Universo confere assinaturas');
+  if (!conferencia && !USOS_ASSINATURA.includes(uso)) throw new ErroApi(422, `uso: ${USOS_ASSINATURA.join(', ')}`);
   const registro = url.searchParams.get('registro') || null;
   if (registro && !/^(doc|ppt|ctr|prj)_[0-9A-Za-z_]{1,40}$/.test(registro)) throw new ErroApi(422, 'registro: id do documento emitido');
   const e = await env.DB.prepare('SELECT * FROM equipe WHERE id = ?').bind(id).first();
   if (!e || e.arquivado_em) throw new ErroApi(404, 'pessoa não encontrada');
-  if (!e.ativo) throw new ErroApi(409, 'esta pessoa não está ativa na equipe');
-  if (!(e.assina || '').split(',').includes(uso)) throw new ErroApi(403, 'esta pessoa não assina isto');
+  if (!conferencia && !e.ativo) throw new ErroApi(409, 'esta pessoa não está ativa na equipe');
+  if (!conferencia && !(e.assina || '').split(',').includes(uso)) throw new ErroApi(403, 'esta pessoa não assina isto');
   if (!e.assinatura_id) throw new ErroApi(404, 'assinatura ainda não enviada');
   if (!env.ARQUIVOS) throw new ErroApi(503, 'armazenamento de arquivos (R2) ainda não ligado');
   const obj = await env.ARQUIVOS.get(`arq/${e.assinatura_id}`);

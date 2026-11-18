@@ -1,9 +1,11 @@
-// Páginas do hub. Rotas por hash: #/ (Início), #/ferramentas, #/canais, #/marca, #/biblioteca.
+// Páginas do hub. Rotas por hash: #/ (Início), #/ferramentas, #/canais, #/equipe, #/marca, #/biblioteca.
 // Tudo vem de dois arquivos: ferramentas.json (aqui) e odisse.json (marca.odisse.com.br).
-// A página Marca mora em assets/marca.js; a página Documentos (#/documentos, aberta pela Biblioteca), em assets/documentos.js.
+// A página Marca mora em assets/marca.js; a página Documentos (#/documentos, aberta pela Biblioteca), em assets/documentos.js;
+// a página Equipe (#/equipe, seção própria da barra), em assets/equipe.js.
 
 import { criarMarca } from './marca.js';
 import { criarDocumentos } from './documentos.js';
+import { criarEquipe } from './equipe.js';
 
 const MARCA = 'https://marca.odisse.com.br/';
 const API = 'https://universo-hub.reservaprojectbasework.workers.dev';
@@ -77,6 +79,14 @@ async function api(caminho, opcoes = {}) {
   return { status: r.status, ...j };
 }
 
+// Para corpo ou resposta que não são JSON (imagens): devolve a Response.
+function apiBinario(caminho, opcoes = {}) {
+  return fetch(API + caminho, {
+    ...opcoes,
+    headers: { Authorization: 'Bearer ' + encodeURIComponent(senha.ler()), ...(opcoes.headers || {}) },
+  });
+}
+
 const marca = criarMarca({
   esc, api, toque, MARCA,
   lerOdisse: () => ODISSE,
@@ -84,6 +94,7 @@ const marca = criarMarca({
 });
 
 const documentos = criarDocumentos({ esc, api, toque, lerOdisse: () => ODISSE });
+const equipe = criarEquipe({ esc, api, apiBinario, toque });
 
 // ---- páginas -------------------------------------------------------------
 
@@ -130,11 +141,16 @@ const PAGINAS = {
   documentos() {
     return '<div id="pagina-documentos" class="pagina-documentos"></div>';
   },
+
+  equipe() {
+    return '<div id="pagina-equipe" class="pagina-equipe"></div>';
+  },
 };
 
 function depois(rota) {
   if (rota === 'marca') marca.ligar(vista.querySelector('#pagina-marca'));
   if (rota === 'documentos') documentos.ligar(vista.querySelector('#pagina-documentos'));
+  if (rota === 'equipe') equipe.ligar(vista.querySelector('#pagina-equipe'));
 }
 
 function rota() {
