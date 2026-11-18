@@ -368,3 +368,13 @@ li.eq-item.alvo-depois { box-shadow: 0 3px 0 var(--odisse-ocre, #BB8248); }
 .eq-novo { margin-top: 8px; border: 1.5px dashed var(--u-linha-forte); border-radius: var(--u-raio); background: transparent; }
 .eq-novo input { border-color: var(--u-linha); background: var(--u-elevada); }
 @media (max-width: 900px) { .eq-item { grid-template-columns: 28px 1fr; } .eq-item label, .eq-item-acoes { grid-column: 2; } }
+
+/* dados para contrato: fechados até pedir (dados restritos) */
+.eq-sec-cab { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.eq-sec-cab .u-subtitulo { margin: 0; }
+.eq-restrito { margin: 6px 0 0; font-size: 12px; }
+[data-contrato-corpo]:not(:empty) { margin-top: 18px; }
+.eq-duplo { display: grid; grid-template-columns: 1fr 1fr; gap: 0 10px; }
+.eq-cidade { grid-template-columns: 1fr 84px; }
+.eq-qualif { margin-top: 6px; padding-top: 14px; border-top: 1px solid var(--u-linha); }
+.eq-qualif p { margin: 6px 0 0; font-size: 13.5px; line-height: 1.55; max-width: 1000px; }

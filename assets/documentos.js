@@ -141,20 +141,26 @@ export function criarDocumentos({ esc, api, apiBinario, toque, lerOdisse }) {
     carregar();
   }
 
-  // Rubricas para a emissão: lidas da Equipe agora (a atual de cada pessoa), uma leitura por assinante,
-  // ligada ao documento no histórico. Quem não tem, ou não pode mais assinar documentos, sai sem.
+  // Rubricas para a emissão, uma leitura por assinante, ligada ao documento no histórico.
+  // A primeira emissão guarda no documento qual rubrica saiu (rubrica_id); as seguintes pedem essa mesma,
+  // mesmo que a pessoa tenha trocado a rubrica depois. Quem não tem rubrica sai só com o nome.
+  // Devolve { urls, ass } — ass traz os rubrica_id novos, quando houver, para gravar no documento.
   async function lerRubricas(d) {
     let ass = [];
     try { ass = JSON.parse(d.assinaturas || '[]'); } catch { ass = []; }
-    const saida = {}, faltou = [];
+    const urls = {}, faltou = [];
+    let novos = false;
     for (const a of ass) {
-      if (!a.equipe_id || !a.rubrica || saida[a.equipe_id]) continue;
-      const r = await apiBinario(`/api/v1/equipe/${a.equipe_id}/assinatura?uso=documento&registro=${encodeURIComponent(d.id)}`);
-      if (r.ok) saida[a.equipe_id] = URL.createObjectURL(await r.blob());
-      else faltou.push(a.nome);
+      if (!a.equipe_id || !a.rubrica || urls[a.equipe_id]) continue;
+      const fixa = a.rubrica_id ? `&arquivo=${encodeURIComponent(a.rubrica_id)}` : '';
+      const r = await apiBinario(`/api/v1/equipe/${a.equipe_id}/assinatura?uso=documento&registro=${encodeURIComponent(d.id)}${fixa}`);
+      if (!r.ok) { faltou.push(a.nome); continue; }
+      urls[a.equipe_id] = URL.createObjectURL(await r.blob());
+      const saiu = r.headers.get('X-Rubrica');
+      if (saiu && !a.rubrica_id) { a.rubrica_id = saiu; novos = true; }
     }
     if (faltou.length) toque(`Sem rubrica no PDF: ${faltou.join(', ')} (não encontrada na Equipe).`);
-    return saida;
+    return { urls, ass: novos ? ass : null };
   }
 
   // ---- editor ---------------------------------------------------------------
@@ -192,6 +198,16 @@ export function criarDocumentos({ esc, api, apiBinario, toque, lerOdisse }) {
   function editorCom(raiz, reg, base) {
     let assin = [];
     try { assin = JSON.parse(reg.assinaturas || '[]'); } catch { assin = []; }
+    // o seletor não conhece rubrica_id: quem continua com a mesma cópia mantém a rubrica da primeira emissão
+    const comRubricaFixa = (lista) => {
+      let antes = [];
+      try { antes = JSON.parse(reg.assinaturas || '[]'); } catch { antes = []; }
+      return lista.map((a) => {
+        if (!a.equipe_id || a.rubrica_id) return a;
+        const o = antes.find((x) => x.equipe_id === a.equipe_id && x.rubrica_id);
+        return o && ['nome', 'cargo', 'registro', 'rubrica'].every((k) => (o[k] ?? '') === (a[k] ?? '')) ? { ...a, rubrica_id: o.rubrica_id } : a;
+      });
+    };
     let sujo = false;
     const campos = CAMPOS[reg.tipo];
 
@@ -249,7 +265,7 @@ export function criarDocumentos({ esc, api, apiBinario, toque, lerOdisse }) {
       const f = new FormData(form);
       const d = { ...reg };
       for (const k of campos) {
-        if (k === 'assinaturas') d.assinaturas = JSON.stringify(assin.filter((a) => a.equipe_id || a.nome || a.cargo || a.registro));
+        if (k === 'assinaturas') d.assinaturas = JSON.stringify(comRubricaFixa(assin.filter((a) => a.equipe_id || a.nome || a.cargo || a.registro)));
         else if (k === 'oficio') d.oficio = form.elements.oficio.checked ? 1 : 0;
         else d[k] = (f.get(k) ?? '').toString();
       }
@@ -310,7 +326,12 @@ export function criarDocumentos({ esc, api, apiBinario, toque, lerOdisse }) {
             if (!(await salvar())) return;
           }
           const m = await carregarMontador();
-          const rubricas = await lerRubricas(reg);
+          const { urls: rubricas, ass } = await lerRubricas(reg);
+          if (ass) {
+            // primeira emissão: o documento passa a guardar qual rubrica saiu
+            const r = await api('/api/v1/documentos/' + reg.id, { method: 'PATCH', body: JSON.stringify({ versao: reg.versao, assinaturas: JSON.stringify(ass) }) });
+            if (r.status < 400) { reg = r.registro; assin = ass; gravarCopia('documentos:' + reg.id, reg); }
+          }
           try {
             await m.imprimir(paraMontador(reg, rubricas), rec, `${reg.codigo} ${reg.assunto || reg.titulo || NOME_TIPO(reg)}`.trim());
           } finally { Object.values(rubricas).forEach((u) => URL.revokeObjectURL(u)); }

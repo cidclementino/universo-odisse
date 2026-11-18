@@ -11,12 +11,15 @@
 //   PUT  equipe/:id/assinatura?versao=N -> (só o hub) PNG da assinatura manuscrita, até 2 MB. Vira um arquivo
 //                                          `protegido` no R2; o anterior é arquivado (nada se apaga).
 //   POST equipe/:id/assinatura/remover { versao } -> (só o hub) tira a assinatura da pessoa.
-//   GET  equipe/:id/assinatura?uso=<uso>&registro=<doc_|ppt_|ctr_…>
+//   GET  equipe/:id/assinatura?uso=<uso>&registro=<doc_|ppt_|ctr_…>[&arquivo=<arq_…>]
 //                                       -> o PNG, só na emissão: hub, vendas e Projetos; só para um uso que a
 //                                          pessoa pode assinar; cada leitura vai para o histórico (ler_sensivel).
 //                                          Na prévia, as telas mostram só a caixa do lugar da assinatura.
 //                                          uso=conferencia: só o hub, para a página Equipe mostrar a assinatura
 //                                          guardada (também vai para o histórico, como conferência).
+//                                          arquivo=<arq_…>: uma rubrica anterior da MESMA pessoa (mesmo arquivada), para o
+//                                          documento já emitido sair sempre com a rubrica da primeira emissão.
+//                                          A resposta diz qual rubrica saiu no cabeçalho X-Rubrica.
 
 import { ErroApi } from './regras.js';
 import { CONSELHOS, USOS_ASSINATURA } from './esquema.js';
@@ -193,7 +196,7 @@ async function removerAssinatura(env, ferramenta, id, corpo, h) {
   return { ok: true, registro: nova };
 }
 
-async function lerAssinatura(env, ferramenta, id, url) {
+async function lerAssinatura(env, ferramenta, id, url, cors) {
   if (!LEEM_ASSINATURA.includes(ferramenta)) throw new ErroApi(403, 'esta ferramenta não pode ver isto');
   const uso = url.searchParams.get('uso');
   const conferencia = uso === 'conferencia';
@@ -205,14 +208,25 @@ async function lerAssinatura(env, ferramenta, id, url) {
   if (!e || e.arquivado_em) throw new ErroApi(404, 'pessoa não encontrada');
   if (!conferencia && !e.ativo) throw new ErroApi(409, 'esta pessoa não está ativa na equipe');
   if (!conferencia && !(e.assina || '').split(',').includes(uso)) throw new ErroApi(403, 'esta pessoa não assina isto');
-  if (!e.assinatura_id) throw new ErroApi(404, 'assinatura ainda não enviada');
+  // a rubrica pedida: uma anterior da mesma pessoa (documento já emitido) ou a atual
+  let arqId = e.assinatura_id;
+  const pedida = url.searchParams.get('arquivo');
+  if (pedida && !conferencia) {
+    if (!/^arq_[0-9A-Za-z]{1,40}$/.test(pedida)) throw new ErroApi(422, 'arquivo: id da rubrica');
+    const a = await env.DB.prepare('SELECT id FROM arquivos WHERE id = ? AND dono_id = ? AND protegido = 1').bind(pedida, id).first();
+    if (!a) throw new ErroApi(404, 'esta rubrica não é desta pessoa');
+    arqId = a.id;
+  }
+  if (!arqId) throw new ErroApi(404, 'assinatura ainda não enviada');
   if (!env.ARQUIVOS) throw new ErroApi(503, 'armazenamento de arquivos (R2) ainda não ligado');
-  const obj = await env.ARQUIVOS.get(`arq/${e.assinatura_id}`);
+  const obj = await env.ARQUIVOS.get(`arq/${arqId}`);
   if (!obj) throw new ErroApi(404, 'assinatura ainda não enviada');
   await env.DB.prepare(`INSERT INTO historico (registro_id, tabela, acao, por, em, mudancas) VALUES (?, 'equipe', 'ler_sensivel', ?, ?, ?)`)
-    .bind(id, ferramenta, agoraISO(), JSON.stringify({ assinatura: e.assinatura_id, uso, registro })).run();
+    .bind(id, ferramenta, agoraISO(), JSON.stringify({ assinatura: arqId, uso, registro })).run();
+  // o hub lê de outro endereço (universo.odisse.com.br): sem CORS o navegador descarta a imagem
   return new Response(obj.body, {
-    headers: { 'Content-Type': 'image/png', 'Cache-Control': 'no-store' },
+    headers: { 'Content-Type': 'image/png', 'Cache-Control': 'no-store', 'X-Rubrica': arqId,
+      ...(cors || {}), 'Access-Control-Expose-Headers': 'X-Rubrica' },
   });
 }
 
@@ -238,7 +252,7 @@ export async function rotasEquipe(env, ferramenta, m, [rota, id, acao, n], corpo
   if (acao === 'foto' && m === 'GET') return foto(env, ferramenta, id, url, cors, h);
   if (acao === 'assinatura') {
     if (!n && m === 'PUT') return enviarAssinatura(env, ferramenta, id, url, request, h);
-    if (!n && m === 'GET') return lerAssinatura(env, ferramenta, id, url);
+    if (!n && m === 'GET') return lerAssinatura(env, ferramenta, id, url, cors);
     if (n === 'remover' && m === 'POST') return removerAssinatura(env, ferramenta, id, corpo, h);
     throw new ErroApi(405, 'método não aceito');
   }

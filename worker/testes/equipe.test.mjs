@@ -147,3 +147,36 @@ console.log('equipe: tudo certo');
   const ruim = await pedir('PATCH', 'equipe/' + c.id, { versao: r.registro.versao, registro_uf: 'XX' });
   ok(ruim.status === 422, 'UF fora da lista é recusada');
 }
+
+// ---- rubrica fixa por documento (X-Rubrica, arquivo=) e CORS na imagem
+{
+  const q0 = await chamar('GET', 'equipe/quadro');
+  const c = q0.itens.find((p) => p.nome === 'Cid Clementino');
+  const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]);
+  let e = (await chamar('GET', 'equipe/' + c.id)).registro;
+  await pedir('PUT', `equipe/${c.id}/assinatura?versao=${e.versao}`, null, 'hub', png);
+  e = (await chamar('GET', 'equipe/' + c.id)).registro;
+  const primeira = e.assinatura_id;
+  const url = new URL(`https://x/api/v1/equipe/${c.id}/assinatura?uso=documento&registro=doc_teste`);
+  const r1 = await api(env, 'hub', new Request(url), url, { 'Access-Control-Allow-Origin': '*' });
+  ok(r1.status === 200 && r1.headers.get('X-Rubrica') === primeira, 'X-Rubrica diz qual rubrica saiu');
+  ok(r1.headers.get('Access-Control-Allow-Origin') === '*' && /X-Rubrica/.test(r1.headers.get('Access-Control-Expose-Headers')), 'imagem da rubrica com CORS');
+  await pedir('PUT', `equipe/${c.id}/assinatura?versao=${e.versao}`, null, 'hub', new Uint8Array([...png, 9]));
+  const u2 = new URL(`https://x/api/v1/equipe/${c.id}/assinatura?uso=documento&registro=doc_teste&arquivo=${primeira}`);
+  const r2 = await api(env, 'hub', new Request(u2), u2, {});
+  ok(r2.status === 200 && r2.headers.get('X-Rubrica') === primeira, 'rubrica antiga (arquivada) continua saindo no documento já emitido');
+  const u3 = new URL(`https://x/api/v1/equipe/${c.id}/assinatura?uso=documento&arquivo=arq_naoexiste`);
+  ok((await api(env, 'hub', new Request(u3), u3, {})).status === 404, 'rubrica de outra pessoa ou inexistente é recusada');
+}
+
+// ---- 0013: dados para contrato (pessoas_sensiveis) pelo hub
+{
+  const q0 = await chamar('GET', 'equipe/quadro');
+  const c = q0.itens.find((p) => p.nome === 'Cid Clementino');
+  const criado = await chamar('POST', 'pessoas-sensiveis', { id: c.pessoa_id, nome_completo: 'Cid Clementino da Silva', nacionalidade: 'brasileira',
+    estado_civil: 'solteiro', profissao: 'arquiteto e urbanista', cpf: '529.982.247-25', rg: '1234567', rg_orgao: 'SSP/PB', cidade: 'João Pessoa', uf: 'PB' });
+  ok(criado.registro.nome_completo === 'Cid Clementino da Silva', 'hub grava os dados para contrato');
+  const lido = await chamar('GET', 'pessoas-sensiveis/' + c.pessoa_id);
+  ok(lido.registro.estado_civil === 'solteiro' && lido.registro.rg_orgao === 'SSP/PB', 'hub lê os dados para contrato');
+  ok((await pedir('GET', 'pessoas-sensiveis/' + c.pessoa_id, null, 'marketing')).status === 403, 'marketing não lê dados para contrato');
+}

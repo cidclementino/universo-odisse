@@ -420,6 +420,11 @@ export function criarEquipe({ esc, api, apiBinario, toque }) {
             </div>
           </div></section>
 
+        <section class="u-cartao eq-sec" data-contrato><div class="eq-sec-cab"><h2 class="u-subtitulo">Dados para contrato</h2>
+            <button type="button" class="u-botao" data-acao="contrato">Mostrar</button></div>
+          <p class="u-apoio eq-restrito">Dados restritos (CPF, RG, endereço): só aparecem quando pedidos, e cada abertura fica registrada.</p>
+          <div data-contrato-corpo></div></section>
+
         <section class="u-cartao eq-sec"><h2 class="u-subtitulo">Assinatura</h2>
           <div class="eq-tres">
             <div class="u-campo"><span>Pode assinar</span>${USOS.map(([k, n, ajuda]) =>
@@ -516,6 +521,93 @@ export function criarEquipe({ esc, api, apiBinario, toque }) {
     });
     avisoSaida = () => sujo;
 
+    // ---- dados para contrato (pessoas_sensiveis: lidos só quando pedidos, nunca guardados no navegador)
+    let contrato = null; // null = não aberto; {} = aberto sem registro; registro = aberto
+    let contratoSujo = false;
+    const ECIVIL = [['solteiro', 'solteiro', 'solteira'], ['casado', 'casado', 'casada'], ['uniao_estavel', 'em união estável', 'em união estável'],
+      ['separado', 'separado', 'separada'], ['divorciado', 'divorciado', 'divorciada'], ['viuvo', 'viúvo', 'viúva']];
+    const corpoContrato = raiz.querySelector('[data-contrato-corpo]');
+    const fem = () => form.elements.tratamento.value === 'f';
+    const qualificacao = () => {
+      const f = new FormData(form), v = (k) => String(f.get('ct_' + k) || '').trim();
+      const ec = ECIVIL.find((x) => x[0] === v('estado_civil'));
+      const end = [v('logradouro') && [v('logradouro'), v('numero')].filter(Boolean).join(', '), v('complemento'), v('bairro'),
+        [v('cidade'), v('uf')].filter(Boolean).join('/'), v('cep') && 'CEP ' + v('cep')].filter(Boolean).join(', ');
+      const partes = [v('nome_completo') || String(f.get('nome') || ''), v('nacionalidade'), ec && ec[fem() ? 2 : 1], v('profissao'),
+        v('rg') && `portador${fem() ? 'a' : ''} do RG nº ${v('rg')}${v('rg_orgao') ? ' ' + v('rg_orgao') : ''}`,
+        v('cpf') && `inscrit${fem() ? 'a' : 'o'} no CPF sob o nº ${v('cpf')}`,
+        end && `residente e domiciliad${fem() ? 'a' : 'o'} em ${end}`].filter(Boolean);
+      return partes.join(', ') + '.';
+    };
+    const fmtCpf = (v) => { const d = String(v || '').replace(/\D/g, ''); return d.length === 11 ? `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}` : (v || ''); };
+    const fmtCep = (v) => { const d = String(v || '').replace(/\D/g, ''); return d.length === 8 ? `${d.slice(0, 5)}-${d.slice(5)}` : (v || ''); };
+    const desenharContrato = () => {
+      const c = { ...(contrato || {}) };
+      c.cpf = fmtCpf(c.cpf); c.cep = fmtCep(c.cep);
+      const tituloPadrao = forma(titulos.find((t) => t.id === form.elements.titulo_id.value), form.elements.tratamento.value).toLowerCase();
+      const campo = (k, rot, extra = '') => `<label class="u-campo"><span>${rot}</span><input name="ct_${k}" value="${esc(c[k] || '')}" ${extra}></label>`;
+      corpoContrato.innerHTML = `<div class="eq-tres">
+          <div class="eq-col">
+            ${campo('nome_completo', 'Nome completo', `placeholder="${esc(pes.nome)}"`)}
+            ${campo('nacionalidade', 'Nacionalidade', `placeholder="${fem() ? 'brasileira' : 'brasileiro'}"`)}
+            <label class="u-campo"><span>Estado civil</span><select name="ct_estado_civil"><option value="">—</option>
+              ${ECIVIL.map(([k, m, f]) => `<option value="${k}"${c.estado_civil === k ? ' selected' : ''}>${fem() ? f : m}</option>`).join('')}</select></label>
+            ${campo('profissao', 'Profissão', `placeholder="${esc(tituloPadrao)}"`)}
+          </div>
+          <div class="eq-col">
+            ${campo('cpf', 'CPF', 'inputmode="numeric" placeholder="000.000.000-00"')}
+            <div class="eq-duplo">${campo('rg', 'RG')}${campo('rg_orgao', 'Órgão emissor', 'placeholder="SSP/PB"')}</div>
+            <label class="u-campo"><span>Nascimento</span><input type="date" name="ct_nascimento" value="${esc(c.nascimento || '')}"></label>
+          </div>
+          <div class="eq-col">
+            <div class="eq-duplo">${campo('cep', 'CEP', 'inputmode="numeric" placeholder="00000-000"')}${campo('numero', 'Número')}</div>
+            ${campo('logradouro', 'Logradouro')}
+            <div class="eq-duplo">${campo('complemento', 'Complemento')}${campo('bairro', 'Bairro')}</div>
+            <div class="eq-duplo eq-cidade">${campo('cidade', 'Cidade')}
+              <label class="u-campo"><span>UF</span><select name="ct_uf"><option value="">—</option>
+                ${UFS.map((u) => `<option${c.uf === u ? ' selected' : ''}>${u}</option>`).join('')}</select></label></div>
+          </div>
+        </div>
+        <div class="eq-qualif"><span class="u-rotulo">Como sai no contrato</span><p data-qualif></p></div>`;
+      corpoContrato.querySelector('[data-qualif]').textContent = qualificacao();
+    };
+    raiz.querySelector('[data-acao="contrato"]').addEventListener('click', async (ev) => {
+      const b = ev.currentTarget;
+      if (contrato) { // fechar: some da tela (o que não foi salvo se perde, depois de perguntar)
+        if (contratoSujo && !confirm('Há mudanças não salvas nos dados para contrato. Fechar mesmo assim?')) return;
+        contrato = null; contratoSujo = false; corpoContrato.innerHTML = ''; b.textContent = 'Mostrar'; return;
+      }
+      b.disabled = true;
+      const r = await api('/api/v1/pessoas-sensiveis/' + reg.pessoa_id);
+      b.disabled = false;
+      if (r.status === 404) contrato = {};
+      else if (r.status !== 200) { toque('Não foi possível ler os dados para contrato: ' + (r.erro || r.status)); return; }
+      else contrato = r.registro;
+      b.textContent = 'Ocultar';
+      desenharContrato();
+    });
+    form.addEventListener('input', (ev) => {
+      if (!contrato) return;
+      if (ev.target.name?.startsWith('ct_')) contratoSujo = true;
+      if (ev.target.name === 'tratamento' && ev.target.form) { const v = new FormData(form); desenharContrato();
+        for (const [k, x] of v) if (k.startsWith('ct_') && form.elements[k]) form.elements[k].value = x; }
+      const q = corpoContrato.querySelector('[data-qualif]'); if (q) q.textContent = qualificacao();
+    });
+    const gravarContrato = async () => {
+      if (!contrato || !contratoSujo) return true;
+      const f = new FormData(form);
+      const campos = ['nome_completo', 'nacionalidade', 'estado_civil', 'profissao', 'cpf', 'rg', 'rg_orgao', 'nascimento',
+        'cep', 'logradouro', 'numero', 'complemento', 'bairro', 'cidade', 'uf'];
+      const corpo = {};
+      for (const k of campos) { const x = String(f.get('ct_' + k) ?? '').trim(); corpo[k] = x === '' ? null : x; }
+      const r = contrato.id
+        ? await api('/api/v1/pessoas-sensiveis/' + contrato.id, { method: 'PATCH', body: JSON.stringify({ versao: contrato.versao, ...corpo }) })
+        : await api('/api/v1/pessoas-sensiveis', { method: 'POST', body: JSON.stringify({ id: reg.pessoa_id, ...corpo }) });
+      if (r.status >= 400) { toque('Dados para contrato: ' + (r.erro || r.status) + (r.campo ? ` (${r.campo})` : '')); return false; }
+      contrato = r.registro; contratoSujo = false;
+      return true;
+    };
+
     // ---- salvar
     const ler = () => {
       const f = new FormData(form);
@@ -557,7 +649,7 @@ export function criarEquipe({ esc, api, apiBinario, toque }) {
       ev.preventDefault();
       const botao = form.querySelector('[type=submit]');
       botao.disabled = true;
-      try { if (await gravar()) toque('Salvo'); } finally { botao.disabled = false; }
+      try { if (await gravar() && await gravarContrato()) toque('Salvo'); } finally { botao.disabled = false; }
     });
 
     // ---- desligar / trazer de volta (salva junto o que estiver na ficha)

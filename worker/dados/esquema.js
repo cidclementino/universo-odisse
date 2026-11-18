@@ -124,14 +124,20 @@ export const TABELAS = {
     duplicados: ['email', 'telefone', 'whatsapp'],
   },
 
-  // Restrita: só o vendas. Mesmo id da pessoa. Nunca entra na busca nem no histórico com valor.
+  // Restrita: o vendas (clientes) e o hub (dados para contrato da equipe, 0013). Mesmo id da pessoa.
+  // Nunca entra na busca nem no histórico com valor; cada leitura vai para o histórico.
   pessoas_sensiveis: {
     prefixo: 'pes',
     id_da_tabela: 'pessoas',
     sensivel: true,
     campos: {
+      nome_completo: T('texto', { max: 200, rotulo: 'Nome completo' }),
+      nacionalidade: T('texto', { max: 60, rotulo: 'Nacionalidade' }),
+      estado_civil: T('lista', { valores: ['solteiro', 'casado', 'uniao_estavel', 'separado', 'divorciado', 'viuvo'], rotulo: 'Estado civil' }),
+      profissao: T('texto', { max: 120, rotulo: 'Profissão' }),
       cpf: T('cpf', { rotulo: 'CPF' }),
       rg: T('texto', { max: 30, rotulo: 'RG' }),
+      rg_orgao: T('texto', { max: 30, rotulo: 'Órgão emissor do RG' }),
       nascimento: T('data', { rotulo: 'Nascimento' }),
       logradouro: T('texto', { max: 160, rotulo: 'Logradouro' }),
       numero: T('texto', { max: 20, rotulo: 'Número' }),
@@ -141,7 +147,7 @@ export const TABELAS = {
       uf: T('uf', { rotulo: 'UF' }),
       cep: T('cep', { rotulo: 'CEP' }),
     },
-    permissoes: { vendas: 'E' },
+    permissoes: { vendas: 'E', hub: 'E' },
     filtros: [],
     ordem: 'id',
   },
