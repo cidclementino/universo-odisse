@@ -9,6 +9,7 @@
 // a imagem é lida da Equipe só ao baixar o PDF (cada leitura vai para o histórico).
 
 import { seletorAssinantes } from '../base/v1/assinantes.js';
+import { lerCopia, gravarCopia, apagarCopia, igual, imagemGuardada } from './memoria.js';
 
 const MONTADOR = 'https://marca.odisse.com.br/v1/documentos/documentos.js';
 
@@ -118,9 +119,18 @@ export function criarDocumentos({ esc, api, apiBinario, toque, lerOdisse }) {
       const tipo = raiz.querySelector('[data-f="tipo"]').value, q = raiz.querySelector('[data-f="q"]').value.trim();
       if (tipo) p.set('tipo', tipo);
       if (q) p.set('q', q);
+      // sem filtro: mostra na hora a última lista guardada e confere por baixo
+      const chave = 'documentos:lista' + (p.toString() === 'limite=200' ? '' : ':' + p);
+      const copia = lerCopia(chave);
+      if (copia) desenhar(copia);
       const r = await api('/api/v1/documentos?' + p);
-      if (r.status !== 200) { caixa.innerHTML = `<p class="u-apoio">Não foi possível ler os documentos (${esc(r.erro || r.status)}).</p>`; return; }
-      if (!r.itens.length) { caixa.innerHTML = '<p class="u-apoio">Nenhum documento ainda.</p>'; return; }
+      if (r.status !== 200) { if (!copia) caixa.innerHTML = `<p class="u-apoio">Não foi possível ler os documentos (${esc(r.erro || r.status)}).</p>`; return; }
+      if (!tipo && !q) gravarCopia(chave, r.itens);
+      if (!copia || !igual(copia, r.itens)) desenhar(r.itens);
+    };
+    const desenhar = (itens) => {
+      if (!itens.length) { caixa.innerHTML = '<p class="u-apoio">Nenhum documento ainda.</p>'; return; }
+      const r = { itens };
       caixa.innerHTML = `<table class="u-tabela docs-tabela"><thead><tr><th>Nº</th><th>Tipo</th><th>Assunto</th><th>Para</th><th>Data</th></tr></thead><tbody>
         ${r.itens.map((d) => `<tr data-id="${esc(d.id)}"><td><a href="#/documentos/${esc(d.id)}">${esc(d.codigo)}</a></td><td>${esc(NOME_TIPO(d))}</td>
           <td>${esc(d.assunto || d.titulo || '')}</td><td>${esc((d.destinatario || '').split('\n')[0])}</td><td>${esc(curta(d.data))}</td></tr>`).join('')}
@@ -151,10 +161,23 @@ export function criarDocumentos({ esc, api, apiBinario, toque, lerOdisse }) {
   async function editor(raiz, id, novoTipo, base) {
     let reg;
     if (id) {
+      // documento já aberto antes: abre na hora pela cópia e confere por baixo (redesenha só se mudou)
+      const copia = lerCopia('documentos:' + id);
+      const buscar = api('/api/v1/documentos/' + id);
+      if (copia) {
+        reg = copia;
+        buscar.then((r) => {
+          if (r.status !== 200) return;
+          gravarCopia('documentos:' + id, r.registro);
+          if (!igual(r.registro, copia) && raiz.isConnected && location.hash.startsWith('#/documentos/' + id) && !avisoSaida()) editorCom(raiz, r.registro);
+        });
+        return editorCom(raiz, reg);
+      }
       raiz.innerHTML = '<p class="u-apoio">Carregando…</p>';
-      const r = await api('/api/v1/documentos/' + id);
+      const r = await buscar;
       if (r.status !== 200) { raiz.innerHTML = `<p class="u-apoio">Documento não encontrado (${esc(r.erro || r.status)}).</p>`; return; }
       reg = r.registro;
+      gravarCopia('documentos:' + id, reg);
     } else {
       const t = TIPOS[novoTipo] || TIPOS.carta;
       const odisse = lerOdisse();
@@ -163,6 +186,10 @@ export function criarDocumentos({ esc, api, apiBinario, toque, lerOdisse }) {
         saudacao: '', fecho: (t.tipo || novoTipo) === 'carta' ? 'Atenciosamente,' : '', titulo: novoTipo === 'declaracao' ? 'Declaração' : '' };
       if (base) Object.assign(reg, base, { id: undefined, codigo: undefined, numero: undefined, versao: undefined, data: hoje() });
     }
+    return editorCom(raiz, reg, base);
+  }
+
+  function editorCom(raiz, reg, base) {
     let assin = [];
     try { assin = JSON.parse(reg.assinaturas || '[]'); } catch { assin = []; }
     let sujo = false;
@@ -184,7 +211,7 @@ export function criarDocumentos({ esc, api, apiBinario, toque, lerOdisse }) {
         : `<input name="${k}" value="${esc(v)}">`}${ajuda ? `<small>${esc(ajuda)}</small>` : ''}</label>`;
     };
 
-    raiz.innerHTML = `<div class="cab"><div><a class="u-apoio" href="#/documentos">← Documentos</a>
+    raiz.innerHTML = `<div class="cab"><div><nav class="u-trilha" aria-label="Caminho"><a href="#/biblioteca">Biblioteca</a><span class="sep" aria-hidden="true">/</span><a href="#/documentos">Documentos</a></nav>
         <h1 class="u-titulo">${esc(NOME_TIPO(reg))} ${reg.codigo ? esc(reg.codigo) : '<span class="u-apoio">· novo</span>'}</h1></div>
         <div class="acoes-cab"><span class="u-apoio" data-estado></span>
           <button class="u-botao" data-acao="duplicar"${reg.id ? '' : ' hidden'}>Duplicar</button>
@@ -202,15 +229,18 @@ export function criarDocumentos({ esc, api, apiBinario, toque, lerOdisse }) {
         uso: 'documento',
         valor: assin,
         novo: !reg.id && !base,
+        // a lista de quem assina vem na hora da cópia guardada; a nova fica para a próxima vez
         carregar: async () => {
-          const r = await api('/api/v1/equipe/assinantes?para=documento');
-          if (r.status !== 200) throw new Error(r.erro || String(r.status));
-          return r.itens;
+          const copia = lerCopia('equipe:assinantes:documento');
+          const nova = api('/api/v1/equipe/assinantes?para=documento').then((r) => {
+            if (r.status !== 200) throw new Error(r.erro || String(r.status));
+            gravarCopia('equipe:assinantes:documento', r.itens);
+            return r.itens;
+          });
+          if (copia) { nova.catch(() => {}); return copia; }
+          return nova;
         },
-        foto: async (p) => {
-          const r = await apiBinario(`/api/v1/equipe/${p.id}/foto?variante=s`);
-          return r.ok ? URL.createObjectURL(await r.blob()) : null;
-        },
+        foto: (p) => imagemGuardada(`foto-${p.foto_id}-s`, () => apiBinario(`/api/v1/equipe/${p.id}/foto?variante=s`)),
         aoMudar: (lista) => { assin = lista; mudou(); },
       });
     }
@@ -263,6 +293,7 @@ export function criarDocumentos({ esc, api, apiBinario, toque, lerOdisse }) {
       if (r.status >= 400) { toque('Não foi possível salvar: ' + (r.erro || r.status) + (r.campo ? ` (${r.campo})` : '')); return null; }
       const novo = !reg.id;
       reg = r.registro; sujo = false; estado.textContent = 'salvo';
+      gravarCopia('documentos:' + reg.id, reg); apagarCopia('documentos:lista');
       if (novo) { history.replaceState(null, '', '#/documentos/' + reg.id); editor(raiz, reg.id); return reg; }
       return reg;
     };
@@ -293,7 +324,7 @@ export function criarDocumentos({ esc, api, apiBinario, toque, lerOdisse }) {
           if (!confirm(`Arquivar ${reg.codigo}? O número não volta a ser usado.`)) return;
           const r = await api(`/api/v1/documentos/${reg.id}/arquivar`, { method: 'POST', body: JSON.stringify({ versao: reg.versao }) });
           if (r.status >= 400) toque('Não foi possível arquivar: ' + (r.erro || r.status));
-          else location.hash = '#/documentos';
+          else { apagarCopia('documentos:' + reg.id); apagarCopia('documentos:lista'); location.hash = '#/documentos'; }
         }
       } finally { b.disabled = false; }
     });

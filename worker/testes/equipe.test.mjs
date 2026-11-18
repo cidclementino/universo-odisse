@@ -134,3 +134,16 @@ ok(fs.status === 200 && fs.r.headers.get('Cache-Control').startsWith('public'), 
 ok((await pedir('GET', `equipe/${nova.id}/foto`, null, 'site')).status === 404, 'o site não vê quem não é público');
 
 console.log('equipe: tudo certo');
+
+// ---- 0012: UF do registro
+{
+  const q0 = await chamar('GET', 'equipe/quadro');
+  const c = q0.itens.find((p) => p.nome === 'Cid Clementino');
+  const e = (await chamar('GET', 'equipe/' + c.id)).registro;
+  const r = await chamar('PATCH', 'equipe/' + c.id, { versao: e.versao, conselho: 'cau', registro: 'A1697218', registro_uf: 'PB' });
+  ok(r.registro.registro_uf === 'PB', 'UF do registro gravada');
+  const a = await chamar('GET', 'equipe/assinantes?para=documento');
+  ok(a.itens.find((p) => p.id === c.id).registro_formatado === 'CAU/PB A1697218', 'registro sai como CAU/PB A1697218');
+  const ruim = await pedir('PATCH', 'equipe/' + c.id, { versao: r.registro.versao, registro_uf: 'XX' });
+  ok(ruim.status === 422, 'UF fora da lista é recusada');
+}

@@ -71,9 +71,11 @@ export const TEMPOS_EVENTO = ['estudio', 'cliente', 'terceiros', 'pontual'];
 // Equipe (0011): o que cada pessoa pode assinar e os conselhos profissionais.
 export const USOS_ASSINATURA = ['proposta', 'contrato', 'documento', 'rrt'];
 export const CONSELHOS = { cau: 'CAU', crea: 'CREA', abd: 'ABD' };
+export const UFS = ['AC', 'AL', 'AM', 'AP', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MG', 'MS', 'MT', 'PA', 'PB', 'PE', 'PI', 'PR',
+  'RJ', 'RN', 'RO', 'RR', 'RS', 'SC', 'SE', 'SP', 'TO'];
 // o que as ferramentas que só leem a equipe enxergam (sem custo por hora e sem o id da assinatura)
 const EQUIPE_LEITURA = ['pessoa_id', 'papel', 'ativo', 'socio', 'tratamento', 'cargo_id', 'titulo_id', 'nome_assinatura',
-  'conselho', 'registro', 'foto_id', 'assina', 'bio_pt', 'bio_en', 'publico', 'ordem', 'desde', 'ate'];
+  'conselho', 'registro', 'registro_uf', 'foto_id', 'assina', 'bio_pt', 'bio_en', 'publico', 'ordem', 'desde', 'ate'];
 // listas de cargos e títulos: o hub edita, todas leem
 const LISTAS_EQUIPE = { hub: 'E', vendas: 'L', projetos: 'L', fornecedores: 'L', marketing: 'L', site: 'L', maquina: 'E' };
 
@@ -195,6 +197,7 @@ export const TABELAS = {
       nome_assinatura: T('texto', { max: 120, rotulo: 'Nome na assinatura' }),
       conselho: T('lista', { valores: Object.keys(CONSELHOS), rotulo: 'Conselho' }),
       registro: T('registro', { rotulo: 'Registro no conselho' }),
+      registro_uf: T('lista', { valores: UFS, rotulo: 'UF do registro' }),
       foto_id: T('ref', { prefixos: ['arq'], rotulo: 'Foto' }),
       assina: T('conjunto', { valores: USOS_ASSINATURA, rotulo: 'Pode assinar' }),
       bio_pt: T('textoLongo', { max: 2000, rotulo: 'Bio (português)' }),

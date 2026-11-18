@@ -24,6 +24,7 @@ Os endereços das redes em Canais e os dados em Marca vêm do `odisse.json` da m
 |---|---|
 | `index.html`, `assets/hub.js`, `assets/hub.css` | As páginas do hub (uma por seção, por rota) |
 | `assets/equipe.js` | Página Equipe: lista, ficha da pessoa (foto, cargo, registro, quem assina, assinatura manuscrita, bios do site) e listas de cargos e títulos |
+| `assets/memoria.js` | Cópias locais das leituras (a página abre na hora com a última cópia e confere por baixo) e imagens guardadas no navegador pelo id do arquivo. **Regra para todas as páginas:** nada de recarregar tudo do zero |
 | `assets/documentos.js` | Página Documentos: lista, editor com prévia e PDF. O desenho da folha vem da Marca (`marca.odisse.com.br/v1/documentos/`) |
 | `ferramentas.json` | **O mapa do Universo:** seções, grupos e itens. Alimenta as páginas do hub e a barra de todas as ferramentas |
 | `base/v1/barra.js` | Barra e menu do Universo, para incluir em cada ferramenta |

@@ -7,7 +7,13 @@
 // Sai abaixo da identificação (nome; cargo · registro), sem mudar o bloco da folha. Aqui aparece só para
 // conferência; nos documentos, a prévia mostra a caixa do lugar dela e o PNG entra só na emissão.
 
+import { lerCopia, gravarCopia, apagarCopia, igual, imagemGuardada } from './memoria.js';
+
 const SITE = 'https://www.odisse.com.br/images/equipe/';
+const UFS = ['AC', 'AL', 'AM', 'AP', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MG', 'MS', 'MT', 'PA', 'PB', 'PE', 'PI', 'PR',
+  'RJ', 'RN', 'RO', 'RR', 'RS', 'SC', 'SE', 'SP', 'TO'];
+const hoje = () => new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10);
+const dataBr = (d) => (d ? d.split('-').reverse().join('/') : '');
 const USOS = [
   ['proposta', 'Propostas', 'Assina as propostas de honorários.'],
   ['contrato', 'Contratos', 'Representante legal: só sócios.'],
@@ -74,18 +80,11 @@ async function prepararAssinatura(arquivo) {
 export function criarEquipe({ esc, api, apiBinario, toque }) {
   let avisoSaida = () => false;
   window.addEventListener('beforeunload', (ev) => { if (avisoSaida()) { ev.preventDefault(); ev.returnValue = ''; } });
-  const urls = new Map(); // id da pessoa + variante → objectURL da foto (lida com a senha)
+  const rubricas = new Map(); // assinatura_id → objectURL (só nesta sessão: arquivo protegido não vai para o disco)
 
-  async function fotoUrl(p, variante = 's') {
-    if (!p.foto_id) return null;
-    const chave = `${p.foto_id}-${variante}`;
-    if (urls.has(chave)) return urls.get(chave);
-    const r = await apiBinario(`/api/v1/equipe/${p.id}/foto?variante=${variante}`);
-    if (!r.ok) return null;
-    const u = URL.createObjectURL(await r.blob());
-    urls.set(chave, u);
-    return u;
-  }
+  // foto: guardada no navegador pelo id do arquivo (trocar a foto = id novo), lida da API só uma vez
+  const fotoUrl = (p, variante = 's') => (!p.foto_id ? Promise.resolve(null)
+    : imagemGuardada(`foto-${p.foto_id}-${variante}`, () => apiBinario(`/api/v1/equipe/${p.id}/foto?variante=${variante}`)));
   const preencherFotos = (raiz, pessoas) => raiz.querySelectorAll('[data-foto]').forEach(async (el) => {
     const p = pessoas.find((x) => x.id === el.dataset.foto);
     const u = p && (await fotoUrl(p, el.dataset.variante || 's'));
@@ -93,13 +92,24 @@ export function criarEquipe({ esc, api, apiBinario, toque }) {
   });
   const iniciais = (nome) => String(nome || '?').split(/\s+/).filter(Boolean).slice(0, 2).map((x) => x[0]).join('').toUpperCase();
   const linhaTitulo = (p) => [p.titulo, p.registro_formatado].filter(Boolean).join(' · ');
+  const trilha = (...itens) => `<nav class="u-trilha" aria-label="Caminho">${itens.map(([nome, href]) =>
+    href ? `<a href="${href}">${esc(nome)}</a>` : `<span aria-current="page">${esc(nome)}</span>`).join('<span class="sep" aria-hidden="true">/</span>')}</nav>`;
 
   // ---- lista -----------------------------------------------------------------
   async function lista(raiz) {
     avisoSaida = () => false;
-    raiz.innerHTML = '<p class="u-apoio">Carregando…</p>';
+    const copia = lerCopia('equipe:quadro');
+    if (copia) desenharLista(raiz, copia); else raiz.innerHTML = '<p class="u-apoio">Carregando…</p>';
     const q = await api('/api/v1/equipe/quadro?todos=1');
-    if (q.status !== 200) { raiz.innerHTML = `<p class="u-apoio">Não foi possível ler a equipe (${esc(q.erro || q.status)}).</p>`; return; }
+    if (q.status !== 200) { if (!copia) raiz.innerHTML = `<p class="u-apoio">Não foi possível ler a equipe (${esc(q.erro || q.status)}).</p>`; return; }
+    const novo = { itens: q.itens, cargos: q.cargos, titulos: q.titulos };
+    gravarCopia('equipe:quadro', novo);
+    if (!raiz.isConnected || (copia && igual(copia, novo))) return;
+    if (copia && raiz.contains(document.activeElement) && document.activeElement.matches('input')) return; // editando uma lista
+    desenharLista(raiz, novo);
+  }
+
+  function desenharLista(raiz, q) {
     const ativos = q.itens.filter((p) => p.ativo), inativos = q.itens.filter((p) => !p.ativo);
     const cartao = (p) => `<a class="u-cartao eq-pessoa${p.ativo ? '' : ' inativa'}" href="#/equipe/${esc(p.id)}">
         <span class="eq-foto" data-foto="${esc(p.id)}">${p.foto_id ? '' : `<i>${esc(iniciais(p.nome))}</i>`}</span>
@@ -121,7 +131,7 @@ export function criarEquipe({ esc, api, apiBinario, toque }) {
         <div class="eq-grade">${inativos.map(cartao).join('')}</div></section>` : ''}
       <section class="bloco"><span class="u-rotulo">Cargos e títulos</span>
         <p class="u-apoio">Opções de cada pessoa, com a forma masculina, a feminina e a inglesa (site em inglês).
-        O tratamento da pessoa escolhe a forma. Mudar aqui muda em todo lugar que mostra o cargo.</p>
+        Na ficha aparece só a masculina; o sexo da pessoa escolhe a forma. Mudar aqui muda em todo lugar que mostra o cargo.</p>
         <div class="duas eq-listas"><div data-lista="cargos"></div><div data-lista="titulos"></div></div></section>`;
     preencherFotos(raiz, q.itens);
     listaEditavel(raiz.querySelector('[data-lista="cargos"]'), 'cargos', 'Cargos', q.cargos);
@@ -173,7 +183,7 @@ export function criarEquipe({ esc, api, apiBinario, toque }) {
   // ---- pessoa nova -------------------------------------------------------------
   function nova(raiz) {
     avisoSaida = () => false;
-    raiz.innerHTML = `<div class="cab"><div><a class="u-apoio" href="#/equipe">← Equipe</a><h1 class="u-titulo">Pessoa nova</h1>
+    raiz.innerHTML = `<div class="cab"><div>${trilha(['Equipe', '#/equipe'], ['Pessoa nova'])}<h1 class="u-titulo">Pessoa nova</h1>
         <p class="u-apoio">Se a pessoa já estiver nos Contatos (mesmo nome ou e-mail), o cadastro dela é aproveitado.
         O resto (cargo, registro, foto, rubrica) se preenche na ficha.</p></div></div>
       <form class="u-cartao eq-form-nova">
@@ -189,63 +199,86 @@ export function criarEquipe({ esc, api, apiBinario, toque }) {
       f.querySelector('button').disabled = false;
       if (r.status >= 400) { toque('Não foi possível acrescentar: ' + (r.erro || r.status)); return; }
       if (r.ja_estava) toque('Essa pessoa já está na equipe.');
+      apagarCopia('equipe:quadro');
       location.hash = '#/equipe/' + r.registro.id;
     });
   }
 
   // ---- ficha -------------------------------------------------------------------
-  async function ficha(raiz, id) {
-    raiz.innerHTML = '<p class="u-apoio">Carregando…</p>';
+  // Abre na hora com a última cópia guardada e confere por baixo; só redesenha se algo mudou e não há edição em curso.
+  async function lerFicha(id) {
     const [q, rEq] = await Promise.all([api('/api/v1/equipe/quadro?todos=1'), api('/api/v1/equipe/' + id)]);
-    if (q.status !== 200 || rEq.status !== 200) { raiz.innerHTML = `<p class="u-apoio">Pessoa não encontrada (${esc(rEq.erro || q.erro || rEq.status)}).</p>`; return; }
-    let reg = rEq.registro;                       // linha da equipe (com versao e custo por hora)
-    let p = q.itens.find((x) => x.id === id);     // a mesma pessoa já montada (cargo na forma certa, registro formatado)
-    const rPes = await api('/api/v1/pessoas/' + reg.pessoa_id);
-    let pes = rPes.registro || { nome: p.nome, email: p.email };
-    const { cargos, titulos } = q;
-    let sujo = false;
+    if (q.status !== 200 || rEq.status !== 200) return { erro: rEq.erro || q.erro || rEq.status };
+    const rPes = await api('/api/v1/pessoas/' + rEq.registro.pessoa_id);
+    gravarCopia('equipe:quadro', { itens: q.itens, cargos: q.cargos, titulos: q.titulos });
+    return { reg: rEq.registro, pes: rPes.registro || null, p: q.itens.find((x) => x.id === id), cargos: q.cargos, titulos: q.titulos };
+  }
 
+  async function ficha(raiz, id) {
+    const chave = 'equipe:ficha:' + id;
+    const copia = lerCopia(chave);
+    if (copia) montarFicha(raiz, id, copia); else raiz.innerHTML = '<p class="u-apoio">Carregando…</p>';
+    const d = await lerFicha(id);
+    if (d.erro) { if (!copia) raiz.innerHTML = `<p class="u-apoio">Pessoa não encontrada (${esc(d.erro)}).</p>`; return; }
+    gravarCopia(chave, d);
+    if (!raiz.isConnected || location.hash !== '#/equipe/' + id) return;
+    if (copia && igual(copia, d)) return;
+    if (copia && avisoSaida()) { toque('Esta ficha mudou em outro lugar. Salve ou recarregue para ver.'); return; }
+    montarFicha(raiz, id, d);
+  }
+
+  function montarFicha(raiz, id, dados) {
+    let { reg, p } = dados;                       // linha da equipe (com versao e custo por hora) e a pessoa montada
+    let pes = dados.pes || { nome: p?.nome || '', email: p?.email || '' };
+    const temPes = !!dados.pes;
+    const { cargos, titulos } = dados;
+    const chave = 'equipe:ficha:' + id;
+    let sujo = false;
+    const ativo = !!reg.ativo;
+
+    // na lista aparece só a forma masculina; o sexo da pessoa escolhe a forma no resto do Universo
     const opcoes = (lista, atual) => `<option value="">—</option>` + lista.map((c) =>
-      `<option value="${esc(c.id)}"${c.id === atual ? ' selected' : ''}>${esc(c.nome_m === c.nome_f ? c.nome_m : `${c.nome_m} / ${c.nome_f}`)}</option>`).join('');
+      `<option value="${esc(c.id)}"${c.id === atual ? ' selected' : ''}>${esc(c.nome_m)}</option>`).join('');
     const chk = (nome, v, texto) => `<label class="eq-check"><input type="checkbox" name="${nome}"${v ? ' checked' : ''}> ${texto}</label>`;
     const assina = (reg.assina || '').split(',').filter(Boolean);
 
-    raiz.innerHTML = `<div class="cab"><div><a class="u-apoio" href="#/equipe">← Equipe</a>
+    raiz.innerHTML = `<div class="cab"><div>${trilha(['Equipe', '#/equipe'], ['Ficha'])}
         <h1 class="u-titulo">${esc(pes.nome)}</h1><p class="u-apoio" data-resumo></p></div>
-        <div class="acoes-cab"><button class="u-botao perigo" data-acao="arquivar">Tirar da equipe</button></div></div>
+        ${ativo ? '' : `<div class="acoes-cab"><span class="chip">desligado${reg.ate ? ' em ' + esc(dataBr(reg.ate)) : ''}</span></div>`}</div>
       <form class="eq-ficha" autocomplete="off">
-        <section class="u-cartao eq-sec"><h2 class="u-subtitulo">Pessoa</h2>
-          <div class="eq-pessoa-topo">
+        <section class="u-cartao eq-sec"><h2 class="u-subtitulo">Pessoa, cargo e registro</h2>
+          <div class="eq-tres">
             <div class="eq-foto-grande"><span class="eq-foto g" data-foto="${esc(id)}" data-variante="m">${reg.foto_id ? '' : `<i>${esc(iniciais(pes.nome))}</i>`}</span>
-              <label class="u-botao eq-arquivo">Trocar foto<input type="file" accept="image/*" data-arquivo="foto"></label>
-              ${reg.foto_id ? '' : `<button type="button" class="u-botao" data-acao="foto-site">Trazer do site</button>`}
+              <div class="eq-assin-acoes"><label class="u-botao eq-arquivo">${reg.foto_id ? 'Trocar foto' : 'Enviar foto'}<input type="file" accept="image/*" data-arquivo="foto"></label>
+              ${reg.foto_id ? '' : `<button type="button" class="u-botao" data-acao="foto-site">Trazer do site</button>`}</div>
               <small class="u-apoio">Foto quadrada, rosto ao centro. Vai para o acervo, nos três tamanhos do site.</small></div>
-            <div class="campos eq-campos">
+            <div class="eq-col">
               <label class="u-campo"><span>Nome</span><input name="nome" value="${esc(pes.nome)}" required></label>
               <label class="u-campo"><span>E-mail</span><input name="email" type="email" value="${esc(pes.email || '')}"></label>
-              <div class="u-campo"><span>Situação</span>${chk('socio', reg.socio, 'Sócio(a)')}${chk('ativo', reg.ativo, 'Ativo(a) na equipe')}</div>
-              <div class="u-campo"><span>Tratamento</span><div class="eq-radios">
-                <label><input type="radio" name="tratamento" value="m"${reg.tratamento === 'm' ? ' checked' : ''}> o (masculino)</label>
-                <label><input type="radio" name="tratamento" value="f"${reg.tratamento === 'f' ? ' checked' : ''}> a (feminino)</label></div></div>
-              <label class="u-campo"><span>Na equipe desde</span><input type="date" name="desde" value="${esc(reg.desde || '')}"></label>
-              <label class="u-campo"><span>Até</span><input type="date" name="ate" value="${esc(reg.ate || '')}"><small>Quem sai: preencha e desmarque “ativo”.</small></label>
-            </div></div></section>
-
-        <section class="u-cartao eq-sec"><h2 class="u-subtitulo">Cargo e registro</h2>
-          <div class="campos eq-campos">
-            <label class="u-campo"><span>Cargo</span><select name="cargo_id">${opcoes(cargos, reg.cargo_id)}</select>
-              <small>Opções na lista de cargos (página Equipe).</small></label>
-            <label class="u-campo"><span>Título profissional</span><select name="titulo_id">${opcoes(titulos, reg.titulo_id)}</select></label>
-            <label class="u-campo"><span>Conselho</span><select name="conselho"><option value="">—</option>
-              ${Object.entries(CONSELHOS).map(([k, v]) => `<option value="${k}"${reg.conselho === k ? ' selected' : ''}>${v}</option>`).join('')}</select></label>
-            <label class="u-campo"><span>Número de registro</span><input name="registro" value="${esc(reg.registro || '')}" placeholder="A123456-7"></label>
+              <div class="u-campo"><span>Sexo</span><div class="eq-radios">
+                <label><input type="radio" name="tratamento" value="m"${reg.tratamento !== 'f' ? ' checked' : ''}> Masculino</label>
+                <label><input type="radio" name="tratamento" value="f"${reg.tratamento === 'f' ? ' checked' : ''}> Feminino</label></div></div>
+              <div class="u-campo"><span>Sociedade</span>${chk('socio', reg.socio, 'Sócio(a) do Odisse')}</div>
+            </div>
+            <div class="eq-col">
+              <label class="u-campo"><span>Cargo</span><select name="cargo_id">${opcoes(cargos, reg.cargo_id)}</select></label>
+              <label class="u-campo"><span>Título profissional</span><select name="titulo_id">${opcoes(titulos, reg.titulo_id)}</select></label>
+              <div class="eq-registro">
+                <label class="u-campo"><span>Conselho</span><select name="conselho"><option value="">—</option>
+                  ${Object.entries(CONSELHOS).map(([k, v]) => `<option value="${k}"${reg.conselho === k ? ' selected' : ''}>${v}</option>`).join('')}</select></label>
+                <label class="u-campo"><span>UF</span><select name="registro_uf"><option value="">—</option>
+                  ${UFS.map((u) => `<option${reg.registro_uf === u ? ' selected' : ''}>${u}</option>`).join('')}</select></label>
+                <label class="u-campo"><span>Número de registro</span><input name="registro" value="${esc(reg.registro || '')}" placeholder="A123456-7"></label>
+              </div>
+              <small class="u-apoio">Cargos e títulos se editam na lista da página Equipe.</small>
+            </div>
           </div></section>
 
         <section class="u-cartao eq-sec"><h2 class="u-subtitulo">Assinatura</h2>
-          <div class="duas">
-            <div>
-              <div class="u-campo"><span>Pode assinar</span>${USOS.map(([k, n, ajuda]) =>
-                `<label class="eq-check"><input type="checkbox" name="assina" value="${k}"${assina.includes(k) ? ' checked' : ''}> ${n} <small>${ajuda}</small></label>`).join('')}</div>
+          <div class="eq-tres">
+            <div class="u-campo"><span>Pode assinar</span>${USOS.map(([k, n, ajuda]) =>
+              `<label class="eq-check"><input type="checkbox" name="assina" value="${k}"${assina.includes(k) ? ' checked' : ''}> ${n} <small>${ajuda}</small></label>`).join('')}</div>
+            <div class="eq-col">
               <label class="u-campo"><span>Nome na assinatura</span><input name="nome_assinatura" value="${esc(reg.nome_assinatura || '')}" placeholder="${esc(pes.nome)}">
                 <small>Vazio = o nome da pessoa.</small></label>
               <div class="u-campo"><span>Rubrica (iniciais)</span>
@@ -261,26 +294,38 @@ export function criarEquipe({ esc, api, apiBinario, toque }) {
           </div></section>
 
         <section class="u-cartao eq-sec"><h2 class="u-subtitulo">Site</h2>
-          <div class="campos eq-campos">
-            <div class="u-campo">${chk('publico', reg.publico, 'Aparece na página Sobre do site')}</div>
-            <label class="u-campo"><span>Ordem</span><input type="number" name="ordem" min="0" max="999" value="${esc(reg.ordem ?? '')}"><small>Menor primeiro.</small></label>
-            <label class="u-campo f largo"><span>Bio <span class="lingua">PT</span></span><textarea name="bio_pt" rows="4" maxlength="2000">${esc(reg.bio_pt || '')}</textarea></label>
-            <label class="u-campo f largo"><span>Bio <span class="lingua en">EN</span></span><textarea name="bio_en" rows="4" maxlength="2000">${esc(reg.bio_en || '')}</textarea>
+          <div class="eq-tres">
+            <div class="eq-col">
+              <div class="u-campo">${chk('publico', reg.publico, 'Aparece na página Sobre do site')}</div>
+              <label class="u-campo"><span>Ordem</span><input type="number" name="ordem" min="0" max="999" value="${esc(reg.ordem ?? '')}"><small>Menor primeiro.</small></label>
+            </div>
+            <label class="u-campo"><span>Bio <span class="lingua">PT</span></span><textarea name="bio_pt" rows="7" maxlength="2000">${esc(reg.bio_pt || '')}</textarea></label>
+            <label class="u-campo"><span>Bio <span class="lingua en">EN</span></span><textarea name="bio_en" rows="7" maxlength="2000">${esc(reg.bio_en || '')}</textarea>
               <small>Vazia = no site em inglês a pessoa aparece sem bio (em vez do texto em português).</small></label>
           </div></section>
 
-        <section class="u-cartao eq-sec"><h2 class="u-subtitulo">Interno</h2>
-          <div class="campos eq-campos">
+        <section class="u-cartao eq-sec"><h2 class="u-subtitulo">Vínculo e custo</h2>
+          <div class="eq-tres">
+            <label class="u-campo"><span>Na equipe desde</span><input type="date" name="desde" value="${esc(reg.desde || '')}"></label>
+            <label class="u-campo"><span>Até</span><input type="date" name="ate" value="${esc(reg.ate || '')}"${ativo ? '' : ' readonly'}>
+              <small>${ativo ? 'Preenchida ao desligar.' : 'Data do desligamento.'}</small></label>
             <label class="u-campo"><span>Custo por hora (R$)</span><input name="custo_hora" inputmode="decimal" value="${reg.custo_hora != null ? (reg.custo_hora / 100).toFixed(2).replace('.', ',') : ''}">
               <small>Só sócios. Não aparece para o vendas, os fornecedores nem o marketing.</small></label>
-          </div></section>
+          </div>
+          <div class="eq-vinculo">${ativo
+            ? `<button type="button" class="u-botao perigo" data-acao="desligar">Desligar da equipe</button>
+               <small class="u-apoio">Preenche “Até” com hoje (ou a data já escrita) e tira a pessoa dos seletores e do banco de horas.
+               Horas e documentos antigos continuam com o nome.</small>`
+            : `<button type="button" class="u-botao" data-acao="religar">Trazer de volta à equipe</button>
+               <small class="u-apoio">Volta para os seletores e o banco de horas; a data de saída é apagada.</small>`}</div></section>
 
         <div class="barra-salvar"><span class="u-apoio" data-estado></span><button class="u-botao forte" type="submit">Salvar</button></div>
       </form>`;
 
     const form = raiz.querySelector('form');
     const estado = raiz.querySelector('[data-estado]');
-    preencherFotos(raiz, [{ ...p, foto_id: reg.foto_id }]);
+    preencherFotos(raiz, [{ ...(p || {}), id, foto_id: reg.foto_id }]);
+    const esquecer = () => { apagarCopia(chave); apagarCopia('equipe:quadro'); };
 
     // ---- bloco de assinatura (como sai no documento)
     let assinUrl = null;
@@ -291,9 +336,10 @@ export function criarEquipe({ esc, api, apiBinario, toque }) {
       const cargo = forma(cargos.find((c) => c.id === f.get('cargo_id')), t);
       const titulo = forma(titulos.find((c) => c.id === f.get('titulo_id')), t);
       const conselho = CONSELHOS[f.get('conselho')];
-      const regi = String(f.get('registro') || '').trim().toUpperCase().replace(/^(CAU|CREA|ABD)\s*/, '');
+      const uf = f.get('registro_uf');
+      const regi = String(f.get('registro') || '').trim().toUpperCase().replace(/^(CAU|CREA|ABD)(\/[A-Z]{2})?\s*/, '');
       return { nome: String(f.get('nome_assinatura') || '').trim() || String(f.get('nome') || ''), cargo, titulo,
-        registro: regi ? [conselho, regi].filter(Boolean).join(' ') : '' };
+        registro: regi ? [conselho && (uf ? `${conselho}/${uf}` : conselho), regi].filter(Boolean).join(' ') : '' };
     };
     const desenharBloco = () => {
       const a = atual();
@@ -306,11 +352,15 @@ export function criarEquipe({ esc, api, apiBinario, toque }) {
       caixaBloco.innerHTML = `<div class="eq-bloco"><div><b>${esc(a.nome)}</b>${linha ? `<br>${esc(linha)}` : ''}</div>${img}</div>`;
       raiz.querySelector('[data-resumo]').textContent = [a.cargo, a.titulo, a.registro].filter(Boolean).join(' · ');
     };
+    // a conferência da rubrica fica no histórico: lida uma vez por sessão (por versão da rubrica), nunca guardada em disco
     const carregarAssinatura = async () => {
       if (!reg.assinatura_id) { assinUrl = null; desenharBloco(); return; }
-      const r = await apiBinario(`/api/v1/equipe/${id}/assinatura?uso=conferencia`);
-      assinUrl = r.ok ? URL.createObjectURL(await r.blob()) : null;
-      desenharBloco();
+      if (!rubricas.has(reg.assinatura_id)) {
+        const r = await apiBinario(`/api/v1/equipe/${id}/assinatura?uso=conferencia`);
+        rubricas.set(reg.assinatura_id, r.ok ? URL.createObjectURL(await r.blob()) : null);
+      }
+      assinUrl = rubricas.get(reg.assinatura_id);
+      if (raiz.contains(caixaBloco)) desenharBloco();
     };
     desenharBloco();
     carregarAssinatura();
@@ -329,9 +379,9 @@ export function criarEquipe({ esc, api, apiBinario, toque }) {
       const custo = v('custo_hora');
       return {
         equipe: {
-          socio: form.elements.socio.checked ? 1 : 0, ativo: form.elements.ativo.checked ? 1 : 0,
+          socio: form.elements.socio.checked ? 1 : 0,
           tratamento: v('tratamento'), desde: v('desde'), ate: v('ate'),
-          cargo_id: v('cargo_id'), titulo_id: v('titulo_id'), conselho: v('conselho'), registro: v('registro'),
+          cargo_id: v('cargo_id'), titulo_id: v('titulo_id'), conselho: v('conselho'), registro_uf: v('registro_uf'), registro: v('registro'),
           assina: f.getAll('assina'), nome_assinatura: v('nome_assinatura'),
           publico: form.elements.publico.checked ? 1 : 0, ordem: v('ordem') === null ? null : Number(v('ordem')),
           bio_pt: v('bio_pt'), bio_en: v('bio_en'),
@@ -341,25 +391,40 @@ export function criarEquipe({ esc, api, apiBinario, toque }) {
         pessoa: { nome: v('nome'), email: v('email') },
       };
     };
+    const gravar = async (extra = {}) => {
+      const d = ler();
+      Object.assign(d.equipe, extra);
+      if (Number.isNaN(d.equipe.custo_hora)) { toque('Custo por hora: use só números (ex.: 150,00)'); return false; }
+      if (temPes && (d.pessoa.nome !== pes.nome || (d.pessoa.email || null) !== (pes.email || null))) {
+        const r = await api('/api/v1/pessoas/' + pes.id, { method: 'PATCH', body: JSON.stringify({ versao: pes.versao, ...d.pessoa }) });
+        if (r.status >= 400) { toque('Não foi possível salvar o nome/e-mail: ' + (r.erro || r.status)); return false; }
+        pes = r.registro;
+      }
+      const r = await api('/api/v1/equipe/' + id, { method: 'PATCH', body: JSON.stringify({ versao: reg.versao, ...d.equipe }) });
+      if (r.status === 409 && r.erro === 'conflito') { toque('Alguém salvou esta ficha antes. Recarregue a página.'); return false; }
+      if (r.status >= 400) { toque('Não foi possível salvar: ' + (r.erro || r.status)); return false; }
+      reg = r.registro; sujo = false; estado.textContent = 'salvo';
+      apagarCopia('equipe:quadro');
+      gravarCopia(chave, { ...dados, reg, pes: temPes ? pes : dados.pes });
+      raiz.querySelector('h1').textContent = pes.nome;
+      return true;
+    };
     form.addEventListener('submit', async (ev) => {
       ev.preventDefault();
-      const d = ler();
-      if (Number.isNaN(d.equipe.custo_hora)) { toque('Custo por hora: use só números (ex.: 150,00)'); return; }
       const botao = form.querySelector('[type=submit]');
       botao.disabled = true;
-      try {
-        if (rPes.registro && (d.pessoa.nome !== pes.nome || (d.pessoa.email || null) !== (pes.email || null))) {
-          const r = await api('/api/v1/pessoas/' + pes.id, { method: 'PATCH', body: JSON.stringify({ versao: pes.versao, ...d.pessoa }) });
-          if (r.status >= 400) { toque('Não foi possível salvar o nome/e-mail: ' + (r.erro || r.status)); return; }
-          pes = r.registro;
-        }
-        const r = await api('/api/v1/equipe/' + id, { method: 'PATCH', body: JSON.stringify({ versao: reg.versao, ...d.equipe }) });
-        if (r.status === 409 && r.erro === 'conflito') { toque('Alguém salvou esta ficha antes. Recarregue a página.'); return; }
-        if (r.status >= 400) { toque('Não foi possível salvar: ' + (r.erro || r.status)); return; }
-        reg = r.registro; sujo = false; estado.textContent = 'salvo';
-        raiz.querySelector('h1').textContent = pes.nome;
-        toque('Salvo');
-      } finally { botao.disabled = false; }
+      try { if (await gravar()) toque('Salvo'); } finally { botao.disabled = false; }
+    });
+
+    // ---- desligar / trazer de volta (salva junto o que estiver na ficha)
+    raiz.querySelector('[data-acao="desligar"]')?.addEventListener('click', async () => {
+      const ate = form.elements.ate.value || hoje();
+      if (!confirm(`Desligar ${pes.nome} da equipe em ${dataBr(ate)}? Some dos seletores e do banco de horas; horas e documentos antigos continuam com o nome.`)) return;
+      if (await gravar({ ativo: 0, ate })) { toque('Desligado da equipe'); montarFicha(raiz, id, { ...dados, reg, pes: temPes ? pes : dados.pes }); }
+    });
+    raiz.querySelector('[data-acao="religar"]')?.addEventListener('click', async () => {
+      if (!confirm(`Trazer ${pes.nome} de volta à equipe?`)) return;
+      if (await gravar({ ativo: 1, ate: null })) { toque('De volta à equipe'); montarFicha(raiz, id, { ...dados, reg, pes: temPes ? pes : dados.pes }); }
     });
 
     // ---- foto
@@ -387,6 +452,7 @@ export function criarEquipe({ esc, api, apiBinario, toque }) {
       if (r.status >= 400) throw new Error(r.erro || r.status);
       reg = r.registro;
       estado.textContent = sujo ? 'não salvo' : 'foto salva';
+      esquecer();
       ficha(raiz, id); // redesenha com a foto nova (mantém o que foi salvo)
     }
     const quandoSujo = () => !sujo || confirm('Há mudanças não salvas na ficha. A foto é salva já, e a página recarrega. Continuar sem salvar o resto?');
@@ -408,7 +474,7 @@ export function criarEquipe({ esc, api, apiBinario, toque }) {
       } catch (e) { toque('Não foi possível trazer a foto do site: ' + e.message); }
     });
 
-    // ---- assinatura
+    // ---- rubrica
     raiz.querySelector('[data-arquivo="assinatura"]').addEventListener('change', async (ev) => {
       const a = ev.target.files[0];
       ev.target.value = '';
@@ -425,6 +491,7 @@ export function criarEquipe({ esc, api, apiBinario, toque }) {
         if (!r.ok) throw new Error(j.erro || r.status);
         sujo = false;
         toque('Rubrica guardada');
+        esquecer();
         ficha(raiz, id);
       } catch (e) { toque('Não foi possível usar a rubrica: ' + e.message); }
     });
@@ -433,17 +500,8 @@ export function criarEquipe({ esc, api, apiBinario, toque }) {
       const r = await api(`/api/v1/equipe/${id}/assinatura/remover`, { method: 'POST', body: JSON.stringify({ versao: reg.versao }) });
       if (r.status >= 400) { toque('Não foi possível tirar: ' + (r.erro || r.status)); return; }
       sujo = false;
+      esquecer();
       ficha(raiz, id);
-    });
-
-    // ---- tirar da equipe (arquiva o registro da equipe; a pessoa continua nos contatos)
-    raiz.querySelector('[data-acao="arquivar"]').addEventListener('click', async () => {
-      if (!confirm(`Tirar ${pes.nome} da equipe? Some das listas e seletores; horas e documentos antigos continuam com o nome.
-Para quem só saiu, prefira desmarcar “ativo” e preencher a data de saída.`)) return;
-      const r = await api(`/api/v1/equipe/${id}/arquivar`, { method: 'POST', body: JSON.stringify({ versao: reg.versao }) });
-      if (r.status >= 400) { toque('Não foi possível: ' + (r.erro || r.status)); return; }
-      sujo = false;
-      location.hash = '#/equipe';
     });
   }
 

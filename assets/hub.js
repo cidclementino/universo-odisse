@@ -163,7 +163,6 @@ function mostrar() {
   const r = rota();
   const sec = MAPA.secoes.find((s) => s.id === r) || { nome: 'Documentos' };
   document.title = (r === 'inicio' ? 'Universo' : sec.nome + ' — Universo') + ' — Odisse';
-  vista.classList.toggle('largo', r === 'documentos');
   vista.innerHTML = PAGINAS[r]() +
     '<footer class="rodape-hub"><button class="u-botao" data-acao="sair">Sair do Universo</button></footer>';
   depois(r);
