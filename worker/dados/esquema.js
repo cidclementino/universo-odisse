@@ -5,7 +5,8 @@
 // `campos_restritos`: ferramenta que só enxerga alguns campos (ex.: marketing vê só o nome).
 
 const T = (tipo, extra = {}) => ({ tipo, ...extra });
-const PAPEIS_ATUACAO = ['atendente', 'vendedor', 'representante', 'socio', 'funcionario', 'contato'];
+// 'corretor' (0014): corretor de imóveis trazido pelo Radar
+const PAPEIS_ATUACAO = ['atendente', 'vendedor', 'representante', 'socio', 'funcionario', 'contato', 'corretor'];
 
 // Prefixos de id já existentes no banco e a tabela de cada um.
 // Prefixos de tabelas futuras (prj, frn, ped, obj, col, pub, cot…) entram com as migrações delas.
@@ -40,8 +41,9 @@ export const PREFIXOS = {
 
 // Ferramentas que podem chamar a API. 'hub' = o próprio Universo (senha da equipe);
 // 'maquina' = rotinas do GitHub Actions (token próprio); 'site' = odisse.com.br (0011: só o que é público
-// da equipe, pelas rotas equipe/publica e equipe/:id/foto).
-export const FERRAMENTAS = ['hub', 'vendas', 'projetos', 'fornecedores', 'marketing', 'site', 'maquina'];
+// da equipe, pelas rotas equipe/publica e equipe/:id/foto); 'radar' = radar.odisse (0014: cria contatos —
+// pessoa, imobiliária e atuação de corretor — e oportunidades de terreno; não vê dados sensíveis nem propostas).
+export const FERRAMENTAS = ['hub', 'vendas', 'projetos', 'fornecedores', 'marketing', 'site', 'maquina', 'radar'];
 
 const NUCLEOS = ['estudio', 'arquitetos', 'objetos', 'elaia'];
 export const ETAPAS_FUNIL = ['lead', 'contato', 'briefing', 'proposta', 'negociacao', 'ganha', 'perdida'];
@@ -97,7 +99,7 @@ export const TABELAS = {
       uf: T('uf', { rotulo: 'UF' }),
       observacoes: T('textoLongo', { max: 4000, rotulo: 'Observações' }),
     },
-    permissoes: { hub: 'E', vendas: 'E', projetos: 'L', fornecedores: 'E', marketing: 'L', maquina: 'E' },
+    permissoes: { hub: 'E', vendas: 'E', projetos: 'L', fornecedores: 'E', marketing: 'L', maquina: 'E', radar: 'E' },
     campos_restritos: { marketing: ['nome'] },
     filtros: ['tipo', 'cidade', 'uf', 'cnpj', 'email'],
     ordem: 'nome',
@@ -116,7 +118,7 @@ export const TABELAS = {
       instagram: T('arroba', { rotulo: 'Instagram' }),
       observacoes: T('textoLongo', { max: 4000, rotulo: 'Observações' }),
     },
-    permissoes: { hub: 'E', vendas: 'E', projetos: 'L', fornecedores: 'E', marketing: 'L', maquina: 'E' },
+    permissoes: { hub: 'E', vendas: 'E', projetos: 'L', fornecedores: 'E', marketing: 'L', maquina: 'E', radar: 'E' },
     campos_restritos: { marketing: ['nome'] },
     filtros: ['email'],
     ordem: 'nome',
@@ -165,7 +167,7 @@ export const TABELAS = {
       observacoes: T('textoLongo', { max: 2000, rotulo: 'Observações' }),
     },
     imutaveis: ['pessoa_id', 'organizacao_id'],
-    permissoes: { hub: 'E', vendas: 'E', projetos: 'L', fornecedores: 'E', maquina: 'E' },
+    permissoes: { hub: 'E', vendas: 'E', projetos: 'L', fornecedores: 'E', maquina: 'E', radar: 'E' },
     filtros: ['pessoa_id', 'organizacao_id', 'papel'],
     ordem: 'criado_em',
   },
@@ -335,7 +337,8 @@ export const TABELAS = {
       observacoes: T('textoLongo', { max: 8000, rotulo: 'Observações' }),
     },
     padroes: { etapa_funil: 'lead' },
-    permissoes: COMERCIAL,
+    // o Radar abre oportunidades de terreno (titular = o corretor); propostas e contratos ele não vê
+    permissoes: { ...COMERCIAL, radar: 'E' },
     filtros: ['etapa_funil', 'nucleo_id', 'cliente_id', 'contato_pessoa_id', 'origem', 'responsavel_id', 'projeto_id'],
     ordem: 'atualizado_em DESC',
     busca: (r) => ({ titulo: r.titulo, partes: [r.titulo, r.origem_detalhe, r.observacoes] }),
