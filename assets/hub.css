@@ -251,6 +251,19 @@
 .docs-escala { position: relative; overflow: hidden; }
 .docs-escala [data-folhas] { transform-origin: 0 0; width: 794px; display: flex; flex-direction: column; gap: 24px; }
 .docs-escala .odd-folha { box-shadow: 0 1px 2px rgba(0,0,0,.08), 0 8px 24px rgba(0,0,0,.06); }
+/* modelo das folhas (lista de Documentos) */
+.docs-modelo > summary { cursor: pointer; list-style: none; display: flex; flex-direction: column; gap: 2px; }
+.docs-modelo > summary::-webkit-details-marker { display: none; }
+.docs-modelo > summary .u-rotulo::after { content: ' ▸'; }
+.docs-modelo[open] > summary .u-rotulo::after { content: ' ▾'; }
+.docs-modelo-grade { display: grid; grid-template-columns: minmax(300px, 380px) 1fr; gap: var(--u-esp-6); align-items: start; margin-top: var(--u-esp-4); }
+.docs-modelo-guia { display: flex; flex-direction: column; gap: var(--u-esp-4); }
+.docs-marcas code { font-size: 12px; white-space: nowrap; }
+.docs-modelo-guia textarea { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; line-height: 1.5; }
+.docs-modelo-previa { min-width: 0; }
+.docs-escala .docs-modelo-folhas { transform-origin: 0 0; display: flex; flex-wrap: wrap; gap: 24px; }
+.docs-escala .docs-modelo-folhas .odd-folha { box-shadow: 0 1px 2px rgba(0,0,0,.08), 0 8px 24px rgba(0,0,0,.06); }
+@media (max-width: 900px) { .docs-modelo-grade { grid-template-columns: 1fr; } }
 @media (max-width: 900px) { .docs-editor { grid-template-columns: 1fr; } .docs-form { position: static; max-height: none; } }
 
 /* Equipe (assets/equipe.js) */

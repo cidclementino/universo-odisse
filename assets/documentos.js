@@ -10,6 +10,7 @@
 
 import { seletorAssinantes } from '../base/v1/assinantes.js';
 import { lerCopia, gravarCopia, apagarCopia, igual, imagemGuardada } from './memoria.js';
+import { textoEmBlocos } from './texto-blocos.js';
 
 const MONTADOR = 'https://marca.odisse.com.br/v1/documentos/documentos.js';
 
@@ -24,7 +25,6 @@ const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julh
 const hoje = () => new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10);
 const porExtenso = (d) => { if (!d) return ''; const [a, m, dia] = d.split('-').map(Number); return `${dia} de ${MESES[m - 1]} de ${a}`; };
 const curta = (d) => (d ? d.split('-').reverse().join('/') : '');
-const paragrafos = (t) => String(t || '').split(/\n\s*\n/).map((p) => p.replace(/\s*\n\s*/g, ' ').trim()).filter(Boolean);
 
 // Registro do banco → conteúdo para o montador da Marca. É aqui que o tipo decide os campos;
 // a folha (Coluna ou Ficha) é só formatação. `rubricas` (equipe_id → endereço da imagem) só na emissão;
@@ -50,7 +50,7 @@ export function paraMontador(d, rubricas = null) {
   return {
     modelo: d.modelo || 'coluna', miolo: 'texto', codigo: d.codigo || '', campos: c,
     titulo: d.tipo === 'declaracao' ? (d.titulo || 'Declaração') : d.titulo || '',
-    saudacao: d.saudacao || '', paragrafos: paragrafos(d.corpo), fecho: d.fecho || '',
+    saudacao: d.saudacao || '', blocos: textoEmBlocos(d.corpo), fecho: d.fecho || '',
     assinaturas: ass.map((a) => ({ nome: a.nome, cargo: a.cargo, registro: a.registro,
       rubrica: !a.equipe_id || !a.rubrica ? undefined : rubricas ? rubricas[a.equipe_id] : 'caixa' })),
     anexos: d.oficio ? d.anexos || '' : '',
@@ -66,6 +66,37 @@ const BRANCAS = [
     campos: [{ rotulo: 'Projeto', valor: '' }, { rotulo: 'Ambiente', valor: '' }, { rotulo: 'Data', valor: '' }, { rotulo: 'Folha', valor: '' }] } },
 ];
 
+// Modelo das folhas (lista de Documentos): um documento de exemplo com todos os blocos, montado pelo mesmo
+// caminho dos documentos de verdade (texto → blocos → montador da Marca). É aqui que o modelo é visto e conferido.
+const EXEMPLO = `Este texto mostra todos os blocos que as folhas aceitam. O mesmo desenho vale para cartas, propostas, contratos e qualquer documento das ferramentas.
+
+# Seção
+Título de seção: nunca fica sozinho no pé da folha.
+
+- Lista com travessão
+- Item longo, que quebra em mais de uma linha e mantém o recuo do texto alinhado depois do travessão
+1. Lista numerada
+2. A numeração sai em ordem
+
+# Tabela
+| Etapa | Prazo | Parcela |
+|---|---:|---:|
+| Concepção Esquemática | 3 semanas | 20% |
+| Concepção Básica | 4 semanas | 25% |
+| Projeto Legal | 2 semanas | 15% |
+| Projeto Executivo | 6 semanas | 40% |
+|---|---|---|
+| Total | 15 semanas | 100% |
+
+> Nota: texto pequeno, para ressalvas e observações.
+
+**Parágrafo em negrito, para destaques como a validade da proposta.**`;
+const MARCAS = [
+  ['(linha em branco)', 'novo parágrafo'], ['# Título', 'seção'], ['- item', 'lista com travessão'], ['1. item', 'lista numerada'],
+  ['| a | b |', 'tabela (linhas seguidas)'], ['|---|---:|', 'na 2ª linha: cabeçalho; ---: à direita, :---: ao centro'],
+  ['|---| antes da última', 'última linha vira o total'], ['> texto', 'nota (texto pequeno)'], ['**texto**', 'parágrafo em negrito'],
+];
+
 const CAMPOS = { // o que cada tipo mostra no formulário
   carta: ['modelo', 'oficio', 'data', 'local', 'destinatario', 'referencia', 'assunto', 'saudacao', 'corpo', 'fecho', 'assinaturas', 'anexos', 'observacoes'],
   declaracao: ['modelo', 'data', 'local', 'destinatario', 'titulo', 'corpo', 'fecho', 'assinaturas', 'observacoes'],
@@ -75,7 +106,7 @@ const ROTULOS = {
   destinatario: ['Para', 'Uma informação por linha: nome, cargo, organização, endereço.'],
   remetente: ['De', ''], referencia: ['Referência', 'Processo, protocolo ou documento a que o ofício responde.'],
   assunto: ['Assunto', ''], titulo: ['Título', ''], saudacao: ['Saudação', 'Ex.: Prezado(a) Fulano,'],
-  corpo: ['Texto', 'Separe os parágrafos com uma linha em branco. Texto longo continua em outra folha.'],
+  corpo: ['Texto', 'Parágrafos separados por linha em branco. No começo da linha: # seção · - lista · 1. lista numerada · | tabela | · > nota · **negrito**. Ver “Modelo das folhas” na lista de Documentos.'],
   fecho: ['Fecho', 'Ex.: Atenciosamente,'], anexos: ['Anexos', 'Um por linha.'], local: ['Local', ''],
   observacoes: ['Observações internas', 'Não aparecem no documento.'],
 };
@@ -102,6 +133,16 @@ export function criarDocumentos({ esc, api, apiBinario, toque, lerOdisse }) {
         <p class="u-apoio">Sem número, para imprimir ou usar fora do Universo. O PDF sai pela janela de impressão: escolha “Salvar como PDF”.</p>
         <div class="cartoes compactos">${BRANCAS.map((b) => `<div class="u-cartao item"><div class="topo"><b>${esc(b.nome)}</b></div>
           <p>${esc(b.desc)}</p><div class="rodape"><button class="u-botao" data-branca="${b.id}">Baixar PDF</button></div></div>`).join('')}</div></section>
+      <section class="bloco"><details class="docs-modelo" data-modelo><summary><span class="u-rotulo">Modelo das folhas</span>
+          <span class="u-apoio">Blocos do texto (seção, lista, tabela, nota) e como escrevê-los. Vale para todos os documentos do estúdio.</span></summary>
+        <div class="docs-modelo-grade"><div class="docs-modelo-guia">
+          <div class="docs-escolha" role="radiogroup"><label><input type="radio" name="modelo-ex" value="coluna" checked> Coluna</label>
+            <label><input type="radio" name="modelo-ex" value="ficha"> Ficha</label></div>
+          <table class="u-tabela docs-marcas"><thead><tr><th>No começo da linha</th><th>Vira</th></tr></thead><tbody>
+            ${MARCAS.map(([a, b]) => `<tr><td><code>${esc(a)}</code></td><td>${esc(b)}</td></tr>`).join('')}</tbody></table>
+          <label class="u-campo"><span>Texto de exemplo</span><textarea rows="16" data-exemplo>${esc(EXEMPLO)}</textarea>
+            <small>Edite para testar; nada é salvo.</small></label></div>
+          <div class="docs-modelo-previa"><div class="docs-escala"><div class="docs-modelo-folhas" data-folhas-ex></div></div></div></div></details></section>
       <section class="bloco"><span class="u-rotulo">Emitidos</span>
         <div class="docs-filtros"><label class="u-campo"><span>Tipo</span><select data-f="tipo"><option value="">Todos</option>
           <option value="carta">Carta e ofício</option><option value="declaracao">Declaração</option><option value="memorando">Memorando</option></select></label>
@@ -113,6 +154,29 @@ export function criarDocumentos({ esc, api, apiBinario, toque, lerOdisse }) {
       catch (e) { toque('Não foi possível montar a folha: ' + e.message); }
       b.disabled = false;
     }));
+    // modelo das folhas: montado só quando aberto (carrega a Marca só se for ver)
+    const det = raiz.querySelector('[data-modelo]');
+    const folhasEx = raiz.querySelector('[data-folhas-ex]');
+    let tEx, rodadaEx = 0;
+    const montarEx = async () => {
+      const minha = ++rodadaEx;
+      try {
+        const m = await carregarMontador();
+        const modelo = raiz.querySelector('[name="modelo-ex"]:checked').value;
+        const doc = paraMontador({ tipo: 'carta', modelo, codigo: 'CA-2026-0000', data: hoje(), local: 'João Pessoa',
+          destinatario: 'Nome do destinatário\nCargo\nOrganização', assunto: 'Modelo das folhas: todos os blocos', saudacao: 'Prezados,',
+          corpo: raiz.querySelector('[data-exemplo]').value, fecho: 'Atenciosamente,',
+          assinaturas: [{ equipe_id: 'exemplo', rubrica: true, nome: 'Nome de quem assina', cargo: 'Cargo', registro: 'CAU/PB A000000-0' }] });
+        const n = await m.montar(folhasEx, doc, rec);
+        if (minha !== rodadaEx) return;
+        const porLinha = Math.min(n, 2), larg = porLinha * 794 + (porLinha - 1) * 24, linhas = Math.ceil(n / porLinha);
+        const k = Math.min(1, (folhasEx.parentElement.parentElement.clientWidth - 2) / larg);
+        Object.assign(folhasEx.style, { width: larg + 'px', transform: `scale(${k})` });
+        folhasEx.parentElement.style.height = `${(linhas * 1123 + (linhas - 1) * 24) * k}px`;
+      } catch (e) { folhasEx.innerHTML = `<p class="u-apoio">Não foi possível montar o modelo: ${esc(e.message)}</p>`; }
+    };
+    det.addEventListener('toggle', () => { if (det.open) montarEx(); });
+    det.addEventListener('input', () => { clearTimeout(tEx); tEx = setTimeout(montarEx, 250); });
     const caixa = raiz.querySelector('[data-lista]');
     const carregar = async () => {
       const p = new URLSearchParams({ limite: '200' });
