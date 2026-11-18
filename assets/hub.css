@@ -269,10 +269,6 @@
 .eq-dados b { font-size: 16px; font-weight: 650; letter-spacing: -.01em; line-height: 1.25; }
 .eq-dados .eq-cargo { font-size: 13.5px; color: var(--u-tinta); }
 .eq-dados .eq-reg { font-size: 12.5px; color: var(--u-tinta-2); }
-.eq-dados .eq-marcas { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 8px; font-size: 10.5px; font-weight: 600;
-  letter-spacing: .07em; text-transform: uppercase; color: var(--u-tinta-2); }
-.eq-dados .eq-marcas span + span::before { content: '·'; margin-right: 10px; opacity: .6; }
-.eq-dados .eq-marcas .socio { color: var(--odisse-ocre, #BB8248); }
 /* enquadramento da foto */
 .eq-enq { position: relative; width: 360px; height: 360px; margin: 4px auto 0; border-radius: 4px; overflow: hidden; background: var(--odisse-nevoa, #E6E8EB);
   cursor: grab; touch-action: none; user-select: none; }
@@ -351,3 +347,24 @@
 .eq-check { align-items: center; }
 .eq-dialogo .duas { grid-template-columns: 1fr 1fr; gap: 12px; }
 .eq-dialogo .eq-pv { aspect-ratio: 5 / 3; }
+
+/* cargos e títulos: pilha de cartões; a posição é a ordem (a dos cargos ordena a equipe em todo lugar) */
+.eq-pilha { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.eq-item { display: grid; grid-template-columns: 32px repeat(3, minmax(0, 1fr)) auto; align-items: end; gap: 10px; padding: 12px 14px; }
+.eq-item label { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.eq-item label > span { font-size: 10.5px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: var(--u-tinta-2); }
+.eq-item input { box-sizing: border-box; width: 100%; padding: 6px 8px; font: inherit; font-size: 13.5px; color: inherit;
+  border: 1px solid transparent; border-radius: var(--u-raio-p); background: transparent; }
+.eq-item input:hover { border-color: var(--u-linha); }
+.eq-item input:focus { outline: 2px solid var(--u-foco); outline-offset: -1px; background: var(--u-elevada); }
+.eq-pos { align-self: center; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--odisse-nevoa, #E6E8EB);
+  font-size: 12px; font-weight: 650; color: var(--u-tinta-2); cursor: grab; }
+.eq-item-acoes { display: flex; gap: 4px; align-self: center; }
+.eq-item-acoes .u-botao { padding: 5px 9px; }
+li.eq-item.arrastando { opacity: .45; }
+li.eq-item.alvo-antes { box-shadow: 0 -3px 0 var(--odisse-ocre, #BB8248); }
+li.eq-item.alvo-depois { box-shadow: 0 3px 0 var(--odisse-ocre, #BB8248); }
+/* acrescentar: tracejado, como tudo o que é extra no Universo */
+.eq-novo { margin-top: 8px; border: 1.5px dashed var(--u-linha-forte); border-radius: var(--u-raio); background: transparent; }
+.eq-novo input { border-color: var(--u-linha); background: var(--u-elevada); }
+@media (max-width: 900px) { .eq-item { grid-template-columns: 28px 1fr; } .eq-item label, .eq-item-acoes { grid-column: 2; } }

@@ -172,14 +172,14 @@ export function criarEquipe({ esc, api, apiBinario, toque }) {
   function desenharLista(raiz, q) {
     const ativos = q.itens.filter((p) => p.ativo), inativos = q.itens.filter((p) => !p.ativo);
     const cartao = (p) => {
-      const marcas = [p.socio ? '<span class="socio">Sócio</span>' : '', p.publico ? '<span>No site</span>' : '',
-        p.ativo ? '' : `<span>Desligado${p.ate ? ' em ' + esc(dataBr(p.ate)) : ''}</span>`].filter(Boolean).join('');
+      const marcas = [p.socio ? '<span class="chip">sócio</span>' : '', p.publico ? '<span class="chip">no site</span>' : '',
+        p.ativo ? '' : `<span class="chip">desligado${p.ate ? ' em ' + esc(dataBr(p.ate)) : ''}</span>`].filter(Boolean).join('');
       return `<a class="u-cartao eq-pessoa${p.ativo ? '' : ' inativa'}" href="#/equipe/${esc(p.id)}">
         <span class="eq-foto" data-foto="${esc(p.id)}">${p.foto_id ? '' : `<i>${esc(iniciais(p.nome))}</i>`}</span>
         <span class="eq-dados"><b>${esc(p.nome)}</b>
           <span class="eq-cargo">${esc(p.cargo || 'Sem cargo')}</span>
           ${linhaTitulo(p) ? `<span class="eq-reg">${esc(linhaTitulo(p))}</span>` : ''}
-          ${marcas ? `<span class="eq-marcas">${marcas}</span>` : ''}</span></a>`;
+          ${marcas ? `<span class="eq-chips">${marcas}</span>` : ''}</span></a>`;
     };
     raiz.innerHTML = `<div class="cab"><div><h1 class="u-titulo">Equipe</h1></div>
         <div class="acoes-cab"><a class="u-botao" href="#/equipe/cargos">Cargos e títulos</a>
@@ -195,9 +195,7 @@ export function criarEquipe({ esc, api, apiBinario, toque }) {
   async function cargosTitulos(raiz) {
     avisoSaida = () => false;
     const desenhar = (q) => {
-      raiz.innerHTML = `<div class="cab"><div>${trilha(['Equipe', '#/equipe'], ['Cargos e títulos'])}<h1 class="u-titulo">Cargos e títulos</h1>
-          <p class="u-apoio">Na ficha aparece só a forma masculina; o sexo da pessoa escolhe a forma. A inglesa vai para o site em inglês.
-          Mudar aqui muda em todo lugar que mostra o cargo.</p></div></div>
+      raiz.innerHTML = `<div class="cab"><div>${trilha(['Equipe', '#/equipe'], ['Cargos e títulos'])}<h1 class="u-titulo">Cargos e títulos</h1></div></div>
         <section class="bloco"><div class="duas eq-listas"><div data-lista="cargos"></div><div data-lista="titulos"></div></div></section>`;
       listaEditavel(raiz.querySelector('[data-lista="cargos"]'), 'cargos', 'Cargos', q.cargos);
       listaEditavel(raiz.querySelector('[data-lista="titulos"]'), 'titulos', 'Títulos profissionais', q.titulos);
@@ -213,48 +211,117 @@ export function criarEquipe({ esc, api, apiBinario, toque }) {
     desenhar(novo);
   }
 
-  // Lista de cargos ou títulos: cada linha grava ao sair do campo.
+  // Lista de cargos ou títulos: pilha de cartões. Cada campo grava ao sair dele; a posição na pilha é a ordem
+  // (a dos cargos decide a ordem de exibição da equipe no site, na página Equipe e nos seletores).
   function listaEditavel(caixa, rota, nome, itens) {
-    const linha = (c) => `<tr data-id="${esc(c.id)}" data-versao="${c.versao}">
-        <td><input data-k="nome_m" value="${esc(c.nome_m)}" aria-label="Masculino"></td>
-        <td><input data-k="nome_f" value="${esc(c.nome_f)}" aria-label="Feminino"></td>
-        <td><input data-k="nome_en" value="${esc(c.nome_en || '')}" aria-label="Inglês"></td>
-        <td class="eq-tirar"><button type="button" class="u-botao" data-tirar title="Tirar da lista">×</button></td></tr>`;
-    caixa.innerHTML = `<h3 class="eq-h3">${esc(nome)}</h3>
-      <table class="u-tabela eq-tabela"><thead><tr><th>Masculino</th><th>Feminino</th><th>Inglês</th><th></th></tr></thead>
-        <tbody>${itens.map(linha).join('')}</tbody></table>
-      <form class="eq-nova-linha" data-nova><input name="nome_m" placeholder="Masculino" required><input name="nome_f" placeholder="Feminino" required>
-        <input name="nome_en" placeholder="Inglês"><button class="u-botao" type="submit">+ Acrescentar</button></form>`;
+    itens = [...itens].sort((a, b) => (a.ordem ?? 1e9) - (b.ordem ?? 1e9));
+    const cartao = (c, i) => `<li class="u-cartao eq-item" data-id="${esc(c.id)}" data-versao="${c.versao}" draggable="true">
+        <span class="eq-pos" title="Arraste para mudar a ordem">${i + 1}</span>
+        <label><span>Masculino</span><input data-k="nome_m" value="${esc(c.nome_m)}"></label>
+        <label><span>Feminino</span><input data-k="nome_f" value="${esc(c.nome_f)}"></label>
+        <label><span>Inglês</span><input data-k="nome_en" value="${esc(c.nome_en || '')}"></label>
+        <span class="eq-item-acoes">
+          <button type="button" class="u-botao" data-mover="-1" aria-label="Subir"${i === 0 ? ' disabled' : ''}>↑</button>
+          <button type="button" class="u-botao" data-mover="1" aria-label="Descer"${i === itens.length - 1 ? ' disabled' : ''}>↓</button>
+          <button type="button" class="u-botao" data-tirar aria-label="Tirar da lista">×</button></span></li>`;
+    const desenhar = () => {
+      caixa.innerHTML = `<h3 class="eq-h3">${esc(nome)}</h3>
+        <ol class="eq-pilha">${itens.map(cartao).join('')}</ol>
+        <form class="eq-item eq-novo" data-nova><span class="eq-pos">+</span>
+          <label><span>Masculino</span><input name="nome_m" required></label>
+          <label><span>Feminino</span><input name="nome_f" required></label>
+          <label><span>Inglês</span><input name="nome_en"></label>
+          <span class="eq-item-acoes"><button class="u-botao" type="submit">Acrescentar</button></span></form>`;
+    };
+    desenhar();
+    const achar = (id) => itens.find((x) => x.id === id);
+
+    // grava a ordem nova (10, 20, 30…) só onde mudou
+    let gravando = false;
+    const gravarOrdem = async () => {
+      if (gravando) return;
+      gravando = true;
+      try {
+        for (const [i, c] of itens.entries()) {
+          const ordem = (i + 1) * 10;
+          if (c.ordem === ordem) continue;
+          const r = await api(`/api/v1/${rota}/${c.id}`, { method: 'PATCH', body: JSON.stringify({ versao: c.versao, ordem }) });
+          if (r.status >= 400) { toque('Não foi possível gravar a ordem: ' + (r.erro || r.status)); break; }
+          Object.assign(c, r.registro);
+        }
+        apagarCopia('equipe:quadro');
+        toque('Ordem salva');
+      } finally { gravando = false; desenhar(); }
+    };
+    const mover = (de, para) => {
+      if (para < 0 || para >= itens.length || de === para) return;
+      const [x] = itens.splice(de, 1); itens.splice(para, 0, x);
+      desenhar(); gravarOrdem();
+    };
+
     caixa.addEventListener('change', async (ev) => {
-      const tr = ev.target.closest('tr[data-id]');
-      if (!tr) return;
-      const r = await api(`/api/v1/${rota}/${tr.dataset.id}`, { method: 'PATCH',
-        body: JSON.stringify({ versao: Number(tr.dataset.versao), [ev.target.dataset.k]: ev.target.value }) });
+      const li = ev.target.closest('li[data-id]');
+      if (!li) return;
+      const c = achar(li.dataset.id);
+      const r = await api(`/api/v1/${rota}/${c.id}`, { method: 'PATCH',
+        body: JSON.stringify({ versao: c.versao, [ev.target.dataset.k]: ev.target.value }) });
       if (r.status >= 400) { toque('Não foi possível salvar: ' + (r.erro || r.status)); return; }
-      tr.dataset.versao = r.registro.versao;
+      Object.assign(c, r.registro); li.dataset.versao = c.versao;
       apagarCopia('equipe:quadro');
       toque('Salvo');
     });
     caixa.addEventListener('click', async (ev) => {
-      const b = ev.target.closest('[data-tirar]');
-      if (!b) return;
-      const tr = b.closest('tr');
+      const li = ev.target.closest('li[data-id]');
+      if (!li) return;
+      const i = itens.findIndex((x) => x.id === li.dataset.id);
+      const mv = ev.target.closest('[data-mover]');
+      if (mv) return mover(i, i + Number(mv.dataset.mover));
+      if (!ev.target.closest('[data-tirar]')) return;
       if (!confirm('Tirar esta opção da lista? Quem já tem este item continua com ele até trocar.')) return;
-      const r = await api(`/api/v1/${rota}/${tr.dataset.id}/arquivar`, { method: 'POST', body: JSON.stringify({ versao: Number(tr.dataset.versao) }) });
+      const r = await api(`/api/v1/${rota}/${itens[i].id}/arquivar`, { method: 'POST', body: JSON.stringify({ versao: itens[i].versao }) });
       if (r.status >= 400) { toque('Não foi possível tirar: ' + (r.erro || r.status)); return; }
-      tr.remove();
+      itens.splice(i, 1); desenhar();
       apagarCopia('equipe:quadro');
     });
-    caixa.querySelector('[data-nova]').addEventListener('submit', async (ev) => {
+    // arrastar para reordenar
+    let arrastado = null;
+    caixa.addEventListener('dragstart', (ev) => {
+      const li = ev.target.closest('li[data-id]');
+      if (!li || ev.target.matches('input')) return;
+      arrastado = li.dataset.id; li.classList.add('arrastando'); ev.dataTransfer.effectAllowed = 'move';
+    });
+    caixa.addEventListener('dragover', (ev) => {
+      const li = ev.target.closest('li[data-id]');
+      if (!arrastado || !li) return;
+      ev.preventDefault();
+      caixa.querySelectorAll('.alvo-antes, .alvo-depois').forEach((x) => x.classList.remove('alvo-antes', 'alvo-depois'));
+      const r = li.getBoundingClientRect();
+      li.classList.add(ev.clientY < r.top + r.height / 2 ? 'alvo-antes' : 'alvo-depois');
+    });
+    caixa.addEventListener('drop', (ev) => {
+      const li = ev.target.closest('li[data-id]');
+      if (!arrastado || !li) return;
+      ev.preventDefault();
+      const de = itens.findIndex((x) => x.id === arrastado);
+      let para = itens.findIndex((x) => x.id === li.dataset.id);
+      if (li.classList.contains('alvo-depois')) para += 1;
+      if (de < para) para -= 1;
+      arrastado = null;
+      mover(de, para);
+    });
+    caixa.addEventListener('dragend', () => {
+      arrastado = null;
+      caixa.querySelectorAll('.arrastando, .alvo-antes, .alvo-depois').forEach((x) => x.classList.remove('arrastando', 'alvo-antes', 'alvo-depois'));
+    });
+    caixa.addEventListener('submit', async (ev) => {
+      if (!ev.target.matches('[data-nova]')) return;
       ev.preventDefault();
       const f = ev.target;
       const corpo = { nome_m: f.nome_m.value, nome_f: f.nome_f.value, nome_en: f.nome_en.value || null, ordem: (itens.length + 1) * 10 };
       const r = await api(`/api/v1/${rota}`, { method: 'POST', body: JSON.stringify(corpo) });
       if (r.status >= 400) { toque('Não foi possível acrescentar: ' + (r.erro || r.status)); return; }
-      itens.push(r.registro);
-      caixa.querySelector('tbody').insertAdjacentHTML('beforeend', linha(r.registro));
+      itens.push(r.registro); desenhar();
       apagarCopia('equipe:quadro');
-      f.reset();
     });
   }
 
@@ -375,7 +442,7 @@ export function criarEquipe({ esc, api, apiBinario, toque }) {
         <section class="u-cartao eq-sec"><h2 class="u-subtitulo">Site</h2>
           <div class="eq-tres">
             <div class="u-campo">${chk('publico', reg.publico, 'Aparece na página Sobre do site')}
-              <small>Quem aparece entra em ordem aleatória a cada visita.</small></div>
+              <small>A ordem no site segue a lista de cargos.</small></div>
             <label class="u-campo"><span>Bio <span class="lingua">PT</span></span><textarea name="bio_pt" rows="7" maxlength="2000">${esc(reg.bio_pt || '')}</textarea></label>
             <label class="u-campo"><span>Bio <span class="lingua en">EN</span></span><textarea name="bio_en" rows="7" maxlength="2000">${esc(reg.bio_en || '')}</textarea>
               <small>Vazia = no site em inglês a pessoa aparece sem bio (em vez do texto em português).</small></label>

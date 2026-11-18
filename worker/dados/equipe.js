@@ -37,7 +37,8 @@ const SELECT = `SELECT e.id, e.pessoa_id, e.versao, e.ativo, e.socio, e.papel, e
     max(e.atualizado_em, p.atualizado_em, COALESCE(c.atualizado_em, ''), COALESCE(t.atualizado_em, '')) AS atualizado_em
   FROM equipe e JOIN pessoas p ON p.id = e.pessoa_id
   LEFT JOIN cargos c ON c.id = e.cargo_id LEFT JOIN titulos t ON t.id = e.titulo_id`;
-const ORDEM = 'ORDER BY e.ativo DESC, e.socio DESC, e.ordem IS NULL, e.ordem, p.nome';
+// ordem de exibição (site, página Equipe, seletores): a do cargo na lista de cargos; no mesmo cargo, pelo nome
+const ORDEM = 'ORDER BY e.ativo DESC, c.ordem IS NULL, c.ordem, p.nome';
 
 // "CAU/PB A123456-7"; sem UF, "CAU A123456-7"
 export const registroFormatado = (conselho, registro, uf) =>
