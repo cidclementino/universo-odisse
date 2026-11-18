@@ -97,7 +97,8 @@ ok(f2.etapas[0].minutos === 150 && f2.horas.length === 2 && f2.horas_por_pessoa[
 const painel = await chamar('GET', 'producao/painel', null, 'projetos');
 const linha = painel.itens.find((x) => x.id === prj.id);
 ok(linha.minutos === 210 && linha.etapa_atual.nome === 'Programação Projetual' && linha.coclientes[0] === 'Rafael Lins', 'painel com horas, etapa atual e co-clientes');
-ok(painel.equipe.length === 1 && painel.equipe[0].nome === 'Cid Clementino', 'painel traz a equipe');
+// Cid e Nathalia vêm da migração 0011; o cadastro pelo Projetos reaproveita o Cid que já estava
+ok(painel.equipe.length === 2 && painel.equipe[0].nome === 'Cid Clementino' && cid.id === 'eqp_cid', 'painel traz a equipe');
 const hp = await chamar('GET', 'producao/horas?de=2026-11-17&ate=2026-11-17', null, 'projetos');
 ok(hp.itens.length === 1 && hp.itens[0].projeto_codigo === 'OA-2026-052', 'horas do período com o código do projeto');
 

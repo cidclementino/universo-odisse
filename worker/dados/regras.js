@@ -574,8 +574,61 @@ const documentos = {
   },
 };
 
+// ---------------------------------------------------------------- equipe (0011)
+// `socio` é o estado; `papel` (antigo, ainda lido pelo Projetos) acompanha: sócio → 'socio'; os outros pelo
+// cargo (arquiteto, estagiário; o resto, colaborador). Se uma tela antiga mandar só `papel`, o `socio` segue.
+// Quem assina: RRT exige conselho e registro; contrato (representante legal) exige ser sócio.
+const PAPEL_DO_CARGO = { crg_arquiteto: 'arquiteto', crg_estagiario: 'estagiario' };
+const CARGO_DO_PAPEL = { arquiteto: 'crg_arquiteto', estagiario: 'crg_estagiario', colaborador: 'crg_colaborador' };
+const papelDe = (socio, cargoId) => (socio ? 'socio' : PAPEL_DO_CARGO[cargoId] || 'colaborador');
+// tela antiga (só papel): papel vira sócio + cargo
+function dePapel(alvo, papel) {
+  alvo.socio = papel === 'socio' ? 1 : 0;
+  if (CARGO_DO_PAPEL[papel]) alvo.cargo_id = CARGO_DO_PAPEL[papel];
+}
+
+function conferirAssina(r) {
+  const usos = (r.assina || '').split(',').filter(Boolean);
+  if (usos.includes('rrt') && !(r.conselho && r.registro)) {
+    throw new ErroApi(422, 'Pode assinar: RRT exige conselho e número de registro');
+  }
+  if (usos.includes('contrato') && !r.socio) {
+    throw new ErroApi(422, 'Pode assinar: contrato só com sócio (representante legal)');
+  }
+}
+
+// a foto precisa ser uma imagem comum (nunca o arquivo protegido de uma assinatura: a foto é pública no site)
+async function conferirFoto(env, fotoId) {
+  if (!fotoId) return;
+  const a = await env.DB.prepare('SELECT categoria, protegido FROM arquivos WHERE id = ? AND arquivado_em IS NULL').bind(fotoId).first();
+  if (!a || a.categoria !== 'imagem' || a.protegido) throw new ErroApi(422, 'Foto: precisa ser uma imagem do acervo');
+}
+
+const equipe = {
+  async criar(env, ferramenta, valores, corpo) {
+    await conferirFoto(env, valores.foto_id);
+    if (corpo.socio === undefined && corpo.cargo_id === undefined && valores.papel) dePapel(valores, valores.papel);
+    valores.papel = papelDe(valores.socio, valores.cargo_id);
+    conferirAssina(valores);
+    return [];
+  },
+  async alterar(env, ferramenta, atual, mudancas) {
+    if ('foto_id' in mudancas) await conferirFoto(env, mudancas.foto_id);
+    if ('papel' in mudancas && !('socio' in mudancas) && !('cargo_id' in mudancas)) {
+      if (mudancas.papel) dePapel(mudancas, mudancas.papel);
+    }
+    const r = { ...atual, ...mudancas };
+    const papel = papelDe(r.socio, r.cargo_id);
+    if (papel !== atual.papel) mudancas.papel = papel;
+    else delete mudancas.papel;
+    for (const k of ['socio', 'cargo_id']) if (k in mudancas && mudancas[k] === atual[k]) delete mudancas[k];
+    conferirAssina(r);
+    return [];
+  },
+};
+
 export const REGRAS = {
-  documentos,
+  documentos, equipe,
   oportunidades, propostas, contratos, projetos, horas,
   bases_servicos, bases_categorias, bases_usos, pgt_fases, pgt_etapas, pgt_entregaveis, pgt_eventos, pgt_materiais,
 };

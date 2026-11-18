@@ -69,6 +69,7 @@ Cloudflare Worker `universo-hub` (https://universo-hub.reservaprojectbasework.wo
 
 - `GET /api/marca` e `PUT /api/marca`: lê e grava o `odisse.json` do repositório `marca-odisse`. Cada gravação é um commit ("Dados: … (pelo Universo)"); se a paleta, os papéis ou as cores dos núcleos mudarem, o mesmo commit reescreve os valores do `v1/marca.css`.
 - `POST /api/marca/logo`: recebe um SVG (conferido: só desenho, sem scripts, imagens embutidas ou links externos), acrescenta ou substitui uma peça de um núcleo e atualiza a lista de logos no `odisse.json`, tudo num commit ("Logo: … (pelo Universo)").
+- `/api/v1/equipe/…`: equipe comum a todas as ferramentas (quadro, seletor de quem assina, parte pública para o site, foto e assinatura manuscrita protegida). Ver `worker/dados/equipe.js` e a seção da 0011 no `dados/DECISOES.md`.
 - Regras puras da Marca em `worker/marca.js`; teste: `node --no-warnings worker/testes/marca.test.mjs ../marca-odisse`.
 - Página Marca no navegador: `assets/marca.js` (leitura, edição com a chave PT/EN, paleta, envio de logo).
 - `/api/v1/…`: **API de dados**, a única porta do banco D1 `universo` e do R2 `universo-arquivos`. Rotas em `worker/dados/api.js`; tabelas, campos e permissões por ferramenta em `worker/dados/esquema.js`; estrutura em `dados/migracoes/`; porquês em [`dados/DECISOES.md`](dados/DECISOES.md).
