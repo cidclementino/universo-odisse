@@ -676,6 +676,37 @@ export async function painelComercial(env) {
   };
 }
 
+// ---------------------------------------------------------------- propostas (página Propostas do vendas)
+// Lista leve, de 10 em 10 (como no e-mail): sem o cálculo, com a oportunidade e o cliente já juntados e o
+// total para a navegação. `q` procura no código, no título, na oportunidade e no nome do cliente;
+// `simulacoes=0` tira as simulações; `simulacoes=so` traz só elas.
+export async function listaPropostas(env, url) {
+  const p = url.searchParams;
+  const limite = Math.min(Math.max(parseInt(p.get('limite') || '10', 10) || 10, 1), 50);
+  const de = Math.max(parseInt(p.get('de') || '0', 10) || 0, 0);
+  const conds = ['p.arquivado_em IS NULL'];
+  const args = [];
+  if (p.get('simulacoes') === '0') conds.push('p.simulacao = 0');
+  if (p.get('simulacoes') === 'so') conds.push('p.simulacao = 1');
+  const q = String(p.get('q') || '').trim().toLowerCase();
+  for (const termo of q.split(/\s+/).filter(Boolean).slice(0, 5)) {
+    conds.push(`lower(p.codigo || ' ' || COALESCE(p.titulo, '') || ' ' || COALESCE(o.titulo, '') || ' ' || COALESCE(org.nome, pc.nome, '')
+      || CASE WHEN p.simulacao = 1 THEN ' simulação simulacao' ELSE '' END) LIKE ? ESCAPE '\\'`);
+    args.push(`%${termo.replace(/[\\%_]/g, (c) => '\\' + c)}%`);
+  }
+  const de_ = `FROM propostas p LEFT JOIN oportunidades o ON o.id = p.oportunidade_id
+      LEFT JOIN organizacoes org ON org.id = o.cliente_id LEFT JOIN pessoas pc ON pc.id = o.cliente_id
+    WHERE ${conds.join(' AND ')}`;
+  const [lin, tot] = await env.DB.batch([
+    env.DB.prepare(`SELECT p.id, p.codigo, p.numero, p.revisao, p.titulo, p.data, p.valor_total, p.situacao, p.simulacao,
+        p.arquivo_pdf_id, p.importada_de, p.oportunidade_id, p.criado_em,
+        o.titulo AS oportunidade_titulo, o.etapa_funil, COALESCE(org.nome, pc.nome) AS cliente_nome
+      ${de_} ORDER BY p.numero DESC, p.revisao DESC LIMIT ? OFFSET ?`).bind(...args, limite, de),
+    env.DB.prepare(`SELECT count(*) AS n ${de_}`).bind(...args),
+  ]);
+  return { itens: lin.results, total: tot.results[0].n, de, limite };
+}
+
 // ---------------------------------------------------------------- contatos do comercial
 // Lista e ficha de contatos (pessoas e organizações) para a tela de Contatos do vendas,
 // montadas em poucas consultas. "Oportunidades de um contato" = as em que ele é titular,

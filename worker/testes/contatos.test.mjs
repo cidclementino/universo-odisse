@@ -60,4 +60,22 @@ ok(nf, 'id que não é contato → 404');
 // vínculo repetido
 let dup = false; try { await chamar('POST', 'vinculos', { de_id: opo.id, para_id: raf.id, papel: 'cliente' }); } catch (e) { dup = /409|UNIQUE|constraint/i.test(e.message); console.log('   repetido →', e.message.slice(0, 120)); }
 ok(dup, 'vínculo repetido é recusado');
+
+// ---- lista leve das propostas (página Propostas do vendas): de 10 em 10, com o total
+await chamar('POST', 'propostas/numeracao', { minimo: 10 });
+for (let i = 0; i < 12; i++) await chamar('POST', 'propostas', { oportunidade_id: i % 2 ? opo.id : opo2.id, titulo: 'Projeto ' + i, valor_total: 100000 + i });
+await chamar('POST', 'propostas', { simulacao: 1, titulo: 'teste de custo' });
+let pg1 = await chamar('GET', 'comercial/propostas?limite=10');
+ok(pg1.total === 13 && pg1.itens.length === 10 && pg1.de === 0, 'propostas: 10 da primeira página e o total (13)');
+ok(pg1.itens[0].titulo === 'teste de custo' && pg1.itens[1].cliente_nome && !('calculo' in pg1.itens[0]), 'mais nova primeiro, com cliente e sem o cálculo');
+const pg2 = await chamar('GET', 'comercial/propostas?limite=10&de=10');
+ok(pg2.itens.length === 3, 'segunda página com o resto');
+ok((await chamar('GET', 'comercial/propostas?simulacoes=0')).total === 12, 'sem as simulações');
+const busca = await chamar('GET', 'comercial/propostas?q=' + encodeURIComponent('lins engenharia'));
+ok(busca.total === 6 && busca.itens.every((x) => x.cliente_nome === 'Lins Engenharia'), 'busca pelo nome do cliente');
+ok((await chamar('GET', 'comercial/propostas?q=simulação')).total === 1, 'busca "simulação"');
+ok((await chamar('GET', 'comercial/propostas?simulacoes=so')).total === 1, 'só as simulações');
+let negadoPpt = false;
+try { await chamar('GET', 'comercial/propostas', null, 'marketing'); } catch { negadoPpt = true; }
+ok(negadoPpt, 'o marketing não vê propostas');
 console.log('TUDO CERTO');

@@ -21,6 +21,7 @@
 //   PUT    arquivos/:id/conteudo?variante=g|m|s  (corpo binário; cada variante sobe uma vez só)
 //   GET    arquivos/:id/conteudo?variante=g|m|s
 //   POST   revisoes/:id/resolver { versao, situacao: 'mesmo'|'diferentes', manter }  -> junta dois contatos
+//   GET    comercial/propostas?de=0&limite=10&q=…&simulacoes=0|so -> propostas leves com oportunidade e cliente, e o total
 //   GET    comercial/painel                   -> oportunidades abertas com cliente, co-clientes, última proposta e próxima ação
 //   GET    comercial/contatos[?arquivados=1]  -> pessoas e organizações com ligações e contagem de oportunidades
 //   GET    comercial/contatos/:id             -> ficha: registro, atuações, oportunidades (titular/co-cliente/contato), interações
@@ -44,7 +45,7 @@ import { novoId, prefixoDe, agoraISO, normalizar, limpar } from './util.js';
 import { painelProducao, fichaProjeto, horasPeriodo } from './producao.js';
 import { rotasPgt } from './pgt.js';
 import { rotasEquipe } from './equipe.js';
-import { ErroApi, REGRAS, proximoNumero, ajustarSequencia, valorSequencia, painelComercial, listaContatos, fichaContato } from './regras.js';
+import { ErroApi, REGRAS, proximoNumero, ajustarSequencia, valorSequencia, painelComercial, listaContatos, fichaContato, listaPropostas } from './regras.js';
 
 export { proximoNumero };
 
@@ -741,6 +742,12 @@ export async function api(env, ferramenta, request, url, cors) {
     if (rota === 'comercial' && id === 'painel' && m === 'GET') {
       exigir('oportunidades', ferramenta, 'L');
       return json(await painelComercial(env));
+    }
+    // comercial: lista leve das propostas, paginada (página Propostas do vendas)
+    if (rota === 'comercial' && id === 'propostas' && m === 'GET') {
+      exigir('propostas', ferramenta, 'L');
+      exigir('oportunidades', ferramenta, 'L');
+      return json(await listaPropostas(env, url));
     }
     // comercial: contatos (lista e ficha juntadas, para a tela de Contatos do vendas)
     if (rota === 'comercial' && id === 'contatos' && m === 'GET') {
