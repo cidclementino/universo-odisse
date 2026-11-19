@@ -34,9 +34,7 @@ function cartao(f) {
   const titulo = breve ? `<b>${esc(f.nome)}</b>` : `<a class="principal" href="${esc(f.url)}"><b>${esc(f.nome)}</b></a>`;
   const extras = (f.extra || []).map((x) => `<a href="${esc(x.url)}">${esc(x.nome)} →</a>`).join('');
   const host = !breve && f.url ? `<span>${esc(semProtocolo(f.url))}</span>` : '';
-  const ramo = f.ramo && (MAPA.ramos || []).find((r) => r.id === f.ramo);
   return `<div class="u-cartao item${breve ? ' breve' : ''}">
-    ${ramo ? `<span class="ramo">${esc(ramo.nome)}</span>` : ''}
     <div class="topo">${titulo}${tag}</div>
     ${f.descricao ? `<p>${esc(f.descricao)}</p>` : ''}
     ${host || extras ? `<div class="rodape">${host}${extras}</div>` : ''}
@@ -48,13 +46,31 @@ function cabecalho(titulo, texto, lado = '') {
     ${lado ? `<div class="lado u-apoio">${lado}</div>` : ''}</div>`;
 }
 
-// Ferramentas: uma grade só, na ordem dos ramos; cada cartão diz o seu ramo (Cid, 19/11).
-function gradeDeRamos(secao) {
-  const ordem = (MAPA.ramos || []).map((r) => r.id);
-  const pos = (f) => { const i = ordem.indexOf(f.ramo); return i < 0 ? ordem.length : i; };
-  const itens = MAPA.itens.filter((f) => f.secao === secao)
-    .map((f, i) => [f, i]).sort((a, b) => pos(a[0]) - pos(b[0]) || a[1] - b[1]).map(([f]) => f);
-  return itens.length ? `<section class="bloco"><div class="cartoes">${itens.map(cartao).join('')}</div></section>` : '';
+// Ferramentas: lista compacta, uma linha de grupo por ramo, cada ramo com uma cor da paleta (Cid, 19/11).
+const APPS = { marketing: 'marketing', vendas: 'vendas', projetos: 'Projetos', radar: 'Radar', universo: 'Universo' };
+const appDe = (url) => { const h = (url || '').match(/^https?:\/\/([^./]+)\./); return h ? (APPS[h[1]] || h[1]) : '—'; };
+
+function listaDeRamos(secao) {
+  const itens = MAPA.itens.filter((f) => f.secao === secao);
+  const grupos = (MAPA.ramos || []).map((r) => {
+    const doRamo = itens.filter((f) => f.ramo === r.id);
+    if (!doRamo.length) return '';
+    const cor = `var(--odisse-${esc(r.cor || 'nevoa')})`;
+    const linhas = doRamo.map((f) => {
+      const breve = f.status === 'em-breve' || !f.url;
+      const nome = breve ? esc(f.nome) : `<a href="${esc(f.url)}">${esc(f.nome)}</a>`;
+      return `<tr class="${breve ? 'breve' : ''}">
+        <td class="nome">${nome}</td>
+        <td class="oque">${esc(f.descricao)}</td>
+        <td class="onde">${breve ? '—' : esc(appDe(f.url))}</td>
+        <td class="estado">${breve ? '<span class="u-etiqueta suave">em breve</span>' : '<span class="no-ar">no ar</span>'}</td>
+      </tr>`;
+    }).join('');
+    return `<tbody style="--ramo:${cor}"><tr class="ramo-linha"><th colspan="4" scope="rowgroup">${esc(r.nome)}
+        <span class="conta">${doRamo.length}</span></th></tr>${linhas}</tbody>`;
+  }).join('');
+  return `<section class="bloco"><div class="lista-ferramentas"><table class="u-tabela">
+    <thead><tr><th>Ferramenta</th><th>O que faz</th><th>Onde</th><th>Estado</th></tr></thead>${grupos}</table></div></section>`;
 }
 
 function blocosDaSecao(secao, compactos = false) {
@@ -125,7 +141,7 @@ const PAGINAS = {
   },
 
   ferramentas() {
-    return cabecalho('Ferramentas', 'Onde se trabalha. As internas pedem a própria senha, por enquanto.') + gradeDeRamos('ferramentas');
+    return cabecalho('Ferramentas', 'Onde se trabalha. As internas pedem a própria senha, por enquanto.') + listaDeRamos('ferramentas');
   },
 
   canais() {

@@ -9,10 +9,10 @@
     {"id": "biblioteca", "nome": "Biblioteca", "descricao": "O que se reutiliza"}
   ],
   "ramos": [
-    {"id": "marketing", "nome": "Marketing"},
-    {"id": "comercial", "nome": "Comercial"},
-    {"id": "producao", "nome": "Produção"},
-    {"id": "gestao", "nome": "Gestão"}
+    {"id": "marketing", "cor": "ambar", "nome": "Marketing"},
+    {"id": "comercial", "cor": "ocre", "nome": "Comercial"},
+    {"id": "producao", "cor": "ardosia", "nome": "Produção"},
+    {"id": "gestao", "cor": "terra", "nome": "Gestão"}
   ],
   "grupos": [
     {"id": "sites", "secao": "canais", "nome": "Sites"},
@@ -25,7 +25,7 @@
       "nome": "Construtor de publicações",
       "secao": "ferramentas",
       "ramo": "marketing",
-      "descricao": "Posts 3:4 e pins 2:3 por núcleo, com os padrões da marca; stories em breve",
+      "descricao": "Monta posts 3:4 e pins 2:3 por núcleo",
       "url": "https://marketing.odisse.com.br/#/publicacoes",
       "hosts": [
             "marketing.odisse.com.br"
@@ -38,7 +38,7 @@
       "nome": "Calendário editorial",
       "secao": "ferramentas",
       "ramo": "marketing",
-      "descricao": "Datas das publicações, pool de mídias, estratégia e pautas",
+      "descricao": "Agenda as publicações a partir do pool de mídias",
       "url": "https://marketing.odisse.com.br/#/calendario",
       "acesso": "interna",
       "status": "no-ar"
@@ -48,7 +48,7 @@
       "nome": "Funil comercial",
       "secao": "ferramentas",
       "ramo": "comercial",
-      "descricao": "Oportunidades por etapa, clientes e registro do contrato assinado",
+      "descricao": "Acompanha as oportunidades, do pedido ao contrato",
       "url": "https://vendas.odisse.com.br/crm.html",
       "hosts": [
             "vendas.odisse.com.br/crm.html"
@@ -61,7 +61,7 @@
       "nome": "Lista de contatos",
       "secao": "ferramentas",
       "ramo": "comercial",
-      "descricao": "Pessoas e organizações, interações e possíveis duplicados",
+      "descricao": "Cadastro de clientes, parceiros e organizações",
       "url": "https://vendas.odisse.com.br/contatos.html",
       "hosts": [
             "vendas.odisse.com.br/contatos.html"
@@ -74,7 +74,7 @@
       "nome": "Propostas comerciais",
       "secao": "ferramentas",
       "ramo": "comercial",
-      "descricao": "Emissor de propostas e simulações, histórico numerado",
+      "descricao": "Emite propostas e simulações de honorários",
       "url": "https://vendas.odisse.com.br/",
       "hosts": [
             "vendas.odisse.com.br"
@@ -87,7 +87,7 @@
       "nome": "Radar de oportunidades",
       "secao": "ferramentas",
       "ramo": "comercial",
-      "descricao": "Terrenos e corretores, concursos de arquitetura",
+      "descricao": "Encontra terrenos, corretores e concursos",
       "url": "https://radar.odisse.com.br/",
       "hosts": [
             "radar.odisse.com.br"
@@ -100,7 +100,7 @@
       "nome": "Contratos comerciais",
       "secao": "ferramentas",
       "ramo": "comercial",
-      "descricao": "Minuta, emissão e registro do contrato assinado",
+      "descricao": "Emite e registra os contratos assinados",
       "acesso": "interna",
       "status": "em-breve"
     },
@@ -109,7 +109,7 @@
       "nome": "Plano Geral de Trabalho",
       "secao": "ferramentas",
       "ramo": "producao",
-      "descricao": "Fases, etapas, entregas e eventos por serviço: o padrão de propostas e projetos",
+      "descricao": "Define fases, etapas e entregas de cada serviço",
       "url": "https://projetos.odisse.com.br/pgt.html",
       "hosts": [
             "projetos.odisse.com.br/pgt.html",
@@ -123,7 +123,7 @@
       "nome": "Gestor de projetos",
       "secao": "ferramentas",
       "ramo": "producao",
-      "descricao": "Projetos nascidos dos contratos assinados: etapas, prazos e local do imóvel",
+      "descricao": "Acompanha os projetos contratados, etapa a etapa",
       "url": "https://projetos.odisse.com.br/",
       "hosts": [
             "projetos.odisse.com.br"
@@ -136,7 +136,7 @@
       "nome": "Gestão de horas",
       "secao": "ferramentas",
       "ramo": "producao",
-      "descricao": "Horas por projeto e etapa, semana de cada pessoa",
+      "descricao": "Registra as horas de cada pessoa por projeto",
       "url": "https://projetos.odisse.com.br/horas.html",
       "hosts": [
             "projetos.odisse.com.br/horas.html"
@@ -149,7 +149,7 @@
       "nome": "Lista de fornecedores",
       "secao": "ferramentas",
       "ramo": "producao",
-      "descricao": "Parceiros de execução: contatos, preços praticados, prazos e avaliação",
+      "descricao": "Cadastro de parceiros de execução e preços",
       "acesso": "interna",
       "status": "em-breve"
     },
@@ -158,7 +158,7 @@
       "nome": "Plataforma do cliente",
       "secao": "ferramentas",
       "ramo": "producao",
-      "descricao": "Cronograma, pranchas da fase e aprovações, para cada cliente",
+      "descricao": "Mostra ao cliente cronograma, pranchas e aprovações",
       "acesso": "interna",
       "status": "em-breve"
     },
@@ -167,7 +167,7 @@
       "nome": "Financeiro",
       "secao": "ferramentas",
       "ramo": "gestao",
-      "descricao": "Recebimentos, pagamentos e fluxo de caixa dos projetos",
+      "descricao": "Controla recebimentos, pagamentos e caixa",
       "acesso": "interna",
       "status": "em-breve"
     },

@@ -16,9 +16,6 @@
 .item { position: relative; display: flex; flex-direction: column; gap: 6px; min-height: 128px; transition: border-color .15s, transform .15s; }
 .compactos .item { min-height: 0; }
 .item:has(a.principal):hover { border-color: var(--u-tinta-2); transform: translateY(-1px); }
-/* rótulo do ramo (Ferramentas): pequeno, em cima do nome */
-.item .ramo { font-size: 10.5px; font-weight: 650; letter-spacing: .08em; text-transform: uppercase; color: var(--u-tinta-2); line-height: 1; }
-.item.breve .ramo { opacity: .6; }
 .item .topo { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--u-esp-2); }
 .item b { font-size: 15px; font-weight: 650; letter-spacing: -.01em; }
 .item a.principal { color: inherit; text-decoration: none; }
@@ -394,3 +391,24 @@ li.eq-item.alvo-depois { box-shadow: 0 3px 0 var(--odisse-ocre, #BB8248); }
 .eq-cidade { grid-template-columns: 1fr 84px; }
 .eq-qualif { margin-top: 6px; padding-top: 14px; border-top: 1px solid var(--u-linha); }
 .eq-qualif p { margin: 6px 0 0; font-size: 13.5px; line-height: 1.55; max-width: 1000px; }
+
+/* Ferramentas: lista compacta por ramo (cor do ramo na linha de grupo e na faixa de cada linha) */
+.lista-ferramentas { background: var(--u-elevada, #fff); border: 1px solid var(--u-linha); border-radius: var(--u-raio); overflow-x: auto; }
+.lista-ferramentas .u-tabela { min-width: 640px; }
+.lista-ferramentas thead th { background: var(--u-superficie); }
+.lista-ferramentas .ramo-linha th { text-align: left; padding: 9px 12px; font-size: 13.5px; font-weight: 650; text-transform: none; letter-spacing: 0;
+  color: var(--u-tinta); border-top: 1px solid var(--u-linha-forte); box-shadow: inset 5px 0 0 var(--ramo);
+  background: color-mix(in srgb, var(--ramo) 22%, var(--u-elevada, #fff)); }
+.lista-ferramentas .ramo-linha .conta { margin-left: 6px; font-size: 11.5px; font-weight: 500; color: var(--u-tinta-2); font-variant-numeric: tabular-nums; }
+.lista-ferramentas tbody tr:not(.ramo-linha) td:first-child { box-shadow: inset 3px 0 0 var(--ramo); }
+.lista-ferramentas td { vertical-align: middle; }
+.lista-ferramentas td.nome { width: 26%; font-weight: 600; white-space: nowrap; }
+.lista-ferramentas td.nome a { color: inherit; text-decoration: none; }
+.lista-ferramentas td.nome a:hover { text-decoration: underline; text-underline-offset: 3px; }
+.lista-ferramentas td.oque { color: var(--u-tinta-2); }
+.lista-ferramentas td.onde { width: 12%; color: var(--u-tinta-2); white-space: nowrap; }
+.lista-ferramentas td.estado { width: 9%; white-space: nowrap; font-size: 12px; }
+.lista-ferramentas .no-ar { color: #3E6B48; font-weight: 600; }
+.lista-ferramentas tr.breve td { color: #8A939C; }
+.lista-ferramentas tr.breve td.nome { font-weight: 500; }
+@media (max-width: 860px) { .lista-ferramentas td.onde, .lista-ferramentas thead th:nth-child(3) { display: none; } }
