@@ -20,6 +20,7 @@
 //   POST   <rota>/:id/versoes/:n/restaurar { versao }
 //   PUT    arquivos/:id/conteudo?variante=g|m|s  (corpo binário; cada variante sobe uma vez só)
 //   GET    arquivos/:id/conteudo?variante=g|m|s
+//   GET    acervo | acervo/alvos | acervo/site/…  -> banco único de imagens (ver acervo.js)
 //   POST   revisoes/:id/resolver { versao, situacao: 'mesmo'|'diferentes', manter }  -> junta dois contatos
 //   GET    comercial/propostas?de=0&limite=10&q=…&simulacoes=0|so -> propostas leves com oportunidade e cliente, e o total
 //   GET    comercial/painel                   -> oportunidades abertas com cliente, co-clientes, última proposta e próxima ação
@@ -45,6 +46,7 @@ import { novoId, prefixoDe, agoraISO, normalizar, limpar } from './util.js';
 import { painelProducao, fichaProjeto, horasPeriodo } from './producao.js';
 import { rotasPgt } from './pgt.js';
 import { rotasEquipe } from './equipe.js';
+import { rotasAcervo } from './acervo.js';
 import { ErroApi, REGRAS, proximoNumero, ajustarSequencia, valorSequencia, painelComercial, listaContatos, fichaContato, listaPropostas } from './regras.js';
 
 export { proximoNumero };
@@ -75,6 +77,9 @@ function visivel(tabela, ferramenta, linha) {
   for (const k of [...COMUNS, ...restritos]) if (k in linha) out[k] = linha[k];
   return out;
 }
+
+// Linhas que a ferramenta enxerga (ex.: o marketing só vê as mídias públicas do acervo). SQL com o apelido t.
+const linhas = (tabela, ferramenta) => TABELAS[tabela]?.linhas_restritas?.[ferramenta] || null;
 
 // ---------------------------------------------------------------- SQL auxiliar
 
@@ -114,6 +119,7 @@ function traduzirErro(e) {
   if (/FOREIGN KEY constraint failed/.test(m)) return new ErroApi(422, 'um dos registros ligados não existe');
   if (/CHECK constraint failed/.test(m)) return new ErroApi(422, 'valor fora do permitido', { detalhe: m });
   if (/etapa de outro projeto/.test(m)) return new ErroApi(422, 'Etapa: precisa ser uma etapa deste projeto');
+  if (/publica exige direitos livres/.test(m)) return new ErroApi(422, 'Pública: só imagens com direitos livres');
   return e;
 }
 
@@ -195,6 +201,7 @@ async function listar(env, ferramenta, tabela, url) {
   const conds = [];
   const args = [];
   if (p.get('arquivados') !== '1') conds.push('t.arquivado_em IS NULL');
+  if (linhas(tabela, ferramenta)) conds.push(linhas(tabela, ferramenta));
   for (const f of def.filtros) {
     if (p.has(f)) { conds.push(`t.${f} = ?`); args.push(p.get(f)); }
   }
@@ -224,6 +231,10 @@ async function ler(env, ferramenta, tabela, id) {
   exigir(tabela, ferramenta, 'L');
   const linha = await buscarLinha(env, tabela, id);
   if (!linha) throw new ErroApi(404, 'não encontrado');
+  if (linhas(tabela, ferramenta)) {
+    const ok = await env.DB.prepare(`SELECT 1 FROM ${tabela} t WHERE t.id = ? AND ${linhas(tabela, ferramenta)}`).bind(id).first();
+    if (!ok) throw new ErroApi(404, 'não encontrado');
+  }
   if (TABELAS[tabela].sensivel) {
     await prep(env, sqlHistorico(tabela, id, 'ler_sensivel', ferramenta, null, false)).run();
   }
@@ -355,6 +366,10 @@ async function carregarParaEditar(env, ferramenta, tabela, id, corpo, { soCampos
   if (!(soCampos && TABELAS[tabela].editaveis_por?.[ferramenta])) exigir(tabela, ferramenta, 'E');
   const atual = await buscarLinha(env, tabela, id);
   if (!atual) throw new ErroApi(404, 'não encontrado');
+  if (linhas(tabela, ferramenta)) {
+    const ok = await env.DB.prepare(`SELECT 1 FROM ${tabela} t WHERE t.id = ? AND ${linhas(tabela, ferramenta)}`).bind(id).first();
+    if (!ok) throw new ErroApi(404, 'não encontrado');
+  }
   const versao = Number(corpo?.versao);
   if (!Number.isInteger(versao)) throw new ErroApi(400, 'informe a versão que você está editando (versao)');
   if (versao !== atual.versao) throw new ErroApi(409, 'conflito', { registro: visivel(tabela, ferramenta, atual) });
@@ -618,8 +633,9 @@ async function novaPessoaNaEquipe(env, ferramenta, corpo) {
 
 const chaveR2 = (id, variante) => `arq/${id}${VARIANTES[variante]}`;
 
-async function enviarConteudo(env, ferramenta, id, url, request) {
-  exigir('arquivos', ferramenta, 'E');
+// semPermissao: o site sobe pelas rotas do acervo (acervo.js), que conferem antes se a imagem é dele
+async function enviarConteudo(env, ferramenta, id, url, request, { semPermissao = false } = {}) {
+  if (!semPermissao) exigir('arquivos', ferramenta, 'E');
   if (!env.ARQUIVOS) throw new ErroApi(503, 'armazenamento de arquivos (R2) ainda não ligado');
   const variante = url.searchParams.get('variante') || 'g';
   if (!(variante in VARIANTES)) throw new ErroApi(400, 'variante: g, m ou s');
@@ -648,13 +664,14 @@ async function enviarConteudo(env, ferramenta, id, url, request) {
   return { ok: true, variantes };
 }
 
-async function lerConteudo(env, ferramenta, id, url, cors) {
-  exigir('arquivos', ferramenta, 'L');
+async function lerConteudo(env, ferramenta, id, url, cors, { semPermissao = false } = {}) {
+  if (!semPermissao) exigir('arquivos', ferramenta, 'L');
   if (!env.ARQUIVOS) throw new ErroApi(503, 'armazenamento de arquivos (R2) ainda não ligado');
   const pedida = url.searchParams.get('variante') || 'g';
   if (!(pedida in VARIANTES)) throw new ErroApi(400, 'variante: g, m ou s');
   // assinaturas manuscritas (protegido) só saem por equipe/:id/assinatura, com o uso registrado
-  const reg = await env.DB.prepare('SELECT protegido FROM arquivos WHERE id = ?').bind(id).first();
+  const filtro = linhas('arquivos', ferramenta);
+  const reg = await env.DB.prepare(`SELECT t.protegido FROM arquivos t WHERE t.id = ?${filtro ? ' AND ' + filtro : ''}`).bind(id).first();
   if (!reg) throw new ErroApi(404, 'arquivo não encontrado');
   if (reg.protegido) throw new ErroApi(403, 'arquivo protegido: tem rota própria');
   // como no site: se faltar a pequena, entrega a média; se faltar a média, a grande
@@ -790,7 +807,12 @@ export async function api(env, ferramenta, request, url, cors) {
       { exigir, gravar });
     if (re instanceof Response) return re;
     if (re !== undefined) return json(re);
-    // o site só enxerga as rotas públicas da equipe
+    // Acervo: leitura juntada, alvos para os seletores e as rotas do site (só imagens públicas)
+    const ra = await rotasAcervo(env, ferramenta, m, partes, corpo, url, request, cors,
+      { exigir, criar, alterar, enviarConteudo, lerConteudo, visivel });
+    if (ra instanceof Response) return ra;
+    if (ra !== undefined) return json(ra, ra?.criado ? 201 : 200);
+    // o site só enxerga as rotas públicas da equipe e as do acervo
     if (ferramenta === 'site') throw new ErroApi(403, 'esta ferramenta não pode ver isto');
 
     // Bases e PGT: leituras juntadas, matrizes de pertinência e publicação (pgt.js)

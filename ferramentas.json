@@ -279,12 +279,13 @@
     },
     {
       "id": "acervo",
-      "nome": "Acervo de imagens e vídeos",
+      "nome": "Acervo de imagens",
       "secao": "biblioteca",
       "grupo": "acervo",
-      "descricao": "Fotos de obra e de estúdio, com projeto, núcleo e direitos de uso",
+      "descricao": "Banco único de imagens de projetos e objetos: onde cada uma está, direitos e o que vai para o site",
+      "url": "https://universo.odisse.com.br/#/acervo",
       "acesso": "interna",
-      "status": "em-breve"
+      "status": "no-ar"
     },
     {
       "id": "biblioteca-tecnica",

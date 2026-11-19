@@ -627,7 +627,42 @@ const equipe = {
   },
 };
 
+// ---------------------------------------------------------------- acervo (0020)
+// "Pública" (Cid, 19/11): só com direitos livres. Mudar os direitos para outra coisa desliga o marcador.
+function conferirPublica(r) {
+  if (!r.publica) return;
+  if (r.protegido) throw new ErroApi(422, 'Pública: arquivo protegido não vai para fora');
+  if (!['imagem', 'video'].includes(r.categoria)) throw new ErroApi(422, 'Pública: só imagens e vídeos do acervo');
+  if (r.direitos !== 'livre') throw new ErroApi(422, 'Pública: marque os direitos como livres antes');
+}
+
+const arquivos = {
+  async criar(env, ferramenta, valores) {
+    conferirPublica(valores);
+    return [];
+  },
+  async alterar(env, ferramenta, atual, mudancas) {
+    if ('direitos' in mudancas && mudancas.direitos !== 'livre' && atual.publica && !('publica' in mudancas)) mudancas.publica = 0;
+    conferirPublica({ ...atual, ...mudancas });
+    return [];
+  },
+};
+
+const galeria = {
+  async criar(env, ferramenta, valores) {
+    const a = await env.DB.prepare('SELECT categoria, protegido, arquivado_em FROM arquivos WHERE id = ?').bind(valores.arquivo_id).first();
+    if (!a || a.arquivado_em) throw new ErroApi(422, 'Imagem: não encontrada no acervo');
+    if (a.protegido || !['imagem', 'video'].includes(a.categoria)) throw new ErroApi(422, 'Imagem: só imagens e vídeos entram na galeria');
+    const alvo = await env.DB.prepare(
+      `SELECT arquivado_em FROM ${{ prj: 'projetos', obj: 'objetos', col: 'colecoes' }[valores.alvo_id.slice(0, 3)]} WHERE id = ?`,
+    ).bind(valores.alvo_id).first();
+    if (!alvo || alvo.arquivado_em) throw new ErroApi(422, 'Projeto, objeto ou coleção: não encontrado');
+    return [];
+  },
+};
+
 export const REGRAS = {
+  arquivos, galeria,
   documentos, equipe,
   oportunidades, propostas, contratos, projetos, horas,
   bases_servicos, bases_categorias, bases_usos, pgt_fases, pgt_etapas, pgt_entregaveis, pgt_eventos, pgt_materiais,

@@ -40,6 +40,10 @@ export const PREFIXOS = {
   frt: 'ferramentas_textos',
   emp: 'empresa',
   vcl: 'vendas_clausulas',
+  // Acervo (0020): banco único de imagens
+  col: 'colecoes',
+  obj: 'objetos',
+  gal: 'galeria',
 };
 
 // Ferramentas que podem chamar a API. 'hub' = o próprio Universo (senha da equipe);
@@ -85,6 +89,11 @@ const EQUIPE_LEITURA = ['pessoa_id', 'papel', 'ativo', 'socio', 'tratamento', 'c
 const LISTAS_EQUIPE = { hub: 'E', vendas: 'L', projetos: 'L', fornecedores: 'L', marketing: 'L', site: 'L', maquina: 'E' };
 
 const TODOS_E = { hub: 'E', vendas: 'E', projetos: 'E', fornecedores: 'E', marketing: 'E', maquina: 'E' };
+// Acervo (0020): casa no hub (Biblioteca); o Projetos e o marketing também editam; o vendas lê.
+// O site não entra aqui: tem rotas próprias (acervo/site/…, ver acervo.js), só com as imagens públicas.
+const ACERVO = { hub: 'E', vendas: 'L', projetos: 'E', marketing: 'E', maquina: 'E' };
+// o marketing só enxerga as mídias públicas (Cid, 19/11: as restritas não aparecem no Construtor)
+const SO_PUBLICAS = "(t.categoria NOT IN ('imagem', 'video') OR t.publica = 1)";
 
 export const TABELAS = {
   organizacoes: {
@@ -331,14 +340,66 @@ export const TABELAS = {
       data_captura: T('data', { rotulo: 'Data da foto' }),
       direitos: T('lista', { valores: ['livre', 'uso_interno', 'aguarda_autorizacao'], rotulo: 'Direitos' }),
       origem_drive: T('texto', { max: 400, rotulo: 'Caminho no Drive' }),
+      // 0020: disponível para o site e afins; só com direitos livres (regras.js e gatilho no banco)
+      publica: T('sn', { rotulo: 'Pública' }),
     },
     // variantes é preenchido pela API ao receber o conteúdo; não vem do formulário
     imutaveis: ['sha256', 'tipo_mime', 'categoria'],
-    padroes: { visivel_cliente: 0 },
+    padroes: { visivel_cliente: 0, publica: 0 },
     permissoes: TODOS_E,
-    filtros: ['dono_id', 'categoria', 'sha256'],
+    linhas_restritas: { marketing: SO_PUBLICAS },
+    // o editor do site muda só a descrição das imagens públicas (rotas acervo/site, acervo.js)
+    editaveis_por: { site: ['texto_alternativo'] },
+    filtros: ['dono_id', 'categoria', 'sha256', 'publica'],
     ordem: 'criado_em DESC',
     busca: (r) => ({ titulo: r.nome_original, partes: [r.nome_original, r.legenda, r.texto_alternativo, r.credito] }),
+  },
+
+  // ---------------------------------------------------------------- acervo (0020)
+  colecoes: {
+    prefixo: 'col',
+    campos: {
+      nome: T('texto', { obrig: true, max: 160, rotulo: 'Nome' }),
+      nucleo_id: T('lista', { valores: NUCLEOS, rotulo: 'Núcleo' }),
+      descricao: T('textoLongo', { max: 4000, rotulo: 'Descrição' }),
+    },
+    permissoes: ACERVO,
+    filtros: ['nucleo_id'],
+    ordem: 'nome',
+    busca: (r) => ({ titulo: r.nome, partes: [r.nome, r.descricao] }),
+  },
+
+  objetos: {
+    prefixo: 'obj',
+    campos: {
+      nome: T('texto', { obrig: true, max: 160, rotulo: 'Nome' }),
+      nome_publico: T('texto', { max: 160, rotulo: 'Nome público' }),
+      colecao_id: T('ref', { prefixos: ['col'], rotulo: 'Coleção' }),
+      nucleo_id: T('lista', { valores: NUCLEOS, rotulo: 'Núcleo' }),
+      descricao: T('textoLongo', { max: 4000, rotulo: 'Descrição' }),
+      publicavel: T('sn', { rotulo: 'Pode ser publicado' }),
+    },
+    padroes: { nucleo_id: 'objetos', publicavel: 0 },
+    permissoes: ACERVO,
+    filtros: ['colecao_id', 'nucleo_id'],
+    ordem: 'nome',
+    busca: (r) => ({ titulo: r.nome, partes: [r.nome, r.nome_publico, r.descricao] }),
+  },
+
+  // imagem ↔ projeto, objeto ou coleção (uma imagem pode estar em vários)
+  galeria: {
+    prefixo: 'gal',
+    campos: {
+      arquivo_id: T('ref', { obrig: true, prefixos: ['arq'], rotulo: 'Imagem' }),
+      alvo_id: T('ref', { obrig: true, prefixos: ['prj', 'obj', 'col'], rotulo: 'Projeto, objeto ou coleção' }),
+      ordem: T('inteiro', { min: 0, max: 99999, rotulo: 'Ordem' }),
+      destaque: T('sn', { rotulo: 'Destaque' }),
+    },
+    imutaveis: ['arquivo_id', 'alvo_id'],
+    padroes: { destaque: 0 },
+    permissoes: ACERVO,
+    filtros: ['arquivo_id', 'alvo_id'],
+    ordem: 'criado_em',
   },
 
   vinculos: {
@@ -773,6 +834,9 @@ export const ROTAS = {
   'pgt-materiais': 'pgt_materiais',
   documentos: 'documentos',
   'vendas-clausulas': 'vendas_clausulas',
+  colecoes: 'colecoes',
+  objetos: 'objetos',
+  galeria: 'galeria',
 };
 
 export const COMUNS = ['id', 'criado_em', 'atualizado_em', 'criado_por', 'atualizado_por', 'versao', 'arquivado_em'];
