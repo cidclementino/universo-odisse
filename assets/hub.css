@@ -397,8 +397,9 @@ li.eq-item.alvo-depois { box-shadow: 0 3px 0 var(--odisse-ocre, #BB8248); }
 .lista-ferramentas { --cols: 44px minmax(180px, 24%) minmax(0, 1fr) 110px 96px; margin-top: var(--u-esp-5); }
 .ferr-cab, .ferr { display: grid; grid-template-columns: var(--cols); align-items: center; }
 .ferr-cab > *, .ferr > * { padding: 0 8px; min-width: 0; }
-.ferr-cab { padding: 0 9px 8px 9px; border-bottom: 1px solid var(--u-linha-forte); font-size: 11px; font-weight: 650; letter-spacing: .06em;
-  text-transform: uppercase; color: var(--u-tinta-2); }
+.ferr-cab { padding: 9px; margin-bottom: 4px; border-radius: var(--u-raio); background: rgba(255,255,255,.55);
+  font-size: 11px; font-weight: 650; letter-spacing: .06em; text-transform: uppercase; color: var(--u-tinta-2); }
+/* régua dos rótulos (proposta A, Cid 19/11): cartão translúcido no alto da lista, mesma grade dos cartões, sem linha */
 /* grupo: SEM barra colorida à esquerda (Cid, 19/11). O bloco inteiro tem fundo no tom claro da cor do ramo;
    a faixa de título, no tom forte; os cartões, brancos por cima. */
 .ramo { margin-top: 16px; border-radius: var(--u-raio); background: color-mix(in srgb, var(--g) 14%, var(--u-elevada, #fff)); }
@@ -423,10 +424,14 @@ li.eq-item.alvo-depois { box-shadow: 0 3px 0 var(--odisse-ocre, #BB8248); }
 .ferr__nome { color: inherit; text-decoration: none; }
 .ferr strong { font-weight: 650; }
 .ferr[data-url]:hover .ferr__nome { text-decoration: underline; text-underline-offset: 3px; }
-.ferr__oque, .ferr__onde { color: var(--u-tinta-2); }
-.ferr__onde { white-space: nowrap; }
-.ferr__estado { font-size: 12px; white-space: nowrap; }
-.ferr .no-ar { color: #3E6B48; font-weight: 600; }
+.ferr__oque { color: var(--u-tinta-2); }
+.ferr__onde, .ferr__estado { white-space: nowrap; }
+/* etiquetas em pílula (proposta B, Cid 19/11): onde = névoa; no ar = verde claro; em breve = névoa tracejada */
+.etq { display: inline-block; padding: 3px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 500; line-height: 1.3;
+  background: var(--odisse-nevoa, #E6E8EB); color: var(--u-tinta-2); }
+.etq--ok { background: #E2EBDF; color: #3E6B48; font-weight: 600; }
+.etq--breve { background: transparent; border: 1px dashed var(--u-linha-forte); padding: 2px 8px; color: #8A939C; font-weight: 600; }
+.ferr__onde .vazio { color: #8A939C; padding-left: 9px; }
 /* em breve: tracejado (design.md: tracejado = suspenso), sem clique */
 .ferr.is-breve { background: color-mix(in srgb, var(--u-elevada, #fff) 55%, transparent); border-style: dashed; border-color: var(--u-linha-forte); color: #8A939C; }
 .ferr.is-breve strong { font-weight: 550; }

@@ -39,8 +39,8 @@ export function criarFerramentas({ esc, api, toque, lerMapa }) {
         aria-label="Editar a descrição de ${esc(f.nome)}">${LAPIS}</button></div>
       <div>${nome}</div>
       <div class="ferr__oque"><span class="texto">${esc(f.descricao)}</span></div>
-      <div class="ferr__onde">${breve ? '—' : esc(appDe(f.url))}</div>
-      <div class="ferr__estado">${breve ? '<span class="u-etiqueta suave">em breve</span>' : '<span class="no-ar">no ar</span>'}</div>
+      <div class="ferr__onde">${breve ? '<span class="vazio">—</span>' : `<span class="etq">${esc(appDe(f.url))}</span>`}</div>
+      <div class="ferr__estado">${breve ? '<span class="etq etq--breve">em breve</span>' : '<span class="etq etq--ok">no ar</span>'}</div>
     </div>`;
   }
 
