@@ -146,7 +146,8 @@ const AMOSTRA = {
     <div class="pi-caixa pi-caixa--col"><div class="pi-caixa__t">Escopo</div>${['Área', 'Tipologia', 'Fases'].map((r) => `<div class="pi-campo"><span>${r}</span><i></i></div>`).join('')}<div class="pi-acoes"><span class="pi-b">Voltar</span><span class="pi-b">Continuar</span></div></div>
     <div class="pi-previa-c"><small>Resumo</small><b>R$ 48.200</b>${tr(3, [80, 60, 70])}</div></div>`,
 
-  // Editor com prévia (Cid, 19/11): folha à esquerda, Blocos à direita; o texto livre se escreve nos dois lugares
+  // Editor com prévia (Cid, 19/11): folha à esquerda, Blocos à direita; o conteúdo próprio do documento se escreve nos dois
+  // lugares; o que vem do modelo (cabeçalho, dados do escritório, rodapé) não se edita na folha
   'editor-com-previa': () => `<div class="pi-edprev">
     <div class="pi-folha-g">${tr(3, [35, 50, 30])}<div class="pi-editando">${tr(3, [92, 88, 60])}<span class="pi-cursor"></span></div>${tr(2, [86, 30])}</div>
     <div class="pi-blocos">
@@ -302,10 +303,10 @@ const COMBINACOES = [
     onde: { v: ['emissor'] },
     ajustar: 'Emissor de proposta: campos ainda soltos; devem ir para Blocos.' },
   { id: 'editor-com-previa', nome: 'Editor com prévia', receita: ['Prévia de folha', 'Bloco'],
-    para: 'Escrever um documento vendo a folha: folha à esquerda, Blocos à direita. O texto livre que se preenche nos Blocos também se escreve direto na folha; os dois ficam iguais.',
-    decisao: 'folha à esquerda, Blocos à direita, folha editável (Cid, 19/11)',
+    para: 'Escrever um documento vendo a folha: folha à esquerda, Blocos à direita. O conteúdo próprio do documento (corpo do texto e afins) se escreve nos Blocos ou direto na folha, e os dois ficam iguais. O que vem do modelo (cabeçalho, dados do escritório, rodapé) não se edita na folha.',
+    decisao: 'folha à esquerda, Blocos à direita; na folha só se edita o que não vem do modelo (Cid, 19/11)',
     onde: { a: ['emissao'] },
-    ajustar: 'Emissão de documentos: hoje campos à esquerda e folha à direita, folha só para ver e campos soltos. Inverter, tornar a folha editável e levar os campos para Blocos.' },
+    ajustar: 'Emissão de documentos: hoje campos à esquerda e folha à direita, folha só para ver e campos soltos. Inverter, permitir escrever o corpo do texto direto na folha e levar os campos para Blocos.' },
   { id: 'balcao', nome: 'Balcão', receita: ['Faixa de criar', 'Registro ou Vitrine'],
     para: 'Criar e consultar no mesmo lugar: Faixa de criar em cima; embaixo, o arquivo como Registro (Propostas) ou Vitrine (Publicações).',
     onde: { s: ['propostas'], a: ['publicacoes'] } },
@@ -364,7 +365,7 @@ const PECAS = [
       para: 'O resultado em números enquanto se monta algo: total em destaque e as partes embaixo, preso à direita.',
       onde: { s: ['emissor'] } },
     { id: 'previa-de-folha', nome: 'Prévia de folha', modelo: 'Empresa',
-      para: '"Como sai no contrato / no documento" sobre um pedaço de folha. No Editor com prévia é a folha inteira, e o texto livre se escreve direto nela.',
+      para: '"Como sai no contrato / no documento" sobre um pedaço de folha. No Editor com prévia é a folha inteira, e o conteúdo próprio do documento se escreve direto nela.',
       onde: { s: ['empresa', 'pessoa'], a: ['emissao'] } },
   ] },
   { grupo: 'Comandos', itens: [
