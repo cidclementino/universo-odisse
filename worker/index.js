@@ -270,7 +270,7 @@ export const Vendas = entrada('vendas');
 export const Projetos = entrada('projetos');
 export const Fornecedores = entrada('fornecedores');
 export const Marketing = entrada('marketing');
-// odisse.com.br (0011): só equipe/publica e equipe/:id/foto
+// odisse.com.br: equipe/publica e equipe/:id/foto (0011) e as rotas acervo/site/… (0020: só as imagens públicas)
 export const Site = entrada('site');
 // radar.odisse (0014): contatos de corretores e oportunidades de terreno
 export const Radar = entrada('radar');

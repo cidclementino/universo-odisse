@@ -696,7 +696,9 @@ async function lerConteudo(env, ferramenta, id, url, cors, { semPermissao = fals
 async function buscar(env, ferramenta, url) {
   const q = normalizar(url.searchParams.get('q'));
   if (q.length < 2) return { itens: [] };
-  const visiveis = Object.keys(TABELAS).filter((t) => permissao(t, ferramenta) && !TABELAS[t].sensivel && TABELAS[t].busca);
+  // tabelas com linhas restritas para esta ferramenta (o marketing e as imagens restritas) ficam fora da busca geral
+  const visiveis = Object.keys(TABELAS).filter((t) => permissao(t, ferramenta) && !TABELAS[t].sensivel && TABELAS[t].busca
+    && !linhas(t, ferramenta));
   const filtro = url.searchParams.get('tabela');
   const tabelas = filtro ? visiveis.filter((t) => t === filtro) : visiveis;
   if (!tabelas.length) return { itens: [] };
