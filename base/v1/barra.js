@@ -12,8 +12,8 @@
     - <script ... data-auto="nao">      → não insere nada sozinha.
 
   Seções e itens vêm de ferramentas.json, no próprio hub: mudou lá, muda em todas.
-  O menu segue o padrão das listas (design.md): ferramentas por ramo em fundo de tons, grupos recolhíveis
-  (lembrados em universo:menu:fechados), seta em SVG, itens que reagem ao mouse; extras viram etiquetas no item.
+  O menu segue o padrão das listas (design.md): ferramentas por ramo em fundo de tons, itens que reagem ao mouse;
+  extras viram etiquetas no item. No menu os grupos NÃO recolhem (recolher é só para páginas).
   Os estilos ficam aqui dentro, com prefixo .ub-, para não depender de nada da ferramenta.
   Se o hub estiver fora do ar, nada aparece e a ferramenta segue normalmente.
 */
@@ -62,17 +62,11 @@
      faixa de título no tom forte, recolhível (seta em SVG); itens brancos que reagem ao mouse no tom do grupo */
   .ub-grupo { margin-top: 6px; border-radius: 8px; background: color-mix(in srgb, var(--g) 14%, #fff); }
   .ub-grupo + .ub-grupo { margin-top: 8px; }
-  .ub-faixa { display: flex; align-items: center; gap: 8px; width: 100%; padding: 7px 10px; border: 0; border-radius: 8px;
+  .ub-faixa { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 8px 8px 0 0;
     background: color-mix(in srgb, var(--g) 45%, #fff); color: #3F4B57; font: 700 10.5px/1.2 'Inter', system-ui, sans-serif;
-    letter-spacing: .08em; text-transform: uppercase; text-align: left; cursor: pointer; }
-  .ub-grupo.ub-aberto .ub-faixa { border-radius: 8px 8px 0 0; }
-  .ub-faixa:hover { background: color-mix(in srgb, var(--g) 60%, #fff); }
+    letter-spacing: .08em; text-transform: uppercase; }
   .ub-faixa span:last-child { font-weight: 500; letter-spacing: 0; text-transform: none; font-size: 11.5px; color: #5B6773; }
-  .ub-seta { display: inline-grid; place-items: center; width: 14px; height: 14px; flex: none; transition: transform .15s; }
-  .ub-seta svg { width: 12px; height: 12px; }
-  .ub-grupo.ub-aberto .ub-seta { transform: rotate(90deg); }
-  .ub-lista { display: none; flex-direction: column; gap: 4px; padding: 6px; }
-  .ub-grupo.ub-aberto .ub-lista { display: flex; }
+  .ub-lista { display: flex; flex-direction: column; gap: 4px; padding: 6px; }
   .ub-item { display: block; padding: 7px 10px; border-radius: 6px; color: inherit; text-decoration: none; background: #fff; border: 1px solid #D7DADD;
     transition: background-color .15s, border-color .15s, box-shadow .15s, transform .15s; }
   .ub-item:hover { background: color-mix(in srgb, var(--g) 16%, #fff); border-color: color-mix(in srgb, var(--g) 75%, #5B6773);
@@ -85,7 +79,7 @@
   .ub-extras { display: flex; gap: 4px; margin-top: 5px; }
   .ub-extra { padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 500; background: #E6E8EB; color: #5B6773; text-decoration: none; }
   .ub-extra:hover { background: #3F4B57; color: #FAFAF7; }
-  @media (prefers-reduced-motion: reduce) { .ub-item, .ub-seta { transition: none; } .ub-item:hover { transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .ub-item { transition: none; } .ub-item:hover { transform: none; } }
   /* telas estreitas: sem espaço para centrar, as seções ocupam o meio e rolam */
   @media (max-width: 860px) { .ub-sub { display: none; } }
   @media (max-width: 640px) { .ub-barra { grid-template-columns: auto minmax(0, 1fr) auto; column-gap: 10px; }
@@ -93,8 +87,6 @@
   `;
 
   const seta = '<svg viewBox="0 0 10 10" aria-hidden="true"><path d="M1.5 3.5 5 7l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>';
-  const SETA = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-  const FECHADOS = 'universo:menu:fechados';
   // cores da paleta da Marca (a barra não depende do marca.css); escuras entram clareadas, como no design.md
   const CORES = { ambar: '#ECC28F', ocre: '#BB8248', pessego: '#F2DDBE', areia: '#E3D9C6', nevoa: '#C9CED3',
     ardosia: 'color-mix(in srgb, #3F4B57 45%, white)', terra: 'color-mix(in srgb, #4A3726 45%, white)', grafite: 'color-mix(in srgb, #2E3036 45%, white)' };
@@ -134,7 +126,6 @@
     // só o que tem endereço e está no ar: o menu é para ir, não para listar planos.
     // Ferramentas por ramo (cor do ramo); Canais e Biblioteca num bloco neutro cada.
     const prontos = dados.itens.filter((f) => f.url && f.status !== 'em-breve');
-    const fech = (() => { try { return new Set(JSON.parse(localStorage.getItem(FECHADOS) || '[]')); } catch { return new Set(); } })();
     const linha = (f) => {
       const ativo = item && item.id === f.id ? ' ub-ativo' : '';
       const extras = (f.extra || []).map((x) => `<a class="ub-extra" href="${esc(x.url)}">${esc(x.nome)}</a>`).join('');
@@ -142,12 +133,10 @@
       return `<div class="ub-item${ativo}" data-url="${esc(f.url)}" role="link" tabindex="0"><b>${esc(f.nome)}</b>` +
         (f.descricao ? `<small>${esc(f.descricao)}</small>` : '') + (extras ? `<div class="ub-extras">${extras}</div>` : '') + '</div>';
     };
-    const bloco = (id, nome, cor, itens) => {
-      const aberto = !fech.has(id);
-      return `<div class="ub-grupo${aberto ? ' ub-aberto' : ''}" data-grupo="${esc(id)}" style="--g:${cor}">
-        <button type="button" class="ub-faixa" aria-expanded="${aberto}"><span class="ub-seta">${SETA}</span>${esc(nome)}<span>${itens.length}</span></button>
+    // no menu os grupos não recolhem (Cid, 19/11): recolher é só para páginas, quando for pertinente
+    const bloco = (id, nome, cor, itens) => `<div class="ub-grupo" style="--g:${cor}">
+        <div class="ub-faixa">${esc(nome)}<span>${itens.length}</span></div>
         <div class="ub-lista">${itens.map(linha).join('')}</div></div>`;
-    };
     const blocos = dados.secoes.map((s) => {
       const daSecao = prontos.filter((f) => f.secao === s.id);
       if (!daSecao.length) return '';
@@ -165,17 +154,6 @@
       : '') + blocos;
 
     painel.addEventListener('click', (e) => {
-      const faixa = e.target.closest('.ub-faixa');
-      if (faixa) {
-        e.stopPropagation();
-        const g = faixa.closest('.ub-grupo');
-        const aberto = g.classList.toggle('ub-aberto');
-        faixa.setAttribute('aria-expanded', String(aberto));
-        const s = (() => { try { return new Set(JSON.parse(localStorage.getItem(FECHADOS) || '[]')); } catch { return new Set(); } })();
-        aberto ? s.delete(g.dataset.grupo) : s.add(g.dataset.grupo);
-        try { localStorage.setItem(FECHADOS, JSON.stringify([...s])); } catch {}
-        return;
-      }
       if (e.target.closest('a')) return;
       const it = e.target.closest('.ub-item[data-url]');
       if (!it) return;
