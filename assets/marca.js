@@ -12,7 +12,8 @@ const MAIS = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke
 
 export function criarMarca({ esc, api, toque, MARCA, lerOdisse, gravarOdisse }) {
   let lang = 'pt';
-  let edicao = null;          // { dados, sha } enquanto edita
+  let edicao = null;          // { dados, sha }: a ficha sempre aberta
+  let sujo = false;           // mudou algo que ainda não foi salvo
   let aviso = '';             // mensagem acima do conteúdo (ok/erro)
   const recentes = {};        // caminho -> blob: URL de logos recém-enviados (o Pages leva 1–2 min)
   let raiz = null;
@@ -90,83 +91,6 @@ export function criarMarca({ esc, api, toque, MARCA, lerOdisse, gravarOdisse }) 
       <span class="sigla">${esc(n.sigla || '')}</span></header>`;
   }
 
-  // ---- leitura -------------------------------------------------------------
-
-  function leitura(d) {
-    const P = paleta(d);
-    const mae = d.nucleos.find((n) => n.marca_mae) || d.nucleos[0];
-    const outros = d.nucleos.filter((n) => n !== mae);
-    const e = d.endereco, c = d.contato;
-    const sitesNuc = doNucleo(d, 'sites'), redesNuc = doNucleo(d, 'redes');
-    const redesMae = Object.entries(d.redes || {}).filter(([k]) => !redesNuc.has(k)).map(([k, u]) => [NOMES_REDES[k] || k, u]);
-    const sitesMae = Object.entries(d.sites || {}).filter(([k]) => !sitesNuc.has(k)).map(([k, u]) => [NOMES_SITES[k] || k, u]);
-    const nomeCompleto = tr(d, 'nome_completo');
-
-    const maeHtml = `
-      <section class="bloco"><div class="bloco-cab"><span class="u-rotulo">Marca-mãe</span><span class="u-apoio">Atualizado em ${esc(d.atualizado || '')}</span></div>
-      <article class="u-cartao nucleo">
-        ${faixa(mae, P, { titulo: esc(d.nome), sub: nomeCompleto ? esc(nomeCompleto) : `<em>${FALTA}</em>`, mae: true })}
-        <div class="nucleo-corpo">
-          <p class="u-apoio">Nome, contato, endereço e textos de apresentação ficam em <a href="#/empresa">O Estúdio › Empresa</a>.</p>
-          <div class="divisor"></div>
-          <div class="duas">
-            <div class="grupo"><h3>Redes da marca</h3>${listaLinks(redesMae)}
-              <p class="u-apoio">Conta única para todos os núcleos. Redes próprias de um núcleo ficam no bloco dele.</p></div>
-            <div class="grupo"><h3>Sites da marca</h3>${listaLinks(sitesMae)}</div>
-          </div>
-          <div class="divisor"></div>
-          <div class="grupo"><h3>Núcleo ${esc(mae.nome.replace(/^Odisse /, ''))}</h3>
-            <div class="duas">
-              <div class="pilha">
-                <div class="campos">
-                  ${campoLeitura('Nome do núcleo', `<span class="v medio">${esc(mae.nome)}</span>`)}
-                  ${campoLeitura('Sigla', `<span class="v"><span class="chip forte">${esc(mae.sigla)}</span></span>`)}
-                  ${campoLeitura('Conteúdo', mostraTr(mae, 'conteudo'), { largo: true, trad: true })}
-                </div>
-                <div class="grupo pequeno"><span class="k">Cores do núcleo</span>${coresDoNucleo(mae, P)}</div>
-              </div>
-              <div class="grupo pequeno"><div class="linha-cab"><span class="k">Logos e selo</span><span class="u-apoio">${(mae.logos || []).length + 1} peças · SVG</span></div>
-                ${pecas(mae)}<p class="u-apoio">${mae.selo ? `${esc(mae.selo.nome)}: ${esc(tr(mae.selo, 'uso') || FALTA)}` : ''}</p></div>
-            </div>
-          </div>
-        </div>
-      </article></section>`;
-
-    const nucleosHtml = `
-      <section class="bloco"><div class="bloco-cab"><span class="u-rotulo">Núcleos</span><span class="u-apoio">Nome, sigla, cores, canais, logos e selo de cada núcleo</span></div>
-      <div class="pilha">${outros.map((n) => `
-        <article class="u-cartao nucleo">
-          ${faixa(n, P, { titulo: esc(n.nome), sub: tr(n, 'conteudo') ? esc(tr(n, 'conteudo')) : `<em>${FALTA}</em>` })}
-          <div class="nucleo-corpo duas">
-            <div class="pilha">
-              <div class="grupo"><h3>Cores do núcleo</h3>${coresDoNucleo(n, P)}</div>
-              <div class="grupo"><h3>Canais do núcleo</h3>${listaLinks(canaisDe(d, n))}</div>
-            </div>
-            <div class="grupo"><div class="linha-cab"><h3>Logos e selo</h3><span class="u-apoio">${(n.logos || []).length + 1} peças · SVG</span></div>
-              ${pecas(n)}<p class="u-apoio">${n.selo ? `${esc(n.selo.nome)}: ${esc(tr(n.selo, 'uso') || FALTA)}` : ''}</p></div>
-          </div>
-        </article>`).join('')}</div></section>`;
-
-    const papeis = Object.entries(d.papeis || {}).map(([k, id]) => `<div class="nc"><i style="background:${esc(P[id]?.valor)}"></i>
-      <div><b>${NOMES_PAPEIS[k] || k}</b><small>${esc(P[id]?.nome || id)} · ${esc(P[id]?.valor || '')}</small></div></div>`).join('');
-    const paletaHtml = `
-      <section class="bloco"><div class="bloco-cab"><span class="u-rotulo">Paleta e tipografia</span><span class="u-apoio">Clique numa cor para copiar o código</span></div>
-      <div class="u-cartao painel-largo pilha">
-        <div class="grupo"><h3>Papéis</h3><div class="trio">${papeis}</div></div>
-        <div class="grupo"><h3>Cores</h3><div class="cores">${(d.paleta || []).map((p) => `
-          <button type="button" class="cor" data-c="${esc(p.valor)}"><span class="amostra" style="background:${esc(p.valor)}"></span>
-            <span class="cor-nome"><b>${esc(p.nome)}</b>${p.principal ? '<span class="chip forte">Principal</span>' : ''}</span>
-            <small>${esc(p.valor)} · --odisse-${esc(p.id)}</small>
-            ${tr(p, 'funcao') ? `<span class="funcao">${esc(tr(p, 'funcao'))}</span>` : `<span class="funcao falta">${FALTA}</span>`}</button>`).join('')}</div>
-          <p class="u-apoio">Texto corrido só a partir de 4,5:1 de contraste.</p></div>
-        <div class="grupo tipo"><h3>Tipografia</h3>
-          <div class="g">Arquitetura e design entre memória e potencialidade</div>
-          <div class="pesos"><span style="font-weight:300">Inter Leve 300</span><span>Regular 400</span><span style="font-weight:500">Médio 500</span><span style="font-weight:600">Seminegrito 600</span><span style="font-weight:700">Negrito 700</span></div></div>
-      </div></section>`;
-
-    return maeHtml + nucleosHtml + paletaHtml;
-  }
-
   // ---- edição --------------------------------------------------------------
   // Cada campo tem data-k com o caminho no odisse.json. Em inglês, os traduzíveis apontam para a
   // chave `_en` e o resto fica travado (igual nas duas línguas).
@@ -192,38 +116,42 @@ export function criarMarca({ esc, api, toque, MARCA, lerOdisse, gravarOdisse }) 
       ${Object.values(P).map((p) => `<option value="${esc(p.id)}"${p.id === atual ? ' selected' : ''}>${esc(p.nome)} · ${esc(p.valor)}</option>`).join('')}</select></div></div>`;
   }
 
+  // Ficha da Marca (Cid, 19/11): o mesmo sistema de caixas da Empresa e da Equipe. Sempre editável; a barra de
+  // salvar aparece quando algo muda. Uma caixa por núcleo (a marca-mãe primeiro) e uma de paleta e tipografia.
   function edicaoHtml() {
-    const d = edicao.dados, P = paleta(d), c = d.contato, e = d.endereco;
+    const d = edicao.dados, P = paleta(d);
     const mae = d.nucleos.find((n) => n.marca_mae) || d.nucleos[0];
-    const outros = d.nucleos.filter((n) => n !== mae);
+    const ordem = [mae, ...d.nucleos.filter((n) => n !== mae)];
     const sitesNuc = doNucleo(d, 'sites'), redesNuc = doNucleo(d, 'redes');
-    const grupo = (t, html, cls = '') => `<div class="grupo"><h3>${t}</h3><div class="campos ${cls}">${html}</div></div>`;
-    const nucleoCampos = (n) =>
-      inp(`nucleos.${n.id}.nome`, n.marca_mae ? 'Nome do núcleo' : 'Nome', n.nome) +
-      inp(`nucleos.${n.id}.sigla`, 'Sigla', n.sigla, { trava: true }) +
-      inp(`nucleos.${n.id}.conteudo`, 'Conteúdo', n.conteudo, { trad: true, largo: true }) +
-      Object.entries(n.cores || {}).map(([k, id]) => seletorCor(`nucleos.${n.id}.cores.${k}`, NOMES_CORES[k] || k, id, P)).join('') +
-      (n.selo ? inp(`nucleos.${n.id}.selo.uso`, `Uso do selo ${n.selo.nome}`, n.selo.uso, { trad: true, largo: true }) : '') +
-      (n.sites || []).map((k) => inp(`sites.${k}`, NOMES_SITES[k] || k, d.sites[k], { tipo: 'url' })).join('') +
-      (n.redes || []).map((k) => inp(`redes.${k}`, NOMES_REDES[k] || k, d.redes[k], { tipo: 'url' })).join('');
+    const caixa = (n) => {
+      const ehMae = n === mae;
+      const canais = [
+        ...(ehMae ? Object.keys(d.sites || {}).filter((k) => !sitesNuc.has(k)) : n.sites || []).map((k) => inp(`sites.${k}`, NOMES_SITES[k] || k, d.sites[k], { tipo: 'url' })),
+        ...(ehMae ? Object.keys(d.redes || {}).filter((k) => !redesNuc.has(k)) : n.redes || []).map((k) => inp(`redes.${k}`, NOMES_REDES[k] || k, d.redes[k], { tipo: 'url' })),
+      ].join('');
+      const pintura = P[n.cores?.painel]?.valor || '#E6E8EB';
+      return `<section class="u-cartao eq-sec mc-nucleo">
+        <div class="eq-sec-cab"><h2 class="u-subtitulo"><span class="mc-amostra" style="background:${esc(pintura)}"></span>${esc(n.nome)}</h2>
+          <span class="mc-etqs"><span class="etq">${esc(n.sigla || '')}</span>${ehMae ? '<span class="etq etq--ok">marca-mãe</span>' : ''}</span></div>
+        <div class="eq-tres">
+          <div class="eq-col">${inp(`nucleos.${n.id}.nome`, 'Nome', n.nome)}
+            ${inp(`nucleos.${n.id}.conteudo`, 'Conteúdo', n.conteudo, { trad: true, area: true })}
+            ${n.selo ? inp(`nucleos.${n.id}.selo.uso`, `Uso do selo ${n.selo.nome}`, n.selo.uso, { trad: true, area: true }) : ''}</div>
+          <div class="eq-col"><span class="u-rotulo mc-rot">Cores</span>
+            ${Object.entries(n.cores || {}).map(([k, id]) => seletorCor(`nucleos.${n.id}.cores.${k}`, NOMES_CORES[k] || k, id, P)).join('')}</div>
+          <div class="eq-col"><span class="u-rotulo mc-rot">${ehMae ? 'Sites e redes da marca' : 'Canais do núcleo'}</span>
+            ${canais || '<p class="u-apoio">Usa os canais da marca-mãe.</p>'}</div>
+        </div>
+        <div class="mc-logos"><div class="mc-logos-cab"><span class="u-rotulo">Logos e selo</span><span class="u-apoio">${(n.logos || []).length + (n.selo ? 1 : 0)} peças · SVG</span></div>
+          ${pecas(n)}</div>
+      </section>`;
+    };
 
-    return `<form class="edicao" data-form="marca" novalidate>
-      <section class="bloco"><div class="bloco-cab"><span class="u-rotulo">Marca-mãe</span></div>
-      <div class="u-cartao painel-largo pilha">
-        ${grupo('Redes da marca', Object.keys(d.redes || {}).filter((k) => !redesNuc.has(k)).map((k) => inp(`redes.${k}`, NOMES_REDES[k] || k, d.redes[k], { tipo: 'url' })).join(''))}
-        ${grupo('Sites da marca', Object.keys(d.sites || {}).filter((k) => !sitesNuc.has(k)).map((k) => inp(`sites.${k}`, NOMES_SITES[k] || k, d.sites[k], { tipo: 'url' })).join(''))}
-        <div class="divisor"></div>
-        ${grupo(`Núcleo ${esc(mae.nome.replace(/^Odisse /, ''))}`, nucleoCampos(mae))}
-      </div></section>
+    return `<form class="edicao eq-ficha" data-form="marca" novalidate>
+      ${ordem.map(caixa).join('')}
 
-      <section class="bloco"><div class="bloco-cab"><span class="u-rotulo">Núcleos</span></div>
-      <div class="pilha">${outros.map((n) => `<article class="u-cartao nucleo">
-        ${faixa(n, P, { titulo: esc(n.nome), sub: esc(tr(n, 'conteudo') || '') })}
-        <div class="nucleo-corpo"><div class="campos">${nucleoCampos(n)}</div></div></article>`).join('')}</div></section>
-
-      <section class="bloco"><div class="bloco-cab"><span class="u-rotulo">Paleta</span>
-        <span class="u-apoio">O nome da cor é fixo (os sites leem --odisse-&lt;nome&gt;); valor, função e principal mudam.</span></div>
-      <div class="u-cartao painel-largo pilha">
+      <section class="u-cartao eq-sec"><div class="eq-sec-cab"><h2 class="u-subtitulo">Paleta</h2>
+          <span class="u-apoio">O nome da cor é fixo (os sites leem --odisse-&lt;nome&gt;)</span></div>
         <div class="linhas-cor">
           <div class="linha-cor cab"><span></span><span>Cor</span><span>Valor</span><span>Função</span><span>Principal</span></div>
           ${(d.paleta || []).map((p) => {
@@ -240,15 +168,21 @@ export function criarMarca({ esc, api, toque, MARCA, lerOdisse, gravarOdisse }) 
               <small class="contraste">${contrasteTexto(p.valor, P)}</small>
             </div>`;
           }).join('')}
-        </div>
-        <div class="grupo"><h3>Papéis</h3><div class="campos tres">
-          ${Object.entries(d.papeis || {}).map(([k, id]) => seletorCor(`papeis.${k}`, NOMES_PAPEIS[k] || k, id, P)).join('')}</div></div>
-      </div></section>
+        </div></section>
 
-      <div class="barra-salvar">
+      <section class="u-cartao eq-sec"><h2 class="u-subtitulo">Papéis e tipografia</h2>
+        <div class="eq-tres">
+          ${Object.entries(d.papeis || {}).map(([k, id]) => `<div class="eq-col">${seletorCor(`papeis.${k}`, NOMES_PAPEIS[k] || k, id, P)}</div>`).join('')}
+        </div>
+        <div class="mc-tipo"><span class="u-rotulo">Inter</span>
+          <div class="g">Arquitetura e design entre memória e potencialidade</div>
+          <div class="pesos"><span style="font-weight:300">Leve 300</span><span>Regular 400</span><span style="font-weight:500">Médio 500</span><span style="font-weight:600">Seminegrito 600</span><span style="font-weight:700">Negrito 700</span></div></div>
+      </section>
+
+      <div class="barra-salvar" data-barra${sujo || aviso ? '' : ' hidden'}>
         ${aviso}
         <span class="u-apoio">Salvar grava no repositório marca-odisse, com histórico. Os sites atualizam em 1 a 2 minutos.</span>
-        <button class="u-botao" type="button" data-acao="cancelar">Cancelar</button>
+        <button class="u-botao" type="button" data-acao="cancelar">Descartar</button>
         <button class="u-botao forte" type="submit">Salvar</button>
       </div>
     </form>`;
@@ -291,40 +225,31 @@ export function criarMarca({ esc, api, toque, MARCA, lerOdisse, gravarOdisse }) 
 
   function cabecalho() {
     const b = (l) => `<button type="button" data-lang="${l}" class="${lang === l ? 'on' : ''}" aria-pressed="${lang === l}">${l.toUpperCase()}</button>`;
-    const texto = edicao
-      ? (en() ? 'Editando a versão em inglês. Só os textos que se traduzem ficam abertos; o resto é igual nas duas línguas. O português fica embaixo de cada campo, de referência.'
-        : 'Editando. Troque para EN para preencher as traduções.')
-      : (en() ? 'Vendo o conteúdo em inglês. O que não tem tradução aparece marcado; e-mail, telefone, endereço, links e nomes são os mesmos nas duas línguas.'
-        : 'Quem somos: a marca-mãe, os núcleos, a paleta e a tipografia. Todos os sites e ferramentas leem daqui.');
-    const acoes = edicao ? '' : `<a class="u-botao" href="${MARCA}" target="_blank" rel="noopener">Arquivos públicos ↗</a>
-      <button class="u-botao forte" type="button" data-acao="editar">Editar</button>`;
-    return `<div class="cab"><div><div class="titulo-linha"><h1 class="u-titulo">${edicao ? 'Marca · editando' : 'Marca'}</h1>
-      <div class="chave-lingua" role="group" aria-label="Língua do conteúdo">${b('pt')}${b('en')}</div></div>
-      <p class="u-apoio">${texto}</p></div><div class="lado acoes-cab">${acoes}</div></div>`;
+    return `<div class="cab"><div><div class="titulo-linha"><h1 class="u-titulo">Marca</h1>
+      <div class="chave-lingua" role="group" aria-label="Língua do conteúdo">${b('pt')}${b('en')}</div></div></div>
+      <div class="lado acoes-cab"><a class="u-botao" href="${MARCA}" target="_blank" rel="noopener">Arquivos públicos ↗</a></div></div>`;
   }
 
   function desenhar() {
     if (!raiz) return;
-    const d = lerOdisse();
-    let corpo;
-    if (edicao) corpo = edicaoHtml();
-    else if (!d) corpo = '<p class="u-apoio">Não foi possível ler os dados da marca.</p>';
-    else corpo = (aviso ? `<div class="aviso-marca">${aviso}</div>` : '') + leitura(d);
-    raiz.innerHTML = cabecalho() + corpo;
+    if (!edicao?.dados) { raiz.innerHTML = cabecalho() + '<p class="u-apoio">Não foi possível ler os dados da marca.</p>'; return; }
+    raiz.innerHTML = cabecalho() + edicaoHtml();
   }
 
-  async function abrirEdicao() {
-    aviso = '';
-    raiz.querySelector('[data-acao="editar"]')?.setAttribute('disabled', '');
+  // abre com a cópia que o hub já tem e busca por baixo a versão do repositório (com o sha para salvar)
+  async function carregar() {
     let r;
     try { r = await api('/api/marca'); } catch { r = { status: 0 }; }
     if (r.status !== 200) {
-      aviso = `<p class="erro">${r.status === 401 ? 'Senha incorreta: saia e entre de novo.' : esc(r.error || 'Não foi possível falar com o servidor do Universo.')}</p>`;
-      return desenhar();
+      aviso = `<p class="erro">${r.status === 401 ? 'Senha incorreta: saia e entre de novo.' : esc(r.error || 'Não foi possível falar com o servidor do Universo; salvar fica indisponível.')}</p>`;
+      if (!sujo) desenhar();
+      return;
     }
-    edicao = { dados: r.dados, sha: r.sha };
+    const mudou = JSON.stringify(r.dados) !== JSON.stringify(edicao?.dados);
     gravarOdisse(r.dados);
-    desenhar();
+    if (sujo) { edicao.sha = r.sha; return; }
+    edicao = { dados: r.dados, sha: r.sha };
+    if (mudou) desenhar();
   }
 
   async function salvar(form) {
@@ -335,13 +260,13 @@ export function criarMarca({ esc, api, toque, MARCA, lerOdisse, gravarOdisse }) 
     try { r = await api('/api/marca', { method: 'PUT', body: JSON.stringify({ dados: edicao.dados, sha: edicao.sha }) }); }
     catch { r = { status: 0, error: 'Não foi possível falar com o servidor do Universo.' }; }
     if (r.status === 200) {
-      gravarOdisse(r.dados); edicao = null;
+      gravarOdisse(r.dados); edicao = { dados: r.dados, sha: r.sha }; sujo = false;
       aviso = r.semMudanca ? '<p class="ok">Nada mudou.</p>'
         : `<p class="ok">Salvo: ${esc((r.mudou || []).join(', '))}. Os sites atualizam em 1 a 2 minutos.${r.commit ? ` <a href="${esc(r.commit)}" target="_blank" rel="noopener">ver alteração</a>` : ''}</p>`;
-      desenhar(); window.scrollTo(0, 0); return;
+      desenhar(); toque(r.semMudanca ? 'Nada mudou' : 'Salvo'); return;
     }
     if (r.status === 409) {
-      edicao = { dados: r.dados, sha: r.sha };
+      edicao = { dados: r.dados, sha: r.sha }; sujo = false;
       aviso = '<p class="erro">Alguém salvou a marca enquanto você editava. O formulário foi recarregado com a versão atual; refaça sua alteração.</p>';
     } else {
       aviso = `<p class="erro">${esc(r.error || 'Não foi possível salvar.')}</p>`;
@@ -506,8 +431,10 @@ export function criarMarca({ esc, api, toque, MARCA, lerOdisse, gravarOdisse }) 
 
   function ligar(el) {
     raiz = el;
-    edicao = null; aviso = '';
+    aviso = ''; sujo = false;
+    edicao = { dados: structuredClone(lerOdisse()), sha: null };
     desenhar();
+    carregar();
     el.addEventListener('click', async (ev) => {
       const l = ev.target.closest('[data-lang]');
       if (l) {
@@ -518,13 +445,16 @@ export function criarMarca({ esc, api, toque, MARCA, lerOdisse, gravarOdisse }) 
       const cor = ev.target.closest('.cor[data-c]');
       if (cor) { try { await navigator.clipboard.writeText(cor.dataset.c); toque('Copiado: ' + cor.dataset.c); } catch { toque(cor.dataset.c); } return; }
       const b = ev.target.closest('[data-acao]'); if (!b) return;
-      if (b.dataset.acao === 'editar') abrirEdicao();
-      if (b.dataset.acao === 'cancelar') { edicao = null; aviso = ''; desenhar(); window.scrollTo(0, 0); }
+      if (b.dataset.acao === 'cancelar') { sujo = false; aviso = ''; edicao = { dados: structuredClone(lerOdisse()), sha: edicao?.sha }; desenhar(); carregar(); }
       if (b.dataset.acao === 'logo') abrirLogo(b.dataset.nucleo);
     });
     el.addEventListener('submit', (ev) => { if (ev.target.dataset.form === 'marca') { ev.preventDefault(); salvar(ev.target); } });
+    el.addEventListener('keydown', (ev) => {
+      if ((ev.ctrlKey || ev.metaKey) && ev.key === 's') { const f = el.querySelector('form[data-form="marca"]'); if (f) { ev.preventDefault(); f.requestSubmit(); } }
+    });
     // cor: o seletor nativo e o código andam juntos; a amostra e o contraste acompanham
     el.addEventListener('input', (ev) => {
+      if (ev.target.closest('form[data-form="marca"]') && !sujo) { sujo = true; aviso = ''; const bar = el.querySelector('[data-barra]'); if (bar) bar.hidden = false; }
       const linha = ev.target.closest('.linha-cor[data-cor]');
       if (linha) {
         const texto = linha.querySelector('input[type=text][data-k$=".valor"]'), roda = linha.querySelector('input[type=color]');

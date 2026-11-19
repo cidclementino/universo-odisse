@@ -27,10 +27,39 @@ export function aplicarTextos(mapa, textos) {
 }
 export const textosGuardados = () => lerCopia(COPIA) || [];
 
-export function criarFerramentas({ esc, api, toque, lerMapa }) {
+// Ferramentas (padrão): um grupo por ramo, com os itens da seção Ferramentas do mapa.
+const FERRAMENTAS = {
+  titulo: 'Ferramentas', colunas: ['Ferramenta', 'O que faz', 'Onde', 'Estado'], fechados: FECHADOS, unidade: ['ferramenta', 'ferramentas'],
+  grupos: (mapa) => (mapa.ramos || []).map((r) => ({ id: r.id, nome: r.nome, cor: r.cor, itens: mapa.itens.filter((f) => f.secao === 'ferramentas' && f.ramo === r.id) })),
+};
+
+// Canais (O Estúdio › Canais): sites do mapa e redes do odisse.json, no mesmo desenho da lista de Ferramentas.
+const NOMES_REDES = { instagram: 'Instagram', tiktok: 'TikTok', youtube: 'YouTube', substack: 'Substack', pinterest: 'Pinterest', linkedin: 'LinkedIn', behance: 'Behance' };
+const DESC_REDES = { instagram: 'Perfil do estúdio: projetos, objetos e bastidores', tiktok: 'Vídeos curtos do estúdio', youtube: 'Vídeos e podcast',
+  substack: 'Elaia: ensaios e podcast', pinterest: 'Pastas de referência e projetos' };
+const semProtocolo = (u) => String(u || '').replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '');
+export function configCanais(lerOdisse) {
+  return {
+    titulo: 'Canais', classe: 'lista-canais', colunas: ['Canal', 'O que é', 'Endereço', 'Estado'], fechados: 'universo:canais:fechados', unidade: ['canal', 'canais'],
+    grupos: (mapa, textos) => {
+      const desc = (id, padrao) => (textos.find((t) => t.chave === id)?.descricao) || padrao;
+      const redes = Object.entries(lerOdisse()?.redes || {}).map(([k, url]) => ({
+        id: 'rede-' + k, nome: NOMES_REDES[k] || k, url, status: url ? 'no-ar' : 'em-breve', descricao: desc('rede-' + k, DESC_REDES[k] || ''),
+      }));
+      return [
+        { id: 'sites', nome: 'Sites', cor: 'ardosia', itens: mapa.itens.filter((f) => f.secao === 'canais') },
+        { id: 'redes', nome: 'Redes e publicações', cor: 'ambar', itens: redes },
+      ];
+    },
+    onde: (f) => semProtocolo(f.url).replace(/\/admin$/, ''),
+  };
+}
+
+export function criarFerramentas({ esc, api, toque, lerMapa, config = FERRAMENTAS }) {
   let textos = textosGuardados();
-  const fechados = () => { try { return new Set(JSON.parse(localStorage.getItem(FECHADOS) || '[]')); } catch { return new Set(); } };
-  const guardarFechados = (s) => { try { localStorage.setItem(FECHADOS, JSON.stringify([...s])); } catch {} };
+  const atuais = new Map(); // id → item do que está desenhado (para o ✎)
+  const fechados = () => { try { return new Set(JSON.parse(localStorage.getItem(config.fechados) || '[]')); } catch { return new Set(); } };
+  const guardarFechados = (s) => { try { localStorage.setItem(config.fechados, JSON.stringify([...s])); } catch {} };
 
   // cartão de uma ferramenta: o mesmo desenho dos cartões do PGT (Projetos › Plano Geral de Trabalho)
   function cartao(f) {
@@ -39,9 +68,9 @@ export function criarFerramentas({ esc, api, toque, lerMapa }) {
     return `<div class="ferr${breve ? ' is-breve' : ''}" data-id="${esc(f.id)}"${breve ? '' : ` data-url="${esc(f.url)}"`}>
       <div class="ferr__ctl"><button type="button" class="ctl__btn" data-editar title="Editar descrição"
         aria-label="Editar a descrição de ${esc(f.nome)}">${LAPIS}</button></div>
-      <div>${nome}</div>
-      <div class="ferr__oque"><span class="texto">${esc(f.descricao)}</span></div>
-      <div class="ferr__onde">${breve ? '<span class="vazio">—</span>' : `<span class="etq">${esc(appDe(f.url))}</span>`}</div>
+      <div class="ferr__titulo">${nome}${(f.extra || []).map((x) => `<a class="etq etq--link" href="${esc(x.url)}">${esc(x.nome)}</a>`).join('')}</div>
+      <div class="ferr__oque"><span class="texto">${esc(f.descricao || '')}</span></div>
+      <div class="ferr__onde">${breve ? '<span class="vazio">—</span>' : `<span class="etq">${esc(config.onde ? config.onde(f) : appDe(f.url))}</span>`}</div>
       <div class="ferr__estado">${breve ? '<span class="etq etq--breve">em breve</span>' : '<span class="etq etq--ok">no ar</span>'}</div>
     </div>`;
   }
@@ -50,13 +79,15 @@ export function criarFerramentas({ esc, api, toque, lerMapa }) {
     const mapa = lerMapa();
     aplicarTextos(mapa, textos);
     const fech = fechados();
-    const itens = mapa.itens.filter((f) => f.secao === 'ferramentas');
-    const grupos = (mapa.ramos || []).map((r) => {
-      const doRamo = itens.filter((f) => f.ramo === r.id);
+    atuais.clear();
+    const grupos = config.grupos(mapa, textos).map((r) => {
+      const doRamo = r.itens;
       if (!doRamo.length) return '';
+      doRamo.forEach((f) => atuais.set(f.id, f));
       const aberto = !fech.has(r.id);
       const noAr = doRamo.filter((f) => f.url && f.status !== 'em-breve').length;
-      const conta = noAr === doRamo.length ? `${doRamo.length} ${doRamo.length === 1 ? 'ferramenta' : 'ferramentas'}`
+      const [um, varios] = config.unidade;
+      const conta = noAr === doRamo.length ? `${doRamo.length} ${doRamo.length === 1 ? um : varios}`
         : noAr === 0 ? `${doRamo.length} em breve` : `${noAr} no ar · ${doRamo.length - noAr} em breve`;
       const cor = `var(--odisse-${esc(r.cor || 'nevoa')})`;
       const forca = ESCURAS.has(r.cor) ? '45%' : '100%';
@@ -66,9 +97,9 @@ export function criarFerramentas({ esc, api, toque, lerMapa }) {
         <div class="ramo__pilha">${doRamo.map(cartao).join('')}</div>
       </section>`;
     }).join('');
-    raiz.innerHTML = `<div class="cab"><h1 class="u-titulo">Ferramentas</h1></div>
-      <div class="lista-ferramentas">
-        <div class="ferr-cab"><span></span><span>Ferramenta</span><span>O que faz</span><span>Onde</span><span>Estado</span></div>
+    raiz.innerHTML = `<div class="cab"><h1 class="u-titulo">${esc(config.titulo)}</h1></div>
+      <div class="lista-ferramentas ${esc(config.classe || '')}">
+        <div class="ferr-cab"><span></span>${config.colunas.map((c) => `<span>${esc(c)}</span>`).join('')}</div>
         ${grupos}
       </div>`;
   }
@@ -76,7 +107,7 @@ export function criarFerramentas({ esc, api, toque, lerMapa }) {
   function editar(card) {
     const span = card.querySelector('.texto');
     if (span.isContentEditable) return;
-    const f = lerMapa().itens.find((x) => x.id === card.dataset.id);
+    const f = atuais.get(card.dataset.id);
     card.querySelector('[data-editar]').classList.add('is-on');
     const antes = span.textContent;
     span.contentEditable = 'plaintext-only';
@@ -105,6 +136,7 @@ export function criarFerramentas({ esc, api, toque, lerMapa }) {
       textos = [...textos.filter((x) => x.chave !== f.id), r.registro];
       gravarCopia(COPIA, textos);
       aplicarTextos(lerMapa(), textos);
+      if (!lerMapa().itens.some((x) => x.id === f.id)) f.descricao = novo;
       toque('Salvo');
     };
     span.addEventListener('keydown', (ev) => {

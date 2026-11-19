@@ -481,3 +481,24 @@ li.eq-item.alvo-depois { box-shadow: 0 3px 0 var(--odisse-ocre, #BB8248); }
 .modelo-txt .u-apoio { font-size: 12.5px; }
 .modelo-acoes { display: flex; gap: 8px; flex-wrap: wrap; margin-top: auto; }
 .barra-salvar[hidden] { display: none; }
+
+/* ---- Marca: ficha no sistema de caixas da Empresa e da Equipe ---- */
+.edicao.eq-ficha .eq-col > .c { margin-bottom: 14px; }
+.edicao .orig { border-left: 0; padding-left: 0; }
+.mc-nucleo .u-subtitulo { display: flex; align-items: center; gap: 10px; }
+.mc-amostra { width: 14px; height: 14px; border-radius: 999px; border: 1px solid rgba(46,48,54,.15); flex: none; }
+.mc-etqs { display: flex; gap: 6px; }
+.mc-rot { display: block; margin-bottom: 10px; }
+.mc-logos { margin-top: 10px; padding-top: 18px; border-top: 1px solid var(--u-linha); }
+.mc-logos-cab { display: flex; align-items: baseline; gap: 10px; margin-bottom: 12px; }
+.mc-tipo { margin-top: 10px; padding-top: 18px; border-top: 1px solid var(--u-linha); }
+.mc-tipo .g { font-size: 28px; font-weight: 500; letter-spacing: -.02em; margin: 8px 0 10px; }
+.mc-tipo .pesos { display: flex; gap: 18px; flex-wrap: wrap; font-size: 13px; color: var(--u-tinta-2); }
+/* nome do cartão com etiqueta de link extra (ex.: Painel do site) */
+.ferr__titulo { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.etq--link { text-decoration: none; position: relative; z-index: 1; }
+.etq--link:hover { background: var(--u-tinta); color: var(--odisse-papel, #FAFAF7); }
+.lista-canais { --cols: 44px minmax(180px, 22%) minmax(0, 1fr) 240px 96px; }
+.ferr__onde .etq { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle; }
+.mc-nucleo .eq-sec-cab, .edicao.eq-ficha .eq-sec > .eq-sec-cab { margin-bottom: 18px; }
+.edicao.eq-ficha textarea { min-height: 76px; }

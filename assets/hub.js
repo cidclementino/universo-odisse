@@ -6,7 +6,7 @@
 import { criarMarca } from './marca.js';
 import { criarDocumentos } from './documentos.js';
 import { criarEquipe } from './equipe.js';
-import { criarFerramentas, aplicarTextos, textosGuardados } from './ferramentas.js';
+import { criarFerramentas, aplicarTextos, textosGuardados, configCanais } from './ferramentas.js';
 import { criarEmpresa } from './empresa.js';
 
 const MARCA = 'https://marca.odisse.com.br/';
@@ -99,6 +99,7 @@ const marca = criarMarca({
 const documentos = criarDocumentos({ esc, api, apiBinario, toque, lerOdisse: () => ODISSE });
 const equipe = criarEquipe({ esc, api, apiBinario, toque });
 const ferramentas = criarFerramentas({ esc, api, toque, lerMapa: () => MAPA });
+const canais = criarFerramentas({ esc, api, toque, lerMapa: () => MAPA, config: configCanais(() => ODISSE) });
 const empresa = criarEmpresa({ esc, api, toque, lerOdisse: () => ODISSE, gravarOdisse: (d) => { ODISSE = d; } });
 
 // O Estúdio (Cid, 19/11): Empresa · Equipe · Marca · Canais são subpáginas, com abas no alto
@@ -126,16 +127,7 @@ const PAGINAS = {
   },
 
   canais() {
-    const nomes = { instagram: 'Instagram', tiktok: 'TikTok', youtube: 'YouTube', substack: 'Substack' };
-    const redes = ODISSE ? Object.entries(ODISSE.redes).map(([id, url]) => cartao({
-      nome: nomes[id] || id, url, acesso: 'publica', status: 'no-ar',
-      descricao: id === 'substack' ? 'Elaia: ensaios e podcast' : semProtocolo(url).replace(/^[^/]+\//, '').replace(/\/$/, ''),
-    })) : [];
-    // o grupo "redes" não tem itens no mapa: os endereços vêm do odisse.json, fonte única
-    return cabecalho('Canais', '') +
-      blocosDaSecao('canais') +
-      `<section class="bloco"><span class="u-rotulo">Redes e publicações</span>
-        <div class="cartoes">${redes.join('') || '<p class="u-apoio">Não foi possível ler os dados da Marca.</p>'}</div></section>`;
+    return '<div id="pagina-canais" class="pagina-ferramentas"></div>';
   },
 
   empresa() {
@@ -170,6 +162,7 @@ function depois(rota) {
   if (rota === 'equipe') equipe.ligar(vista.querySelector('#pagina-equipe'));
   if (rota === 'ferramentas') ferramentas.ligar(vista.querySelector('#pagina-ferramentas'));
   if (rota === 'empresa') empresa.ligar(vista.querySelector('#pagina-empresa'));
+  if (rota === 'canais') canais.ligar(vista.querySelector('#pagina-canais'));
   if (rota === 'biblioteca') documentos.ligarModelos(vista.querySelector('#biblioteca-modelos'));
 }
 
