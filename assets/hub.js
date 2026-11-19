@@ -103,17 +103,12 @@ const ferramentas = criarFerramentas({ esc, api, toque, lerMapa: () => MAPA });
 
 const PAGINAS = {
   inicio() {
+    // só o resumo de hoje (Cid, 19/11): atalhos e "em construção" saíram; as ferramentas ficam na página Ferramentas
     const hoje = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
-    const atalhos = MAPA.itens.filter((f) => f.url && f.status !== 'em-breve' && f.acesso === 'interna');
-    const proximos = MAPA.itens.filter((f) => f.secao === 'ferramentas' && f.status === 'em-breve');
     return cabecalho('Início', 'O que importa hoje no Odisse.', hoje) +
       `<section class="bloco"><span class="u-rotulo">Hoje</span>
         <div class="aviso">Quando Contatos e funil, Calendário e Horas existirem, este espaço mostra as pendências do dia:
-        contatos a responder, próximos posts e horas da semana.</div></section>
-      <section class="bloco"><span class="u-rotulo">Atalhos</span>
-        <div class="cartoes compactos">${atalhos.map(cartao).join('')}</div></section>
-      <section class="bloco"><span class="u-rotulo">Em construção</span>
-        <div class="cartoes compactos">${proximos.map(cartao).join('')}</div></section>`;
+        contatos a responder, próximos posts e horas da semana.</div></section>`;
   },
 
   ferramentas() {
