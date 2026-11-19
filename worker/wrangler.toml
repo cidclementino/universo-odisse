@@ -26,3 +26,15 @@ bucket_name = "universo-arquivos"
 binding = "SITE_ODISSE"
 service = "site-odisse"
 entrypoint = "Universo"
+
+# Início (Cid, 19/11): o panorama do dia vem das outras ferramentas, Worker a Worker (ponto de entrada
+# "Universo" de cada uma; ver worker/inicio.js). O SITE_ODISSE acima também dá as métricas do site.
+[[services]]
+binding = "RADAR"
+service = "radar-odisse"
+entrypoint = "Universo"
+
+[[services]]
+binding = "MARKETING"
+service = "universo-odisse" # Worker do marketing.odisse (nome antigo; renomear para marketing-odisse)
+entrypoint = "Universo"

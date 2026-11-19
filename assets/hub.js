@@ -1,4 +1,4 @@
-// Páginas do hub. Rotas por hash: #/ (Início), #/ferramentas, #/canais, #/equipe, #/marca, #/biblioteca, #/padroes.
+// Páginas do hub. Rotas por hash: #/ (Início, em assets/inicio.js), #/ferramentas, #/canais, #/equipe, #/marca, #/biblioteca, #/padroes.
 // Tudo vem de dois arquivos: ferramentas.json (aqui) e odisse.json (marca.odisse.com.br).
 // A página Marca mora em assets/marca.js; a página Documentos (#/documentos, aberta pela Biblioteca), em assets/documentos.js;
 // a página Equipe (#/equipe, seção própria da barra), em assets/equipe.js; a página Ferramentas, em assets/ferramentas.js.
@@ -9,6 +9,7 @@ import { criarEquipe } from './equipe.js';
 import { criarFerramentas, aplicarTextos, textosGuardados, configCanais } from './ferramentas.js';
 import { criarEmpresa } from './empresa.js';
 import { criarPadroes } from './padroes.js';
+import { criarInicio } from './inicio.js';
 
 const MARCA = 'https://marca.odisse.com.br/';
 const API = 'https://universo-hub.reservaprojectbasework.workers.dev';
@@ -104,6 +105,7 @@ const equipe = criarEquipe({ esc, api, apiBinario, toque });
 const ferramentas = criarFerramentas({ esc, api, toque, lerMapa: () => MAPA });
 const canais = criarFerramentas({ esc, api, toque, lerMapa: () => MAPA, config: configCanais(() => ODISSE) });
 const padroes = criarPadroes({ esc });
+const inicio = criarInicio({ esc, api, toque });
 const empresa = criarEmpresa({ esc, api, toque, lerOdisse: () => ODISSE, gravarOdisse: (d) => { ODISSE = d; } });
 
 // O Estúdio (Cid, 19/11): Empresa · Equipe · Marca · Canais são subpáginas, com abas no alto
@@ -118,12 +120,8 @@ function abasEstudio(atual) {
 
 const PAGINAS = {
   inicio() {
-    // só o resumo de hoje (Cid, 19/11): atalhos e "em construção" saíram; as ferramentas ficam na página Ferramentas
-    const hoje = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
-    return cabecalho('Início', 'O que importa hoje no Odisse.', hoje) +
-      `<section class="bloco"><span class="u-rotulo">Hoje</span>
-        <div class="aviso">Quando Contatos e funil, Calendário e Horas existirem, este espaço mostra as pendências do dia:
-        contatos a responder, próximos posts e horas da semana.</div></section>`;
+    // panorama do dia (Cid, 19/11): métricas de ontem, novidades do Radar e publicações de hoje (assets/inicio.js)
+    return '<div id="pagina-inicio" class="pagina-inicio"></div>';
   },
 
   ferramentas() {
@@ -166,6 +164,7 @@ const PAGINAS = {
 };
 
 function depois(rota) {
+  if (rota === 'inicio') inicio.ligar(vista.querySelector('#pagina-inicio'));
   if (rota === 'marca') marca.ligar(vista.querySelector('#pagina-marca'));
   if (rota === 'documentos') documentos.ligar(vista.querySelector('#pagina-documentos'));
   if (rota === 'equipe') equipe.ligar(vista.querySelector('#pagina-equipe'));

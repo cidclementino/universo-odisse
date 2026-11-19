@@ -25,6 +25,10 @@
 //   PUT /api/marca   <- { dados, sha }              -> { dados, sha, commit }
 //                       409 se alguém salvou antes (sha diferente). Se a paleta, os papéis ou as cores
 //                       dos núcleos mudarem, o mesmo commit reescreve os valores do v1/marca.css.
+// Início (exige a senha da equipe; ver inicio.js):
+//   GET  /api/inicio           -> panorama do dia (Radar, publicações, Instagram e site de ontem)
+//   POST /api/inicio/publicar  <- { tipo: 'item'|'pauta', id } -> confirma a publicação no marketing
+//
 //   POST /api/marca/logo <- { sha, nucleo, modo: 'novo'|'substituir', alvo?, nome?, svg }
 //                       -> { dados, sha, commit, caminho }. O SVG é conferido (só desenho) e entra no
 //                       mesmo commit que atualiza a lista de logos do núcleo no odisse.json.
@@ -32,6 +36,7 @@
 import { WorkerEntrypoint } from 'cloudflare:workers';
 import { api } from './dados/api.js';
 import { aplicar, mudancas, gerarCss, validarSvg, incluirLogo } from './marca.js';
+import { inicio, publicar } from './inicio.js';
 
 const REPO = 'cidclementino/marca-odisse';
 const ARQUIVO = 'odisse.json';
@@ -154,6 +159,13 @@ export default {
 
     try {
       if (pathname === '/api/estado') return json({ ok: true, marca: !!env.MARCA_GITHUB_TOKEN });
+
+      if (pathname === '/api/inicio' && request.method === 'GET') return json(await inicio(env));
+      if (pathname === '/api/inicio/publicar') {
+        if (request.method !== 'POST') return erro('método não aceito', 405);
+        const r = await publicar(env, await request.json().catch(() => null));
+        return r.ok ? json(r) : erro(r.erro, r.status);
+      }
 
       if (pathname === '/api/marca') {
         if (!env.MARCA_GITHUB_TOKEN) return erro('falta o token do GitHub (MARCA_GITHUB_TOKEN) no servidor', 503);
