@@ -22,7 +22,7 @@
 //   POST honorarios/pesos       { etapa_id, servico_id, peso }   fator 1 ou 2 da etapa na fase (só onde a etapa vale)
 //   POST honorarios/fases       { fase_id, servico_id, peso }    % da fase no honorário do serviço (0 a 100)
 //   POST honorarios/parametros  { chave, valor }
-//   POST honorarios/publicar    { nota }
+//   POST honorarios/publicar    { nota }   (0019: o retrato leva também os textos das cláusulas — eventos e vendas_clausulas)
 //   (preço dos serviços e parcela das fases: PATCH bases-servicos / pgt-fases, campos liberados ao vendas)
 //   GET  publicacoes?tipo=bases|pgt|honorarios         -> lista (sem os dados)
 //   GET  publicacoes/ultima?tipo=bases|pgt|honorarios  -> último retrato com os dados (o vendas vai ler este)
@@ -193,7 +193,7 @@ export async function retratoPgt(env) {
 //   pesos[etapa][serviço] = fator 1 ou 2 da etapa dentro da fase (nulo = 1), só onde a etapa vale (P ou O).
 // A % de cada etapa é fórmula: fator ÷ soma dos fatores das etapas CONTRATADAS da fase (calculada no vendas).
 export async function retratoHonorarios(env) {
-  const [srv, fas, es, par, der, fs] = await env.DB.batch([
+  const [srv, fas, es, par, der, fs, ev, vc] = await env.DB.batch([
     env.DB.prepare(`SELECT id, sigla, nome, ${PRECO_SERVICO.join(', ')} FROM bases_servicos WHERE arquivado_em IS NULL ORDER BY ordem, nome`),
     env.DB.prepare('SELECT id, nome, ilha, acrescimo FROM pgt_fases WHERE arquivado_em IS NULL ORDER BY ordem'),
     env.DB.prepare(`SELECT x.etapa_id, x.servico_id, x.peso FROM pgt_etapas_servicos x
@@ -205,6 +205,9 @@ export async function retratoHonorarios(env) {
     env.DB.prepare(`SELECT x.fase_id, x.servico_id, x.peso FROM pgt_fases_servicos x
       JOIN bases_servicos s ON s.id = x.servico_id JOIN pgt_fases f ON f.id = x.fase_id
       WHERE s.arquivado_em IS NULL AND f.arquivado_em IS NULL AND x.peso IS NOT NULL ORDER BY f.ordem, s.ordem`),
+    // 0019: textos das cláusulas (dos eventos e do vendas), editados em Contratos › Gestor de cláusulas
+    env.DB.prepare(`SELECT id, clausula FROM pgt_eventos WHERE arquivado_em IS NULL AND clausula IS NOT NULL AND clausula <> '' ORDER BY id`),
+    env.DB.prepare('SELECT id, grupo, texto, padrao, ordem FROM vendas_clausulas WHERE arquivado_em IS NULL ORDER BY grupo, ordem, id'),
   ]);
   const vale = mapaDerivado(der.results);
   const pesos = {};
@@ -214,6 +217,8 @@ export async function retratoHonorarios(env) {
   return {
     servicos: srv.results, fases: fas.results, fases_pesos, pesos,
     parametros: Object.fromEntries(par.results.filter((p) => PARAMETROS[p.chave]).map((p) => [p.chave, lerJson(p.valor)])),
+    clausulas_eventos: Object.fromEntries(ev.results.map((x) => [x.id, x.clausula])),
+    clausulas: vc.results,
   };
 }
 

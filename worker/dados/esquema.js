@@ -39,6 +39,7 @@ export const PREFIXOS = {
   tit: 'titulos',
   frt: 'ferramentas_textos',
   emp: 'empresa',
+  vcl: 'vendas_clausulas',
 };
 
 // Ferramentas que podem chamar a API. 'hub' = o próprio Universo (senha da equipe);
@@ -665,6 +666,8 @@ export const TABELAS = {
     },
     padroes: { cliente: 0, terceiros: 0, tempo: 'pontual', travado: 0 },
     permissoes: PGT,
+    // 0019: o texto da cláusula também se edita no vendas (Contratos › Gestor de cláusulas)
+    editaveis_por: { vendas: ['clausula'] },
     filtros: ['etapa_id', 'tipo'],
     ordem: 'etapa_id, ordem',
   },
@@ -682,6 +685,23 @@ export const TABELAS = {
     permissoes: PGT,
     filtros: ['alvo_id', 'tipo'],
     ordem: 'alvo_id, ordem',
+  },
+
+  // ---------------------------------------------------------------- cláusulas do vendas (0019)
+  // Despesas reembolsáveis e, depois, cláusulas gerais do contrato. Casa: vendas › Contratos › Gestor de cláusulas.
+  // Entram no retrato dos Honorários (pgt.js); a proposta lê da versão publicada.
+  vendas_clausulas: {
+    prefixo: 'vcl',
+    campos: {
+      grupo: T('lista', { obrig: true, valores: ['despesa', 'geral'], rotulo: 'Grupo' }),
+      texto: T('textoLongo', { obrig: true, max: 2000, rotulo: 'Texto' }),
+      padrao: T('sn', { rotulo: 'Marcada por padrão' }),
+      ordem: T('inteiro', { min: 0, max: 9999, rotulo: 'Ordem' }),
+    },
+    padroes: { padrao: 1, ordem: 0 },
+    permissoes: { hub: 'E', vendas: 'E', projetos: 'L', maquina: 'E' },
+    filtros: ['grupo'],
+    ordem: 'grupo, ordem',
   },
 
   // ---------------------------------------------------------------- documentos (0010)
@@ -751,6 +771,7 @@ export const ROTAS = {
   'pgt-eventos': 'pgt_eventos',
   'pgt-materiais': 'pgt_materiais',
   documentos: 'documentos',
+  'vendas-clausulas': 'vendas_clausulas',
 };
 
 export const COMUNS = ['id', 'criado_em', 'atualizado_em', 'criado_por', 'atualizado_por', 'versao', 'arquivado_em'];

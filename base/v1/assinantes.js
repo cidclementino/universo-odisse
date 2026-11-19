@@ -10,6 +10,7 @@
       valor: [ …cópias guardadas no documento ],
       novo: true,                              // documento novo: começa com os últimos escolhidos neste uso
       aoMudar: (copias) => { … },
+      rotulo: '+ Assinante',                   // opcional: texto do botão de acrescentar
     });
     s.valor();                                 // → as cópias, para guardar no documento
 
@@ -81,7 +82,7 @@ const CAMPOS = ['nome', 'cargo', 'titulo', 'registro', 'rubrica'];
 const diferente = (copia, p) => { const n = copiaDe(p); return CAMPOS.some((k) => (copia[k] ?? '') !== (n[k] ?? '')); };
 
 let estilo = false;
-export function seletorAssinantes(raiz, { uso, carregar, foto, valor = [], novo = false, aoMudar = () => {} } = {}) {
+export function seletorAssinantes(raiz, { uso, carregar, foto, valor = [], novo = false, aoMudar = () => {}, rotulo = '+ Assinante' } = {}) {
   if (!estilo) { const st = document.createElement('style'); st.textContent = CSS; document.head.append(st); estilo = true; }
   if (!['proposta', 'contrato', 'documento', 'rrt'].includes(uso)) throw new Error('seletorAssinantes: uso inválido');
   let lista = (valor || []).map((a) => ({ ...a }));
@@ -93,9 +94,10 @@ export function seletorAssinantes(raiz, { uso, carregar, foto, valor = [], novo 
   caixa.className = 'ua';
   const mais = document.createElement('div');
   mais.className = 'ua-mais';
-  mais.innerHTML = '<button type="button" class="ua-abrir" aria-haspopup="listbox" aria-expanded="false">+ Assinante</button>';
+  mais.innerHTML = '<button type="button" class="ua-abrir" aria-haspopup="listbox" aria-expanded="false"></button>';
   raiz.replaceChildren(caixa, mais);
   const botao = mais.firstElementChild;
+  botao.textContent = rotulo;
   let menu = null;
 
   const mudou = () => {
