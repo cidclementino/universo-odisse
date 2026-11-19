@@ -238,6 +238,16 @@
       "status": "em-breve"
     },
     {
+      "id": "padroes-interface",
+      "nome": "Padrões de interface",
+      "secao": "biblioteca",
+      "grupo": "acervo",
+      "descricao": "Nomes das formas de dispor o conteúdo e das peças, com amostra e onde aparecem",
+      "url": "https://universo.odisse.com.br/#/padroes",
+      "acesso": "interna",
+      "status": "no-ar"
+    },
+    {
       "id": "padroes-posts",
       "nome": "Padrões dos posts",
       "secao": "biblioteca",

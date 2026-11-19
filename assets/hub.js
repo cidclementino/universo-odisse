@@ -1,4 +1,4 @@
-// Páginas do hub. Rotas por hash: #/ (Início), #/ferramentas, #/canais, #/equipe, #/marca, #/biblioteca.
+// Páginas do hub. Rotas por hash: #/ (Início), #/ferramentas, #/canais, #/equipe, #/marca, #/biblioteca, #/padroes.
 // Tudo vem de dois arquivos: ferramentas.json (aqui) e odisse.json (marca.odisse.com.br).
 // A página Marca mora em assets/marca.js; a página Documentos (#/documentos, aberta pela Biblioteca), em assets/documentos.js;
 // a página Equipe (#/equipe, seção própria da barra), em assets/equipe.js; a página Ferramentas, em assets/ferramentas.js.
@@ -8,6 +8,7 @@ import { criarDocumentos } from './documentos.js';
 import { criarEquipe } from './equipe.js';
 import { criarFerramentas, aplicarTextos, textosGuardados, configCanais } from './ferramentas.js';
 import { criarEmpresa } from './empresa.js';
+import { criarPadroes } from './padroes.js';
 
 const MARCA = 'https://marca.odisse.com.br/';
 const API = 'https://universo-hub.reservaprojectbasework.workers.dev';
@@ -102,6 +103,7 @@ const documentos = criarDocumentos({ esc, api, apiBinario, toque, lerOdisse: () 
 const equipe = criarEquipe({ esc, api, apiBinario, toque });
 const ferramentas = criarFerramentas({ esc, api, toque, lerMapa: () => MAPA });
 const canais = criarFerramentas({ esc, api, toque, lerMapa: () => MAPA, config: configCanais(() => ODISSE) });
+const padroes = criarPadroes({ esc });
 const empresa = criarEmpresa({ esc, api, toque, lerOdisse: () => ODISSE, gravarOdisse: (d) => { ODISSE = d; } });
 
 // O Estúdio (Cid, 19/11): Empresa · Equipe · Marca · Canais são subpáginas, com abas no alto
@@ -156,6 +158,11 @@ const PAGINAS = {
   equipe() {
     return '<div id="pagina-equipe" class="pagina-equipe"></div>';
   },
+
+  // Biblioteca › Padrões de interface (Cid, 19/11): catálogo das disposições e peças, com nome
+  padroes() {
+    return '<div id="pagina-padroes" class="pagina-padroes"></div>';
+  },
 };
 
 function depois(rota) {
@@ -165,6 +172,7 @@ function depois(rota) {
   if (rota === 'ferramentas') ferramentas.ligar(vista.querySelector('#pagina-ferramentas'));
   if (rota === 'empresa') empresa.ligar(vista.querySelector('#pagina-empresa'));
   if (rota === 'canais') canais.ligar(vista.querySelector('#pagina-canais'));
+  if (rota === 'padroes') padroes.ligar(vista.querySelector('#pagina-padroes'));
   if (rota === 'biblioteca') documentos.ligarModelos(vista.querySelector('#biblioteca-modelos'));
 }
 
@@ -179,7 +187,7 @@ function rota() {
 function mostrar() {
   if (document.body.classList.contains('u-trancado')) return;
   const r = rota();
-  const sec = MAPA.secoes.find((s) => s.id === r) || MAPA.secoes.find((s) => s.rota === r) || { nome: 'Documentos' };
+  const sec = MAPA.secoes.find((s) => s.id === r) || MAPA.secoes.find((s) => s.rota === r) || { nome: r === 'padroes' ? 'Padrões de interface' : 'Documentos' };
   document.title = (r === 'inicio' ? 'Universo' : sec.nome + ' — Universo') + ' — Odisse';
   vista.innerHTML = (ESTUDIO.includes(r) ? abasEstudio(r) : '') + PAGINAS[r]() +
     '<footer class="rodape-hub"><button class="u-botao" data-acao="sair">Sair do Universo</button></footer>';
