@@ -8,7 +8,7 @@
 
 /* índice: nomes em etiquetas, para achar e pedir pelo nome */
 .pi-indices { display: flex; flex-direction: column; gap: 10px; margin-top: var(--u-esp-5, 16px); }
-.pi-indice { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 12px; align-items: baseline; }
+.pi-indice { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 12px; align-items: baseline; }
 .pi-indice > div { display: flex; flex-wrap: wrap; gap: 6px; }
 .pi-indice button.etq { border: 0; font: inherit; font-size: 11.5px; font-weight: 500; cursor: pointer; }
 .pi-indice button.etq:focus-visible { outline: 2px solid var(--u-foco, #3C82DC); outline-offset: 1px; }
@@ -40,6 +40,16 @@
 .pi-notas { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); gap: 16px 32px; }
 .pi-notas p { margin: 6px 0 0; font-size: 12.5px; line-height: 1.5; color: var(--u-tinta-2, #5B6773); }
 .pi-notas b { color: var(--u-tinta, #3F4B57); font-weight: 600; }
+
+/* grupos por semelhança dentro de uma seção */
+.pi-grupo + .pi-grupo { margin-top: 32px; }
+.pi-grupo > .u-rotulo { display: block; margin-bottom: 10px; }
+.pi-receita { margin: -4px 0 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.pi-mais { font-size: 12px; color: var(--u-tinta-2, #5B6773); }
+
+/* nada em pílula (Cid, 19/11): nesta página, etiquetas e afins já no desenho novo, levemente quadrado */
+.pagina-padroes .etq, .pagina-padroes .lingua, .pi-chips span, .pi-pilulas span { border-radius: 4px; }
+.pi-legado > small { color: #8A5A2B; }
 
 /* ---- palco das amostras ---- */
 .pi-palco { position: relative; height: 196px; overflow: hidden; padding: 12px; border-radius: 6px; background: var(--u-fundo, #ECEDEB);
@@ -119,7 +129,25 @@
 .pi-a4 { display: flex; flex-direction: column; gap: 4px; height: 92px; padding: 9px 8px; background: #FAFAF7; border: 1px solid var(--u-linha, #D7DADD); box-shadow: 0 2px 6px rgba(46,48,54,.10); }
 .pi-a4 .pi-tx { height: 3px; }
 
-/* Mosaico */
+/* Vitrine: a miniatura toma a proporção do arquivo; comandos conforme o item */
+.pi-vitrine { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; align-items: start; }
+.pi-vitrine .pi-a4 { height: auto; aspect-ratio: 210 / 297; padding: 7px 6px; gap: 3px; overflow: hidden; }
+.pi-vitrine .pi-vit { padding: 6px; gap: 4px; }
+.pi-vitrine .pi-acoes { flex-direction: column; align-items: stretch; gap: 3px; }
+.pi-vitrine .pi-b { text-align: center; padding: 2px 3px; font-size: 8px; }
+
+/* Bloco, Faixa de criar, Gráfico (peças) */
+.pi-caixa--g { margin: auto 0; }
+.pi-parte { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px 14px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--u-linha, #D7DADD); }
+.pi-tiles--g { margin: auto 0; }
+.pi-tiles--g .pi-tile { padding: 12px; gap: 4px; }
+.pi-tiles--g .pi-tile b { font-size: 12.5px; }
+.pi-graf--g { flex: none; height: 130px; display: flex; flex-direction: column; gap: 6px; }
+.pi-graf--g svg { flex: 1; min-height: 0; }
+.pi-leg-g { display: flex; gap: 14px; font-size: 11px; color: var(--u-tinta-2, #5B6773); }
+.pi-leg-g i { display: inline-block; width: 10px; height: 3px; margin-right: 5px; vertical-align: middle; border-radius: 2px; }
+
+/* Mosaico (amostra antiga, fora de uso) */
 .pi-mosaico { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px 8px; }
 .pi-capa-c { display: flex; flex-direction: column; gap: 3px; }
 .pi-capa { aspect-ratio: 3 / 4; border-radius: 3px; background: var(--c); box-shadow: 0 1px 2px rgba(63,75,87,.12), 0 4px 10px rgba(63,75,87,.10); }
@@ -227,7 +255,7 @@
 .pi-placar b { font-size: 14px; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
 .pi-placar--g > div { padding: 12px 14px; gap: 4px; min-width: 0; }
 .pi-placar--g small { font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pi-placar--g b { font-size: 18px; white-space: nowrap; }
+.pi-placar--g b { font-size: 17px; white-space: nowrap; }
 .pi-graf { flex: 1; padding: 8px; background: #fff; border: 1px solid var(--u-linha, #D7DADD); border-radius: 6px; }
 .pi-graf svg { width: 100%; height: 100%; display: block; }
 
@@ -253,6 +281,8 @@
 .pi-var { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
 .pi-var > small { font-size: 10.5px; font-weight: 650; letter-spacing: .06em; text-transform: uppercase; }
 .pi-abas-real { margin: 0; }
+.pi-abas-linha { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.pi-abas-linha .u-rotulo { margin: 0; }
 .pi-abas-real .abas a { cursor: default; }
 .pi-abas-caixa { display: inline-flex; padding: 3px; gap: 2px; background: rgba(63,75,87,.05); border-radius: 8px; }
 .pi-abas-caixa span { padding: 6px 12px; border-radius: 6px; font-size: 13px; color: var(--u-tinta-2, #5B6773); }

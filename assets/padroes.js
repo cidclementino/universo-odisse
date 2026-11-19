@@ -3,6 +3,8 @@
 // Primeira etapa, conservadora: as amostras são CÓPIAS próprias desta página (classes .pi-*, assets/padroes.css);
 // nenhuma ferramenta passa a depender delas e nenhuma página muda por causa deste catálogo.
 // Situação de cada lugar: s = segue o padrão · v = variação · a = a ajustar (legado do design.md § 0).
+// 19/11: disposições em grupos por semelhança; Balcão e Painel viram combinações; Mosaico entra na Vitrine;
+// novas peças Bloco, Faixa de criar e Gráfico; Abas em caixa com o nome da seção; Seletor quadrado; nada em pílula.
 
 const H = 'https://universo.odisse.com.br/';
 const V = 'https://vendas.odisse.com.br/';
@@ -99,11 +101,10 @@ const AMOSTRA = {
   galeria: () => `<div class="pi-grade2">${[['CC', 'Cid Clementino', 'Arquiteto coordenador', 'sócio'], ['NL', 'Nathalia Linhares', 'Arquiteta', 'sócio'], ['MA', 'Maria Alves', 'Estagiária', 'no site'], ['JS', 'João Souza', 'Desenhista', '']]
     .map(([i, n, c, e], k) => `<div class="pi-pessoa${k === 0 ? ' is-hover' : ''}"><span class="pi-foto">${i}</span><span><b>${n}</b><small>${c}</small>${e ? etq(e) : ''}</span></div>`).join('')}</div>`,
 
-  vitrine: () => `<div class="pi-grade3">${['Carta', 'Declaração', 'Memorando'].map((n) => `
-    <div class="pi-vit"><div class="pi-a4">${tr(5, [50, 90, 85, 88, 40])}</div><b>${n}</b><div class="pi-acoes"><span class="pi-b">Baixar PDF</span><span class="pi-b">Usar este modelo</span></div></div>`).join('')}</div>`,
+  vitrine: () => `<div class="pi-vitrine">
+    ${['Carta', 'Declaração'].map((n) => `<div class="pi-vit"><div class="pi-a4">${tr(5, [50, 90, 85, 88, 40])}</div><b>${n}</b><div class="pi-acoes"><span class="pi-b">Baixar PDF</span><span class="pi-b">Usar</span></div></div>`).join('')}
+    ${[['ambar', 'Post 12'], ['ardosia', 'Post 11'], ['pessego', 'Post 10']].map(([c, n]) => `<div class="pi-vit pi-vit--post"><div class="pi-capa" style="--c:var(--pi-${c})"></div><b>${n}</b><div class="pi-acoes"><span class="pi-b">Abrir</span><span class="pi-b">Duplicar</span></div></div>`).join('')}</div>`,
 
-  mosaico: () => `<div class="pi-mosaico">${['ambar', 'ardosia', 'pessego', 'areia', 'terra', 'nevoa'].map((c, i) => `
-    <div class="pi-capa-c"><div class="pi-capa" style="--c:var(--pi-${c})"></div><b>Post ${i + 1}</b><small>1${i}/11</small></div>`).join('')}</div>`,
 
   mural: () => `<div class="pi-topo-dir"><span class="pi-seg"><span class="is-on">Cartões</span><span>Lista</span></span></div>
     <div class="pi-grade3">${[['ardosia', 'alta'], ['ocre', 'média'], ['areia', 'baixa']].map(([c, u], i) => `
@@ -163,13 +164,15 @@ const AMOSTRA = {
   entrada: () => `<div class="pi-entrada"><div class="pi-ent"><span class="pi-selo"></span><small>UNIVERSO</small><div class="pi-campo"><span>Senha da equipe</span><i></i></div><span class="pi-b pi-b--forte">Entrar</span></div></div>`,
 
   // ---- peças (tamanho real, quando cabe) ----
-  abas: () => `<div class="pi-var"><small>em pílula · modelo</small>
-      <nav class="abas-estudio pi-abas-real"><span class="u-rotulo">O Estúdio</span><div class="abas"><a class="ativa">Empresa</a><a>Equipe</a><a>Marca</a><a>Canais</a></div></nav></div>
-    <div class="pi-var"><small>em caixa · vendas, Projetos, Radar</small><span class="pi-abas-caixa"><span class="is-on">Todos <em>42</em></span><span>Pessoas <em>30</em></span><span>Organizações <em>12</em></span></span></div>
-    <div class="pi-var"><small>sublinhadas · marketing, painel do site</small><span class="pi-abas-sub"><span class="is-on">Posts 3:4</span><span>Pins</span><span>Stories</span></span></div>`,
+  abas: () => `<div class="pi-var"><small>modelo · em caixa, com o nome da seção à esquerda</small>
+      <span class="pi-abas-linha"><span class="u-rotulo">O Estúdio</span><span class="pi-abas-caixa"><span class="is-on">Empresa</span><span>Equipe</span><span>Marca</span><span>Canais</span></span></span>
+      <span class="pi-abas-linha"><span class="u-rotulo">Contatos</span><span class="pi-abas-caixa"><span class="is-on">Todos <em>42</em></span><span>Pessoas <em>30</em></span><span>Organizações <em>12</em></span></span></span></div>
+    <div class="pi-var pi-legado"><small>a ajustar · em pílula</small><nav class="abas-estudio pi-abas-real"><div class="abas"><a class="ativa">Empresa</a><a>Equipe</a><a>Marca</a></div></nav></div>
+    <div class="pi-var pi-legado"><small>a ajustar · sublinhadas</small><span class="pi-abas-sub"><span class="is-on">Posts 3:4</span><span>Pins</span><span>Stories</span></span></div>`,
 
-  seletor: () => `<div class="pi-var"><small>quadrado · vendas, Projetos, Radar, marketing</small><span class="pi-seg pi-seg--g"><span class="is-on">Cartões</span><span>Lista</span></span></div>
-    <div class="pi-var"><small>em pílula · Referências › Fases e etapas</small><span class="pi-seg pi-seg--p"><span class="is-on">%</span><span>R$</span><span>dias</span></span></div>`,
+  seletor: () => `<div class="pi-var"><small>modelo · quadrado</small><span class="pi-seg pi-seg--g"><span class="is-on">Cartões</span><span>Lista</span></span>
+      <span class="pi-seg pi-seg--g"><span class="is-on">%</span><span>R$</span><span>dias</span></span></div>
+    <div class="pi-var pi-legado"><small>a ajustar · em pílula</small><span class="pi-seg pi-seg--p"><span class="is-on">%</span><span>R$</span><span>dias</span></span></div>`,
 
   filtros: () => `<div class="pi-filtros"><span class="pi-busca pi-busca--g">Buscar por nome, e-mail…</span><span class="pi-sel">Todos os núcleos</span><span class="pi-sel">Situação</span><a class="pi-limpar">limpar</a></div>`,
 
@@ -188,6 +191,15 @@ const AMOSTRA = {
 
   placar: () => `<div class="pi-placar pi-placar--g">${[['Em aberto', '14'], ['Propostas', '6'], ['Ganhas', '3'], ['Valor', 'R$ 312 mil']].map(([a, b]) => `<div><small>${a}</small><b>${b}</b></div>`).join('')}</div>`,
 
+  bloco: () => `<div class="pi-caixa pi-caixa--g"><div class="pi-caixa__t">Contato e sede ${etq('público')}</div>
+      <div class="pi-tres">${['E-mail', 'Telefone', 'Site', 'Rua e número', 'Bairro', 'Cidade · UF'].map((r) => `<div class="pi-campo"><span>${r}</span><i></i></div>`).join('')}</div>
+      <div class="pi-parte">${['Caixa postal', 'CEP'].map((r) => `<div class="pi-campo"><span>${r}</span><i></i></div>`).join('')}</div></div>`,
+
+  'faixa-de-criar': () => `<div class="pi-tiles pi-tiles--g">${['Arquitetura', 'Interiores', 'Ambientação', 'Legal'].map((n) => `<div class="pi-tile"><b>${n}</b><small>+ nova proposta</small></div>`).join('')}</div>`,
+
+  grafico: () => `<div class="pi-graf pi-graf--g"><svg viewBox="0 0 300 70" preserveAspectRatio="none"><polyline points="0,56 40,46 80,50 120,32 160,36 200,20 240,27 300,10" fill="none" stroke="#2F6FAF" stroke-width="2" vector-effect="non-scaling-stroke"/><polyline points="0,64 40,58 80,60 120,50 160,53 200,44 240,46 300,37" fill="none" stroke="#BB8248" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>
+      <div class="pi-leg-g"><span><i style="background:#2F6FAF"></i>alcance</span><span><i style="background:#BB8248"></i>salvos</span></div></div>`,
+
   'previa-de-folha': () => `<div class="pi-pdf"><small class="u-rotulo">Como sai no contrato</small><div class="pi-pdf__f">Odisse, Estúdio de Arquitetura e Design, inscrita no CNPJ sob o nº 00.000.000/0001-00, com sede na Rua Bananeiras, 361, Sala 107, Manaíra, João Pessoa/PB…</div></div>`,
 
   avisos: () => `<div class="pi-avisos"><div class="pi-aviso">Quando o Funil existir, este espaço mostra as pendências do dia.</div><div class="pi-ok">Salvo.</div><div class="pi-erro">Não foi possível salvar (409).</div></div>`,
@@ -200,136 +212,169 @@ const AMOSTRA = {
 };
 
 // ---- catálogo ------------------------------------------------------------------------------------------------------
-// modelo: página que serve de referência (null = ainda sem página modelo)
+// Disposições em grupos por semelhança (Cid, 19/11). modelo: página de referência (null = ainda sem página modelo).
 
 const DISPOSICOES = [
-  { id: 'lista-em-tons', nome: 'Lista em tons', modelo: 'Ferramentas',
-    para: 'Listas de navegação: o que se abre a partir daqui, em grupos coloridos.',
-    nao: 'listas de registros (use Registro) nem dados (use Ficha).',
-    onde: { s: ['ferramentas', 'canais'] } },
-  { id: 'ficha', nome: 'Ficha', modelo: 'Empresa · Equipe',
-    para: 'Ver e editar os dados de uma coisa só: caixas por assunto, campos sempre abertos, barra de salvar.',
-    onde: { s: ['empresa', 'pessoa', 'marca'], v: ['projeto'] },
-    ajustar: 'Ficha do projeto: cabeçalho com linha embaixo e duas colunas de seções; segue como variação por enquanto.' },
-  { id: 'registro', nome: 'Registro', modelo: null, decisao: 'padrão próprio (Cid, 19/11)',
-    para: 'Listas de registros que crescem: contatos, projetos, documentos emitidos. Linha clicável abre o registro ou a Gaveta.',
-    onde: { v: ['contatos', 'projetos', 'emitidos'] },
-    ajustar: 'Contatos e Projetos: linha sob o título (barra antiga do vendas e do Projetos).' },
-  { id: 'galeria', nome: 'Galeria', modelo: 'Equipe',
-    para: 'Pessoas ou coisas reconhecidas pela imagem: grade de cartões com foto.',
-    onde: { s: ['equipe'], v: ['corretores'] } },
-  { id: 'vitrine', nome: 'Vitrine', modelo: 'Biblioteca › Modelos',
-    para: 'Modelos para baixar ou usar: caixa com miniatura e dois comandos (a caixa não é clicável inteira).',
-    onde: { s: ['biblioteca'] } },
-  { id: 'mosaico', nome: 'Mosaico', modelo: null,
-    para: 'Arquivo visual em proporção fixa: as capas são o conteúdo (posts 3:4).',
-    onde: { a: ['publicacoes'] },
-    ajustar: 'marketing ainda com barra, cores e tipografia anteriores ao Universo (fica para depois).' },
-  { id: 'mural', nome: 'Mural', modelo: null,
-    para: 'Oportunidades com imagem que se abrem no lugar; alterna com uma lista em linhas.',
-    onde: { v: ['corretores'], a: ['concursos', 'licitacoes', 'terrenos'] },
-    ajustar: 'Radar: urgência em barra à esquerda deve virar etiqueta (com sua aprovação, antes e depois).' },
-  { id: 'pilha', nome: 'Pilha', modelo: 'Cargos e títulos',
-    para: 'Itens em ordem que se reordenam: posição, alça, ↑ ↓ ×, "Acrescentar" tracejado no fim.',
-    onde: { s: ['cargos'], v: ['pgt'] },
-    ajustar: 'PGT: pilhas aninhadas com Fluxo e Ilhas em barra à esquerda e comandos sem caixa (com sua aprovação).' },
-  { id: 'sanfona', nome: 'Sanfona', modelo: null,
-    para: 'Itens longos lidos um de cada vez: cartões largos que abrem e fecham no lugar.',
-    onde: { s: ['acomp'], v: ['pgt'] } },
-  { id: 'quadro', nome: 'Quadro', modelo: null,
-    para: 'Itens que andam por etapas: colunas por etapa, cartões arrastáveis.',
-    onde: { s: ['funil'] },
-    ajustar: 'Funil: linha sob o título.' },
-  { id: 'matriz', nome: 'Matriz', modelo: 'Referências › Fases e etapas',
-    para: 'Tabelas de ajuste com muitas colunas: grupos em tons, números à direita, soma presa ao pé.',
-    onde: { s: ['fases'], v: ['referencias', 'bases', 'materiais'] },
-    ajustar: 'Bases › Tipologias: faixa colorida à esquerda deve virar fundo em tons.' },
-  { id: 'linha', nome: 'Linha', modelo: 'PGT › Linha',
-    para: 'Sequências no tempo: nós ligados, com estado e decisões.',
-    onde: { s: ['linha'] } },
-  { id: 'calendario', nome: 'Calendário', modelo: null,
-    para: 'Coisas marcadas em dias: grade do mês ou da semana, com o que falta agendar ao lado.',
-    onde: { s: ['calendario'], v: ['estrategia', 'horas'] },
-    ajustar: 'marketing com visual anterior ao Universo (fica para depois).' },
-  { id: 'balcao', nome: 'Balcão', modelo: null,
-    para: 'Criar e consultar no mesmo lugar: blocos para começar algo novo em cima, arquivo com filtros embaixo.',
-    onde: { s: ['propostas'], v: ['publicacoes'] } },
-  { id: 'assistente', nome: 'Assistente', modelo: null,
-    para: 'Montar algo em passos: passos à esquerda, formulário no centro, prévia do resultado à direita.',
-    onde: { s: ['emissor'] } },
-  { id: 'editor-com-previa', nome: 'Editor com prévia', modelo: 'Emissão de documentos',
-    para: 'Escrever um documento vendo a folha: formulário fixo de um lado, folha do outro.',
-    onde: { s: ['emissao'] } },
-  { id: 'bancada', nome: 'Bancada', modelo: null,
-    para: 'Montar uma peça visual: campos de um lado, o objeto sendo montado no centro.',
-    onde: { v: ['editorMkt', 'painelSite'] },
-    ajustar: 'marketing e painel do site com visual próprio (fica para depois).' },
-  { id: 'painel', nome: 'Painel', modelo: null,
-    para: 'Acompanhar números: Placar no alto, gráficos e tabelas ordenáveis embaixo.',
+  { grupo: 'Listas', itens: [
+    { id: 'lista-em-tons', nome: 'Lista em tons', modelo: 'Ferramentas',
+      para: 'Listas de navegação: o que se abre a partir daqui, em grupos coloridos.',
+      nao: 'listas de registros (use Registro) nem dados (use Ficha).',
+      onde: { s: ['ferramentas', 'canais'] } },
+    { id: 'registro', nome: 'Registro', modelo: null, decisao: 'padrão próprio (Cid, 19/11)',
+      para: 'Listas de registros que crescem: contatos, projetos, documentos emitidos. Linha clicável abre o registro ou a Gaveta.',
+      onde: { v: ['contatos', 'projetos', 'emitidos'] },
+      ajustar: 'Contatos e Projetos: linha sob o título (barra antiga do vendas e do Projetos).' },
+    { id: 'pilha', nome: 'Pilha', modelo: 'Cargos e títulos',
+      para: 'Itens em ordem que se reordenam: posição, alça, ↑ ↓ ×, "Acrescentar" tracejado no fim.',
+      onde: { s: ['cargos'], v: ['pgt'] },
+      ajustar: 'PGT: pilhas aninhadas com Fluxo e Ilhas em barra à esquerda e comandos sem caixa (com sua aprovação).' },
+    { id: 'sanfona', nome: 'Sanfona', modelo: null,
+      para: 'Itens longos lidos um de cada vez: cartões largos que abrem e fecham no lugar.',
+      onde: { s: ['acomp'], v: ['pgt'] } },
+  ] },
+  { grupo: 'Grades de cartões', itens: [
+    { id: 'galeria', nome: 'Galeria', modelo: 'Equipe',
+      para: 'Pessoas ou coisas reconhecidas pela imagem: grade de cartões com foto.',
+      onde: { s: ['equipe'], v: ['corretores'] } },
+    { id: 'vitrine', nome: 'Vitrine', modelo: 'Biblioteca › Modelos',
+      para: 'Arquivos vistos pela miniatura. A miniatura toma a proporção do arquivo (A4, 3:4, 16:9…); os comandos seguem o que o item é: modelo = Baixar PDF · Usar; post = Abrir · Duplicar · Arquivar.',
+      decisao: 'o Mosaico entrou na Vitrine (Cid, 19/11)',
+      onde: { s: ['biblioteca'], a: ['publicacoes'] },
+      ajustar: 'Publicações (marketing): visual anterior ao Universo e comandos só no hover (fica para depois).' },
+    { id: 'mural', nome: 'Mural', modelo: null,
+      para: 'Oportunidades com imagem que se abrem no lugar; alterna com uma lista em linhas.',
+      onde: { v: ['corretores'], a: ['concursos', 'licitacoes', 'terrenos'] },
+      ajustar: 'Radar: urgência em barra à esquerda deve virar etiqueta (com sua aprovação, antes e depois).' },
+  ] },
+  { grupo: 'Tabelas e colunas', itens: [
+    { id: 'matriz', nome: 'Matriz', modelo: 'Referências › Fases e etapas',
+      para: 'Tabelas de ajuste com muitas colunas: grupos em tons, números à direita, soma presa ao pé.',
+      onde: { s: ['fases'], v: ['referencias', 'bases', 'materiais'] },
+      ajustar: 'Bases › Tipologias: faixa colorida à esquerda deve virar fundo em tons.' },
+    { id: 'quadro', nome: 'Quadro', modelo: null,
+      para: 'Itens que andam por etapas: colunas por etapa, cartões arrastáveis.',
+      onde: { s: ['funil'] },
+      ajustar: 'Funil: linha sob o título.' },
+  ] },
+  { grupo: 'Tempo', itens: [
+    { id: 'linha', nome: 'Linha', modelo: 'PGT › Linha',
+      para: 'Sequências no tempo: nós ligados, com estado e decisões.',
+      onde: { s: ['linha'] } },
+    { id: 'calendario', nome: 'Calendário', modelo: null,
+      para: 'Coisas marcadas em dias: grade do mês ou da semana, com o que falta agendar ao lado.',
+      onde: { s: ['calendario'], v: ['estrategia', 'horas'] },
+      ajustar: 'marketing com visual anterior ao Universo (fica para depois).' },
+  ] },
+  { grupo: 'Edição', itens: [
+    { id: 'ficha', nome: 'Ficha', modelo: 'Empresa · Equipe',
+      para: 'Ver e editar os dados de uma coisa só: a página feita de Blocos, campos sempre abertos, Barra de salvar.',
+      onde: { s: ['empresa', 'pessoa', 'marca'], v: ['projeto'] },
+      ajustar: 'Ficha do projeto: cabeçalho com linha embaixo e duas colunas de seções; segue como variação por enquanto.' },
+    { id: 'editor-com-previa', nome: 'Editor com prévia', modelo: 'Emissão de documentos',
+      para: 'Escrever um documento vendo a folha: campos fixos de um lado, folha do outro.',
+      onde: { s: ['emissao'] },
+      ajustar: 'Campos ainda soltos; devem ir para Blocos.' },
+    { id: 'assistente', nome: 'Assistente', modelo: null,
+      para: 'Montar algo em passos: passos à esquerda, campos no centro, prévia do resultado à direita.',
+      onde: { s: ['emissor'] },
+      ajustar: 'Campos ainda soltos; devem ir para Blocos.' },
+    { id: 'bancada', nome: 'Bancada', modelo: null,
+      para: 'Montar uma peça visual: campos de um lado, o objeto sendo montado no centro.',
+      onde: { v: ['editorMkt', 'painelSite'] },
+      ajustar: 'marketing e painel do site com visual próprio (fica para depois).' },
+  ] },
+  { grupo: 'Navegação e acesso', itens: [
+    { id: 'menu-em-blocos', nome: 'Menu em blocos', modelo: 'Menu Universo',
+      para: 'Ir para outro lugar: seções no alto, blocos em tons que não recolhem, "aqui" no item atual.',
+      onde: { a: ['menu'] },
+      ajustar: 'Seções no alto e "aqui" ainda em pílula: passam a levemente quadrados.' },
+    { id: 'entrada', nome: 'Entrada', modelo: 'Entrada do Universo',
+      para: 'Pedir a senha antes de abrir: um cartão no centro, selo, campo e Entrar.',
+      onde: { s: ['entradaHub'], v: ['entradaV', 'entradaP', 'entradaR'], a: ['entradaM'] } },
+  ] },
+];
+
+// combinações: páginas descritas pelas peças e disposições que juntam (Cid, 19/11)
+const COMBINACOES = [
+  { id: 'balcao', nome: 'Balcão', receita: ['Faixa de criar', 'Registro ou Vitrine'],
+    para: 'Criar e consultar no mesmo lugar: Faixa de criar em cima; embaixo, o arquivo como Registro (Propostas) ou Vitrine (Publicações).',
+    onde: { s: ['propostas'], a: ['publicacoes'] } },
+  { id: 'painel', nome: 'Painel', receita: ['Placar', 'Gráfico', 'Matriz'],
+    para: 'Acompanhar números: Placar no alto, Gráficos, Matrizes ordenáveis embaixo.',
     onde: { a: ['metricas'] },
     ajustar: 'marketing com visual anterior ao Universo (fica para depois).' },
-  { id: 'menu-em-blocos', nome: 'Menu em blocos', modelo: 'Menu Universo',
-    para: 'Ir para outro lugar: seções em pílula, blocos em tons que não recolhem, "aqui" no item atual.',
-    onde: { s: ['menu'] } },
-  { id: 'entrada', nome: 'Entrada', modelo: 'Entrada do Universo',
-    para: 'Pedir a senha antes de abrir: um cartão no centro, selo, campo e Entrar.',
-    onde: { s: ['entradaHub'], v: ['entradaV', 'entradaP', 'entradaR'], a: ['entradaM'] } },
 ];
 
 const PECAS = [
-  { id: 'abas', nome: 'Abas', modelo: 'O Estúdio',
-    para: 'Subpáginas de uma mesma seção: rótulo da seção à esquerda, abas em pílula; cada aba é uma página com o próprio título.',
-    variantes: 'em pílula (modelo) · em caixa, com contagem · sublinhadas',
-    onde: { s: ['estudio'], v: ['contatos', 'referencias', 'bases', 'pgt', 'concursos'], a: ['publicacoes', 'metricas', 'painelSite'] },
-    ajustar: 'Sublinhadas (marketing, painel do site) são as mais distantes do modelo.' },
-  { id: 'seletor', nome: 'Seletor', modelo: null,
-    para: 'Escolher um modo ou uma unidade na mesma página (não navega): Cartões / Lista, % / R$.',
-    variantes: 'quadrado · em pílula, pequeno',
-    onde: { v: ['emissor', 'fases', 'concursos', 'editorMkt', 'painelSite'] } },
-  { id: 'filtros', nome: 'Filtros', modelo: null,
-    para: 'Busca sem acento, seletores e "limpar" numa linha, acima do que filtram.',
-    onde: { v: ['contatos', 'projetos', 'pgt', 'concursos', 'emitidos'] } },
-  { id: 'regua', nome: 'Régua', modelo: 'Ferramentas',
-    para: 'Rótulos das colunas de uma lista: cartão translúcido, sem linha.',
-    onde: { s: ['ferramentas', 'canais'] } },
-  { id: 'etiqueta', nome: 'Etiqueta', modelo: 'Ferramentas',
-    para: 'Valores curtos de categoria e situação, em pílula. Também as de língua (PT / EN).',
-    onde: { s: ['ferramentas', 'canais', 'equipe', 'empresa'], a: ['acervo', 'concursos', 'contatos'] },
-    ajustar: 'Etiquetas retangulares (.u-etiqueta) e chips antigos: Acervo da Biblioteca, Radar, vendas.' },
-  { id: 'caixa-de-comando', nome: 'Caixa de comando', modelo: 'Ferramentas',
-    para: 'Editar e demais comandos do cartão: sempre numa caixa de 24 px, sempre visíveis, à esquerda.',
-    onde: { s: ['ferramentas', 'canais', 'cargos'], a: ['pgt', 'concursos'] },
-    ajustar: 'PGT (comandos sem caixa) e Radar (lápis só no hover).' },
-  { id: 'botoes', nome: 'Botões', modelo: 'Equipe',
-    para: 'Neutro para quase tudo; uma ação principal em Ocre por página; perigo fica vermelho no hover.',
-    onde: { s: ['equipe', 'empresa'], v: ['vendasTodas', 'projetosTodas'] } },
-  { id: 'barra-de-salvar', nome: 'Barra de salvar', modelo: 'Empresa',
-    para: 'Presa ao pé, só aparece com mudança: "N mudanças não salvas", Descartar e Salvar em Ocre.',
-    onde: { s: ['empresa', 'pessoa', 'marca'], v: ['editorMkt'] } },
-  { id: 'gaveta', nome: 'Gaveta', modelo: null,
-    para: 'Criar ou editar sem sair da página: painel que entra pela direita sobre a página escurecida.',
-    onde: { s: ['funil', 'contatos', 'projetos', 'bases'] } },
-  { id: 'placar', nome: 'Placar', modelo: null,
-    para: 'Faixa de números grandes no alto de uma página: rótulo pequeno, número grande.',
-    onde: { s: ['funil', 'projetos'], a: ['metricas'] } },
-  { id: 'previa-de-folha', nome: 'Prévia de folha', modelo: 'Empresa',
-    para: '"Como sai no contrato / no documento" ao lado do dado, sobre um pedaço de folha.',
-    onde: { s: ['empresa', 'pessoa'] } },
-  { id: 'avisos', nome: 'Avisos', modelo: 'Início',
-    para: 'Aviso em ocre claro; ok em areia; erro em vermelho claro. Sem barra à esquerda.',
-    onde: { s: ['equipe', 'empresa'], a: ['metricas'] },
-    ajustar: 'Métricas (erro com barra à esquerda).' },
-  { id: 'vazio', nome: 'Vazio', modelo: 'Emissão › emitidos',
-    para: 'Quando não há nada: caixa tracejada, texto central.',
-    onde: { s: ['emitidos', 'contatos'] } },
-  { id: 'trilha', nome: 'Trilha', modelo: 'Equipe › pessoa',
-    para: 'No lugar de "← Voltar", em páginas internas: rótulos em maiúsculas separados por "/".',
-    onde: { s: ['pessoa', 'emitidos'], v: ['emissor'], a: ['editorMkt'] },
-    ajustar: 'Editor do marketing ainda com "← Publicações".' },
-  { id: 'barra', nome: 'Barra do Universo', modelo: 'Universo',
-    para: 'Barra fixa no alto: selo, ODISSE e o nome da ferramenta à esquerda; seções no centro; Universo / Ir para à direita.',
-    onde: { s: ['menu'], v: ['vendasTodas', 'projetosTodas', 'radarTodas'], a: ['mktTodas', 'painelSite'] },
-    ajustar: 'marketing e painel do site com barra própria (fica para depois).' },
+  { grupo: 'Navegação', itens: [
+    { id: 'barra', nome: 'Barra do Universo', modelo: 'Universo',
+      para: 'Barra fixa no alto: selo, ODISSE e o nome da ferramenta à esquerda; seções no centro; Universo / Ir para à direita.',
+      onde: { s: ['menu'], v: ['vendasTodas', 'projetosTodas', 'radarTodas'], a: ['mktTodas', 'painelSite'] },
+      ajustar: 'marketing e painel do site com barra própria (fica para depois).' },
+    { id: 'trilha', nome: 'Trilha', modelo: 'Equipe › pessoa',
+      para: 'No lugar de "← Voltar", em páginas internas: rótulos em maiúsculas separados por "/".',
+      onde: { s: ['pessoa', 'emitidos'], v: ['emissor'], a: ['editorMkt'] },
+      ajustar: 'Editor do marketing ainda com "← Publicações".' },
+    { id: 'abas', nome: 'Abas', modelo: null, decisao: 'em caixa, com o nome da seção à esquerda (Cid, 19/11)',
+      para: 'Subpáginas de uma mesma seção: nome da seção à esquerda, abas em caixa ao lado; contagem quando ajuda.',
+      onde: { v: ['contatos', 'referencias', 'bases', 'pgt', 'concursos'], a: ['estudio', 'publicacoes', 'metricas', 'painelSite'] },
+      ajustar: 'Em caixa já existe (vendas, Projetos, Radar), falta o nome da seção à esquerda. O Estúdio (pílula) e as sublinhadas (marketing, painel do site) mudam de desenho.' },
+    { id: 'seletor', nome: 'Seletor', modelo: null, decisao: 'quadrado (Cid, 19/11)',
+      para: 'Escolher um modo ou uma unidade na mesma página (não navega): Cartões / Lista, % / R$.',
+      onde: { v: ['emissor', 'concursos', 'editorMkt', 'painelSite'], a: ['fases'] },
+      ajustar: 'Referências › Fases e etapas: o seletor em pílula passa a quadrado.' },
+    { id: 'filtros', nome: 'Filtros', modelo: null,
+      para: 'Busca sem acento, seletores e "limpar" numa linha, acima do que filtram.',
+      onde: { v: ['contatos', 'projetos', 'pgt', 'concursos', 'emitidos'] } },
+  ] },
+  { grupo: 'Conteúdo', itens: [
+    { id: 'bloco', nome: 'Bloco', modelo: 'Empresa',
+      para: 'Caixa branca com título, campos em até três colunas e partes separadas por filete leve. A Ficha é feita de Blocos; Editor com prévia e Assistente também os usam.',
+      onde: { s: ['empresa', 'pessoa', 'marca'], v: ['emissao', 'emissor'] } },
+    { id: 'regua', nome: 'Régua', modelo: 'Ferramentas',
+      para: 'Rótulos das colunas de uma lista: cartão translúcido, sem linha.',
+      onde: { s: ['ferramentas', 'canais'] } },
+    { id: 'etiqueta', nome: 'Etiqueta', modelo: null, decisao: 'levemente quadrada, raio 4 px; nada mais em pílula (Cid, 19/11)',
+      para: 'Valores curtos de categoria e situação. Também as de língua (PT / EN), as contagens e o "aqui".',
+      onde: { a: ['ferramentas', 'canais', 'equipe', 'empresa', 'acervo', 'concursos', 'contatos'] },
+      ajustar: 'As em pílula (hub) passam a raio 4; as retangulares antigas (.u-etiqueta, chips do vendas e do Radar) passam às mesmas cores e tamanhos.' },
+    { id: 'faixa-de-criar', nome: 'Faixa de criar', modelo: null,
+      para: 'Começar algo novo: um bloco por tipo (serviço, núcleo), lado a lado, acima do arquivo.',
+      onde: { s: ['propostas'], a: ['publicacoes'] } },
+    { id: 'placar', nome: 'Placar', modelo: null,
+      para: 'Faixa de números grandes no alto de uma página: rótulo pequeno, número grande.',
+      onde: { s: ['funil', 'projetos'], a: ['metricas'] } },
+    { id: 'grafico', nome: 'Gráfico', modelo: null,
+      para: 'Séries no tempo em caixa branca, cores seguras para daltonismo (azul e ocre), legenda embaixo.',
+      onde: { a: ['metricas'] } },
+    { id: 'previa-de-folha', nome: 'Prévia de folha', modelo: 'Empresa',
+      para: '"Como sai no contrato / no documento" ao lado do dado, sobre um pedaço de folha.',
+      onde: { s: ['empresa', 'pessoa'] } },
+  ] },
+  { grupo: 'Comandos', itens: [
+    { id: 'botoes', nome: 'Botões', modelo: 'Equipe',
+      para: 'Neutro para quase tudo; uma ação principal em Ocre por página; perigo fica vermelho no hover.',
+      onde: { s: ['equipe', 'empresa'], v: ['vendasTodas', 'projetosTodas'] } },
+    { id: 'caixa-de-comando', nome: 'Caixa de comando', modelo: 'Ferramentas',
+      para: 'Editar e demais comandos do cartão: sempre numa caixa de 24 px, sempre visíveis, à esquerda.',
+      onde: { s: ['ferramentas', 'canais', 'cargos'], a: ['pgt', 'concursos'] },
+      ajustar: 'PGT (comandos sem caixa) e Radar (lápis só no hover).' },
+    { id: 'barra-de-salvar', nome: 'Barra de salvar', modelo: 'Empresa',
+      para: 'Presa ao pé, só aparece com mudança: "N mudanças não salvas", Descartar e Salvar em Ocre.',
+      onde: { s: ['empresa', 'pessoa', 'marca'], v: ['editorMkt'] } },
+    { id: 'gaveta', nome: 'Gaveta', modelo: null,
+      para: 'Criar ou editar sem sair da página: painel que entra pela direita sobre a página escurecida.',
+      onde: { s: ['funil', 'contatos', 'projetos', 'bases'] } },
+  ] },
+  { grupo: 'Mensagens', itens: [
+    { id: 'avisos', nome: 'Avisos', modelo: 'Início',
+      para: 'Aviso em ocre claro; ok em areia; erro em vermelho claro. Sem barra à esquerda.',
+      onde: { s: ['equipe', 'empresa'], a: ['metricas'] },
+      ajustar: 'Métricas (erro com barra à esquerda).' },
+    { id: 'vazio', nome: 'Vazio', modelo: 'Emissão › emitidos',
+      para: 'Quando não há nada: caixa tracejada, texto central.',
+      onde: { s: ['emitidos', 'contatos'] } },
+  ] },
 ];
 
 // ---- página --------------------------------------------------------------------------------------------------------
@@ -345,33 +390,36 @@ export function criarPadroes({ esc }) {
 
   const caixa = (p) => `<article class="u-cartao pi-padrao" id="pi-${p.id}">
       <div class="pi-cab"><h3 class="pi-nome">${esc(p.nome)}</h3>
-        ${p.modelo ? `<span class="etq etq--ok">modelo: ${esc(p.modelo)}</span>` : '<span class="etq etq--breve">sem página modelo</span>'}</div>
+        ${p.receita ? '<span class="etq">combinação</span>' : p.modelo ? `<span class="etq etq--ok">modelo: ${esc(p.modelo)}</span>` : '<span class="etq etq--breve">sem página modelo</span>'}</div>
+      ${p.receita ? `<p class="pi-receita">${p.receita.map((r) => `<span class="etq">${esc(r)}</span>`).join('<span class="pi-mais">+</span>')}</p>` : ''}
       <div class="pi-palco${p.peca ? ' pi-palco--var' : ''}" aria-hidden="true">${AMOSTRA[p.id] ? AMOSTRA[p.id]() : ''}</div>
       <p class="pi-para">${esc(p.para)}</p>
       ${p.nao ? `<p class="pi-nao">Não usar para: ${esc(p.nao)}</p>` : ''}
-      ${p.variantes ? `<p class="pi-nao">Variantes: ${esc(p.variantes)}</p>` : ''}
       ${p.decisao ? `<p class="pi-nao">Decisão: ${esc(p.decisao)}</p>` : ''}
       <dl class="pi-onde">${['s', 'v', 'a'].filter((k) => (p.onde[k] || []).length).map((k) =>
         `<div><dt>${ROT[k]}</dt><dd>${p.onde[k].map(lugar).join('')}</dd></div>`).join('')}</dl>
       ${p.ajustar ? `<p class="pi-ajustar">${esc(p.ajustar)}</p>` : ''}
     </article>`;
 
+  const todos = (grupos) => grupos.flatMap((g) => g.itens);
   const indice = (rot, lista) => `<div class="pi-indice"><span class="u-rotulo">${rot}</span><div>${lista.map((p) =>
     `<button type="button" class="etq etq--link" data-ir="pi-${p.id}">${esc(p.nome)}</button>`).join('')}</div></div>`;
+  const grupos = (lista, peca = false) => lista.map((g) => `<div class="pi-grupo"><span class="u-rotulo">${esc(g.grupo)}</span>
+      <div class="pi-grade">${g.itens.map((p) => caixa({ ...p, peca })).join('')}</div></div>`).join('');
 
   function ligar(raiz) {
     raiz.innerHTML = `<div class="cab"><div><nav class="u-trilha" aria-label="Você está em"><a href="#/biblioteca">Biblioteca</a><span class="sep">/</span><span aria-current="page">Padrões de interface</span></nav>
         <h1 class="u-titulo">Padrões de interface</h1></div></div>
-      <nav class="pi-indices" aria-label="Padrões">${indice('Disposições', DISPOSICOES)}${indice('Peças', PECAS)}</nav>
-      <section class="pi-secao"><h2 class="u-subtitulo">Disposições</h2>
-        <div class="pi-grade">${DISPOSICOES.map(caixa).join('')}</div></section>
-      <section class="pi-secao"><h2 class="u-subtitulo">Peças</h2>
-        <div class="pi-grade">${PECAS.map((p) => caixa({ ...p, peca: true })).join('')}</div></section>
+      <nav class="pi-indices" aria-label="Padrões">${indice('Disposições', todos(DISPOSICOES))}${indice('Combinações', COMBINACOES)}${indice('Peças', todos(PECAS))}</nav>
+      <section class="pi-secao"><h2 class="u-subtitulo">Disposições</h2>${grupos(DISPOSICOES)}</section>
+      <section class="pi-secao"><h2 class="u-subtitulo">Combinações</h2>
+        <div class="pi-grade">${COMBINACOES.map((p) => caixa(p)).join('')}</div></section>
+      <section class="pi-secao"><h2 class="u-subtitulo">Peças</h2>${grupos(PECAS, true)}</section>
       <section class="pi-secao pi-notas">
         <div><span class="u-rotulo">Como pedir</span><p>Pelo nome: "Fornecedores em Registro, com Gaveta e Filtros"; "esse cartão no desenho da Galeria"; "essa ficha como a Empresa".</p></div>
         <div><span class="u-rotulo">Situações</span><p><b>Segue</b>: a página está no padrão. <b>Variação</b>: mesma ideia, com diferenças. <b>A ajustar</b>: legado que vai migrar para o padrão (design.md § 0).</p></div>
-        <div><span class="u-rotulo">Modelo</span><p>A página de referência do padrão. Sem página modelo: o padrão existe e tem nome, mas ainda não foi alinhado ao design.md.</p></div>
-        <div><span class="u-rotulo">Amostras</span><p>Cópias pequenas, só para ver. As ferramentas não dependem delas; nenhuma página muda por causa deste catálogo.</p></div>
+        <div><span class="u-rotulo">Modelo e combinação</span><p>Modelo é a página de referência do padrão; sem página modelo, o padrão tem nome mas ainda não foi alinhado. Combinação é uma página descrita pelas peças que junta.</p></div>
+        <div><span class="u-rotulo">Formas</span><p>Nada em pílula (Cid, 19/11): raio 4 px nas peças pequenas (etiquetas, contagens, PT / EN), 6 px em abas, seletores e botões, 8 px no fundo das abas e nos cartões. As amostras são cópias, só para ver; nenhuma página muda por causa deste catálogo.</p></div>
       </section>`;
     raiz.querySelectorAll('[data-ir]').forEach((b) => b.addEventListener('click', () => {
       const alvo = raiz.querySelector('#' + b.dataset.ir);
