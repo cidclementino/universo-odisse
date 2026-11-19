@@ -231,7 +231,7 @@
 .pi-arq-cab + .pi-tabela .pi-tr { grid-template-columns: 30% minmax(0, 1fr) 60px; }
 
 /* Assistente / Editor com prévia / Bancada */
-.pi-assis { display: grid; grid-template-columns: 82px minmax(0, 1fr) 96px; gap: 10px; height: 100%; }
+.pi-assis { display: grid; grid-template-columns: 82px minmax(0, 1fr) 96px; align-items: start; gap: 10px; height: 100%; }
 .pi-passos { display: flex; flex-direction: column; gap: 3px; }
 .pi-passos span { padding: 3px 6px; border-radius: 4px; color: var(--u-tinta-2, #5B6773); }
 .pi-passos span.is-feito { color: var(--u-tinta, #3F4B57); }
@@ -239,7 +239,19 @@
 .pi-form { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .pi-previa-c { display: flex; flex-direction: column; gap: 5px; padding: 8px; background: #FAFAF7; border: 1px solid var(--u-linha, #D7DADD); border-radius: 6px; }
 .pi-previa-c b { font-size: 12px; font-variant-numeric: tabular-nums; }
-.pi-edprev { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 14px; height: 100%; }
+.pi-edprev { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 14px; height: 100%; }
+.pi-blocos { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.pi-caixa--col { display: flex; flex-direction: column; gap: 5px; padding: 8px 9px; }
+.pi-caixa--col .pi-caixa__t { margin: 0; font-size: 10.5px; }
+.pi-editando { position: relative; display: flex; flex-direction: column; gap: 6px; margin: 0 -5px; padding: 4px 5px; outline: 2px solid var(--pi-ocre); border-radius: 2px; background: #fff; }
+.pi-editando .pi-tx { height: 4px; }
+.pi-cursor { position: absolute; left: calc(60% + 7px); bottom: 3px; width: 1px; height: 8px; background: var(--u-tinta, #3F4B57); }
+.pi-sinc { border-color: var(--pi-ocre) !important; }
+.pi-passos--g { margin: auto 0; gap: 4px; font-size: 13px; max-width: 220px; }
+.pi-passos--g span { padding: 6px 10px; border-radius: 6px; }
+.pi-resumo--g { margin: auto 0; max-width: 260px; gap: 6px; padding: 14px 16px; font-size: 12.5px; }
+.pi-resumo--g b { font-size: 20px; }
+.pi-lin { display: flex; justify-content: space-between; gap: 12px; color: var(--u-tinta-2, #5B6773); font-variant-numeric: tabular-nums; }
 .pi-folha-g { display: flex; flex-direction: column; gap: 6px; padding: 14px 16px; background: #FAFAF7; border: 1px solid var(--u-linha, #D7DADD); box-shadow: 0 3px 10px rgba(46,48,54,.10); }
 .pi-folha-g .pi-tx { height: 4px; }
 .pi-banc { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 12px; height: 100%; }

@@ -3,8 +3,9 @@
 // Primeira etapa, conservadora: as amostras são CÓPIAS próprias desta página (classes .pi-*, assets/padroes.css);
 // nenhuma ferramenta passa a depender delas e nenhuma página muda por causa deste catálogo.
 // Situação de cada lugar: s = segue o padrão · v = variação · a = a ajustar (legado do design.md § 0).
-// 19/11: disposições em grupos por semelhança; Balcão e Painel viram combinações; Mosaico entra na Vitrine;
-// novas peças Bloco, Faixa de criar e Gráfico; Abas em caixa com o nome da seção; Seletor quadrado; nada em pílula.
+// 19/11: disposição = desenho de página com regra própria; combinação = arranjo conhecido de peças.
+// Disposições em grupos por semelhança; Balcão, Painel, Assistente e Editor com prévia são combinações; Mosaico entra na Vitrine;
+// novas peças Bloco, Faixa de criar, Gráfico, Passos e Resumo; Abas em caixa com o nome da seção; Seletor quadrado; nada em pílula.
 
 const H = 'https://universo.odisse.com.br/';
 const V = 'https://vendas.odisse.com.br/';
@@ -142,12 +143,15 @@ const AMOSTRA = {
 
   assistente: () => `<div class="pi-assis">
     <div class="pi-passos">${['Serviço', 'Cliente', 'Escopo', 'Preço', 'Revisar'].map((n, i) => `<span class="${i === 2 ? 'is-on' : i < 2 ? 'is-feito' : ''}">${i + 1}. ${n}</span>`).join('')}</div>
-    <div class="pi-form">${['Área', 'Tipologia', 'Fases'].map((r) => `<div class="pi-campo"><span>${r}</span><i></i></div>`).join('')}<div class="pi-acoes"><span class="pi-b">Voltar</span><span class="pi-b">Continuar</span></div></div>
-    <div class="pi-previa-c"><small>Prévia</small><b>R$ 48.200</b>${tr(3, [80, 60, 70])}</div></div>`,
+    <div class="pi-caixa pi-caixa--col"><div class="pi-caixa__t">Escopo</div>${['Área', 'Tipologia', 'Fases'].map((r) => `<div class="pi-campo"><span>${r}</span><i></i></div>`).join('')}<div class="pi-acoes"><span class="pi-b">Voltar</span><span class="pi-b">Continuar</span></div></div>
+    <div class="pi-previa-c"><small>Resumo</small><b>R$ 48.200</b>${tr(3, [80, 60, 70])}</div></div>`,
 
+  // Editor com prévia (Cid, 19/11): folha à esquerda, Blocos à direita; o texto livre se escreve nos dois lugares
   'editor-com-previa': () => `<div class="pi-edprev">
-    <div class="pi-form">${['Tipo', 'Destinatário', 'Assunto', 'Texto'].map((r, i) => `<div class="pi-campo"><span>${r}</span><i${i === 3 ? ' class="alto"' : ''}></i></div>`).join('')}</div>
-    <div class="pi-folha-g">${tr(8, [35, 50, 92, 88, 90, 86, 60, 30])}</div></div>`,
+    <div class="pi-folha-g">${tr(3, [35, 50, 30])}<div class="pi-editando">${tr(3, [92, 88, 60])}<span class="pi-cursor"></span></div>${tr(2, [86, 30])}</div>
+    <div class="pi-blocos">
+      <div class="pi-caixa pi-caixa--col"><div class="pi-caixa__t">Destinatário</div>${['Nome', 'Cargo'].map((r) => `<div class="pi-campo"><span>${r}</span><i></i></div>`).join('')}</div>
+      <div class="pi-caixa pi-caixa--col"><div class="pi-caixa__t">Texto</div><div class="pi-campo"><span>Corpo</span><i class="alto pi-sinc"></i></div></div></div></div>`,
 
   bancada: () => `<div class="pi-banc">
     <div class="pi-form">${['Título', 'Núcleo', 'Texto do card'].map((r) => `<div class="pi-campo"><span>${r}</span><i></i></div>`).join('')}</div>
@@ -190,6 +194,11 @@ const AMOSTRA = {
   gaveta: () => `<div class="pi-gav"><div class="pi-gav__pag">${tr(6, [40, 90, 85, 80, 88, 70])}</div><div class="pi-gav__p"><div class="pi-gav__t"><b>Nova oportunidade</b><span>×</span></div>${['Título', 'Cliente', 'Origem'].map((r) => `<div class="pi-campo"><span>${r}</span><i></i></div>`).join('')}<span class="pi-b pi-b--forte">Criar</span></div></div>`,
 
   placar: () => `<div class="pi-placar pi-placar--g">${[['Em aberto', '14'], ['Propostas', '6'], ['Ganhas', '3'], ['Valor', 'R$ 312 mil']].map(([a, b]) => `<div><small>${a}</small><b>${b}</b></div>`).join('')}</div>`,
+
+  passos: () => `<div class="pi-passos pi-passos--g">${['Serviço', 'Cliente', 'Escopo', 'Preço', 'Revisar'].map((n, i) => `<span class="${i === 2 ? 'is-on' : i < 2 ? 'is-feito' : ''}">${i + 1}. ${n}</span>`).join('')}</div>`,
+
+  resumo: () => `<div class="pi-previa-c pi-resumo--g"><small class="u-rotulo">Resumo</small><b>R$ 48.200</b>
+      <span class="pi-lin"><span>Projeto legal</span><span>R$ 12.400</span></span><span class="pi-lin"><span>Executivo</span><span>R$ 35.800</span></span><span class="pi-lin"><span>Prazo</span><span>94 dias</span></span></div>`,
 
   bloco: () => `<div class="pi-caixa pi-caixa--g"><div class="pi-caixa__t">Contato e sede ${etq('público')}</div>
       <div class="pi-tres">${['E-mail', 'Telefone', 'Site', 'Rua e número', 'Bairro', 'Cidade · UF'].map((r) => `<div class="pi-campo"><span>${r}</span><i></i></div>`).join('')}</div>
@@ -270,14 +279,6 @@ const DISPOSICOES = [
       para: 'Ver e editar os dados de uma coisa só: a página feita de Blocos, campos sempre abertos, Barra de salvar.',
       onde: { s: ['empresa', 'pessoa', 'marca'], v: ['projeto'] },
       ajustar: 'Ficha do projeto: cabeçalho com linha embaixo e duas colunas de seções; segue como variação por enquanto.' },
-    { id: 'editor-com-previa', nome: 'Editor com prévia', modelo: 'Emissão de documentos',
-      para: 'Escrever um documento vendo a folha: campos fixos de um lado, folha do outro.',
-      onde: { s: ['emissao'] },
-      ajustar: 'Campos ainda soltos; devem ir para Blocos.' },
-    { id: 'assistente', nome: 'Assistente', modelo: null,
-      para: 'Montar algo em passos: passos à esquerda, campos no centro, prévia do resultado à direita.',
-      onde: { s: ['emissor'] },
-      ajustar: 'Campos ainda soltos; devem ir para Blocos.' },
     { id: 'bancada', nome: 'Bancada', modelo: null,
       para: 'Montar uma peça visual: campos de um lado, o objeto sendo montado no centro.',
       onde: { v: ['editorMkt', 'painelSite'] },
@@ -296,6 +297,15 @@ const DISPOSICOES = [
 
 // combinações: páginas descritas pelas peças e disposições que juntam (Cid, 19/11)
 const COMBINACOES = [
+  { id: 'assistente', nome: 'Assistente', receita: ['Passos', 'Bloco', 'Resumo'],
+    para: 'Montar algo em passos: Passos presos à esquerda, Blocos da etapa no centro, Resumo do resultado preso à direita.',
+    onde: { v: ['emissor'] },
+    ajustar: 'Emissor de proposta: campos ainda soltos; devem ir para Blocos.' },
+  { id: 'editor-com-previa', nome: 'Editor com prévia', receita: ['Prévia de folha', 'Bloco'],
+    para: 'Escrever um documento vendo a folha: folha à esquerda, Blocos à direita. O texto livre que se preenche nos Blocos também se escreve direto na folha; os dois ficam iguais.',
+    decisao: 'folha à esquerda, Blocos à direita, folha editável (Cid, 19/11)',
+    onde: { a: ['emissao'] },
+    ajustar: 'Emissão de documentos: hoje campos à esquerda e folha à direita, folha só para ver e campos soltos. Inverter, tornar a folha editável e levar os campos para Blocos.' },
   { id: 'balcao', nome: 'Balcão', receita: ['Faixa de criar', 'Registro ou Vitrine'],
     para: 'Criar e consultar no mesmo lugar: Faixa de criar em cima; embaixo, o arquivo como Registro (Propostas) ou Vitrine (Publicações).',
     onde: { s: ['propostas'], a: ['publicacoes'] } },
@@ -323,13 +333,16 @@ const PECAS = [
       para: 'Escolher um modo ou uma unidade na mesma página (não navega): Cartões / Lista, % / R$.',
       onde: { v: ['emissor', 'concursos', 'editorMkt', 'painelSite'], a: ['fases'] },
       ajustar: 'Referências › Fases e etapas: o seletor em pílula passa a quadrado.' },
+    { id: 'passos', nome: 'Passos', modelo: null,
+      para: 'Etapas numeradas de um trabalho em andamento, presas à esquerda: a atual em destaque, as feitas marcadas.',
+      onde: { s: ['emissor'] } },
     { id: 'filtros', nome: 'Filtros', modelo: null,
       para: 'Busca sem acento, seletores e "limpar" numa linha, acima do que filtram.',
       onde: { v: ['contatos', 'projetos', 'pgt', 'concursos', 'emitidos'] } },
   ] },
   { grupo: 'Conteúdo', itens: [
     { id: 'bloco', nome: 'Bloco', modelo: 'Empresa',
-      para: 'Caixa branca com título, campos em até três colunas e partes separadas por filete leve. A Ficha é feita de Blocos; Editor com prévia e Assistente também os usam.',
+      para: 'Caixa branca com título, campos em até três colunas e partes separadas por filete leve. A Ficha é feita de Blocos; o Assistente e o Editor com prévia também os usam.',
       onde: { s: ['empresa', 'pessoa', 'marca'], v: ['emissao', 'emissor'] } },
     { id: 'regua', nome: 'Régua', modelo: 'Ferramentas',
       para: 'Rótulos das colunas de uma lista: cartão translúcido, sem linha.',
@@ -347,9 +360,12 @@ const PECAS = [
     { id: 'grafico', nome: 'Gráfico', modelo: null,
       para: 'Séries no tempo em caixa branca, cores seguras para daltonismo (azul e ocre), legenda embaixo.',
       onde: { a: ['metricas'] } },
+    { id: 'resumo', nome: 'Resumo', modelo: null,
+      para: 'O resultado em números enquanto se monta algo: total em destaque e as partes embaixo, preso à direita.',
+      onde: { s: ['emissor'] } },
     { id: 'previa-de-folha', nome: 'Prévia de folha', modelo: 'Empresa',
-      para: '"Como sai no contrato / no documento" ao lado do dado, sobre um pedaço de folha.',
-      onde: { s: ['empresa', 'pessoa'] } },
+      para: '"Como sai no contrato / no documento" sobre um pedaço de folha. No Editor com prévia é a folha inteira, e o texto livre se escreve direto nela.',
+      onde: { s: ['empresa', 'pessoa'], a: ['emissao'] } },
   ] },
   { grupo: 'Comandos', itens: [
     { id: 'botoes', nome: 'Botões', modelo: 'Equipe',
@@ -418,7 +434,7 @@ export function criarPadroes({ esc }) {
       <section class="pi-secao pi-notas">
         <div><span class="u-rotulo">Como pedir</span><p>Pelo nome: "Fornecedores em Registro, com Gaveta e Filtros"; "esse cartão no desenho da Galeria"; "essa ficha como a Empresa".</p></div>
         <div><span class="u-rotulo">Situações</span><p><b>Segue</b>: a página está no padrão. <b>Variação</b>: mesma ideia, com diferenças. <b>A ajustar</b>: legado que vai migrar para o padrão (design.md § 0).</p></div>
-        <div><span class="u-rotulo">Modelo e combinação</span><p>Modelo é a página de referência do padrão; sem página modelo, o padrão tem nome mas ainda não foi alinhado. Combinação é uma página descrita pelas peças que junta.</p></div>
+        <div><span class="u-rotulo">Disposição, combinação e modelo</span><p>Disposição é um desenho de página com regra própria; combinação é um arranjo conhecido de peças (Cid, 19/11). Modelo é a página de referência; sem página modelo, o padrão tem nome mas ainda não foi alinhado.</p></div>
         <div><span class="u-rotulo">Formas</span><p>Nada em pílula (Cid, 19/11): raio 4 px nas peças pequenas (etiquetas, contagens, PT / EN), 6 px em abas, seletores e botões, 8 px no fundo das abas e nos cartões. As amostras são cópias, só para ver; nenhuma página muda por causa deste catálogo.</p></div>
       </section>`;
     raiz.querySelectorAll('[data-ir]').forEach((b) => b.addEventListener('click', () => {
