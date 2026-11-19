@@ -7,6 +7,7 @@ import { criarMarca } from './marca.js';
 import { criarDocumentos } from './documentos.js';
 import { criarEquipe } from './equipe.js';
 import { criarFerramentas, aplicarTextos, textosGuardados } from './ferramentas.js';
+import { criarEmpresa } from './empresa.js';
 
 const MARCA = 'https://marca.odisse.com.br/';
 const API = 'https://universo-hub.reservaprojectbasework.workers.dev';
@@ -98,6 +99,15 @@ const marca = criarMarca({
 const documentos = criarDocumentos({ esc, api, apiBinario, toque, lerOdisse: () => ODISSE });
 const equipe = criarEquipe({ esc, api, apiBinario, toque });
 const ferramentas = criarFerramentas({ esc, api, toque, lerMapa: () => MAPA });
+const empresa = criarEmpresa({ esc, api, toque, lerOdisse: () => ODISSE, gravarOdisse: (d) => { ODISSE = d; } });
+
+// O Estúdio (Cid, 19/11): Empresa · Equipe · Marca · Canais são subpáginas, com abas no alto
+const ESTUDIO = ['empresa', 'equipe', 'marca', 'canais'];
+function abasEstudio(atual) {
+  const subs = MAPA.secoes.filter((s) => s.pai === 'estudio');
+  return `<nav class="abas-estudio" aria-label="O Estúdio"><span class="u-rotulo">O Estúdio</span>
+    <div class="abas">${subs.map((s) => `<a href="#/${s.id}"${s.id === atual ? ' class="ativa" aria-current="page"' : ''}>${esc(s.nome)}</a>`).join('')}</div></nav>`;
+}
 
 // ---- páginas -------------------------------------------------------------
 
@@ -122,14 +132,23 @@ const PAGINAS = {
       descricao: id === 'substack' ? 'Elaia: ensaios e podcast' : semProtocolo(url).replace(/^[^/]+\//, '').replace(/\/$/, ''),
     })) : [];
     // o grupo "redes" não tem itens no mapa: os endereços vêm do odisse.json, fonte única
-    return cabecalho('Canais', 'O que o público vê: sites, redes e publicações. Os endereços das redes vêm dos dados da Marca.') +
+    return cabecalho('Canais', '') +
       blocosDaSecao('canais') +
       `<section class="bloco"><span class="u-rotulo">Redes e publicações</span>
         <div class="cartoes">${redes.join('') || '<p class="u-apoio">Não foi possível ler os dados da Marca.</p>'}</div></section>`;
   },
 
+  empresa() {
+    return '<div id="pagina-empresa" class="pagina-empresa"></div>';
+  },
+
   biblioteca() {
-    return cabecalho('Biblioteca', 'O que se reutiliza: imagens, referências técnicas, modelos e procedimentos.') + blocosDaSecao('biblioteca');
+    // modelos de documentos (prévia + download) no alto; o resto da biblioteca em cartões, como antes
+    const outros = MAPA.itens.filter((f) => f.secao === 'biblioteca' && f.id !== 'documentos');
+    return cabecalho('Biblioteca', '') +
+      '<div id="biblioteca-modelos"></div>' +
+      `<section class="bloco"><span class="u-rotulo">Acervo e referências</span>
+        <div class="cartoes">${outros.map(cartao).join('')}</div></section>`;
   },
 
   marca() {
@@ -150,19 +169,24 @@ function depois(rota) {
   if (rota === 'documentos') documentos.ligar(vista.querySelector('#pagina-documentos'));
   if (rota === 'equipe') equipe.ligar(vista.querySelector('#pagina-equipe'));
   if (rota === 'ferramentas') ferramentas.ligar(vista.querySelector('#pagina-ferramentas'));
+  if (rota === 'empresa') empresa.ligar(vista.querySelector('#pagina-empresa'));
+  if (rota === 'biblioteca') documentos.ligarModelos(vista.querySelector('#biblioteca-modelos'));
 }
+
+const APELIDOS = { estudio: 'empresa', emissao: 'documentos' }; // seções que abrem outra página
 
 function rota() {
   const id = (location.hash.match(/^#\/([^/?]+)/) || [])[1] || 'inicio';
+  if (APELIDOS[id]) { history.replaceState(null, '', '#/' + APELIDOS[id]); return APELIDOS[id]; }
   return PAGINAS[id] ? id : 'inicio';
 }
 
 function mostrar() {
   if (document.body.classList.contains('u-trancado')) return;
   const r = rota();
-  const sec = MAPA.secoes.find((s) => s.id === r) || { nome: 'Documentos' };
+  const sec = MAPA.secoes.find((s) => s.id === r) || MAPA.secoes.find((s) => s.rota === r) || { nome: 'Documentos' };
   document.title = (r === 'inicio' ? 'Universo' : sec.nome + ' — Universo') + ' — Odisse';
-  vista.innerHTML = PAGINAS[r]() +
+  vista.innerHTML = (ESTUDIO.includes(r) ? abasEstudio(r) : '') + PAGINAS[r]() +
     '<footer class="rodape-hub"><button class="u-botao" data-acao="sair">Sair do Universo</button></footer>';
   depois(r);
   window.scrollTo(0, 0);

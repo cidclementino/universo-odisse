@@ -38,6 +38,7 @@ export const PREFIXOS = {
   crg: 'cargos',
   tit: 'titulos',
   frt: 'ferramentas_textos',
+  emp: 'empresa',
 };
 
 // Ferramentas que podem chamar a API. 'hub' = o próprio Universo (senha da equipe);
@@ -237,6 +238,38 @@ export const TABELAS = {
     permissoes: LISTAS_EQUIPE,
     filtros: [],
     ordem: 'ordem, nome_m',
+  },
+
+  // 0018: dados da empresa (O Estúdio › Empresa). Um registro (emp_odisse); contrato e documentos leem daqui.
+  empresa: {
+    prefixo: 'emp',
+    campos: {
+      nome: T('texto', { obrig: true, max: 60, rotulo: 'Nome curto' }),
+      nome_completo: T('texto', { max: 160, rotulo: 'Nome completo' }),
+      nome_completo_en: T('texto', { max: 160, rotulo: 'Nome completo (inglês)' }),
+      razao_social: T('texto', { max: 200, rotulo: 'Razão social' }),
+      cnpj: T('texto', { max: 20, rotulo: 'CNPJ' }),
+      inscricao_municipal: T('texto', { max: 40, rotulo: 'Inscrição municipal' }),
+      registro_cau: T('texto', { max: 40, rotulo: 'Registro no CAU (PJ)' }),
+      fundacao: T('texto', { max: 10, rotulo: 'Fundação' }),
+      email: T('texto', { max: 120, rotulo: 'E-mail' }),
+      telefone: T('texto', { max: 40, rotulo: 'Telefone' }),
+      logradouro: T('texto', { max: 200, rotulo: 'Logradouro, número e sala' }),
+      bairro: T('texto', { max: 80, rotulo: 'Bairro' }),
+      cidade: T('texto', { max: 80, rotulo: 'Cidade' }),
+      uf: T('texto', { max: 2, rotulo: 'UF' }),
+      cep: T('texto', { max: 12, rotulo: 'CEP' }),
+      caixa_postal: T('texto', { max: 20, rotulo: 'Caixa postal' }),
+      texto_curto: T('textoLongo', { max: 200, rotulo: 'Texto curto' }),
+      texto_curto_en: T('textoLongo', { max: 200, rotulo: 'Texto curto (inglês)' }),
+      texto_medio: T('textoLongo', { max: 900, rotulo: 'Texto médio' }),
+      texto_medio_en: T('textoLongo', { max: 900, rotulo: 'Texto médio (inglês)' }),
+      texto_longo: T('textoLongo', { max: 4000, rotulo: 'Texto longo' }),
+      texto_longo_en: T('textoLongo', { max: 4000, rotulo: 'Texto longo (inglês)' }),
+    },
+    permissoes: { hub: 'E', vendas: 'L', projetos: 'L', marketing: 'L', site: 'L', maquina: 'E' },
+    filtros: [],
+    ordem: 'nome',
   },
 
   // 0017: descrição de cada ferramenta editada no hub (lápis na página Ferramentas); chave = id no ferramentas.json
@@ -697,6 +730,7 @@ export const ROTAS = {
   cargos: 'cargos',
   titulos: 'titulos',
   'ferramentas-textos': 'ferramentas_textos',
+  empresa: 'empresa',
   sinteses: 'sinteses',
   arquivos: 'arquivos',
   vinculos: 'vinculos',

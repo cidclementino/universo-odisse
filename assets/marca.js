@@ -107,23 +107,7 @@ export function criarMarca({ esc, api, toque, MARCA, lerOdisse, gravarOdisse }) 
       <article class="u-cartao nucleo">
         ${faixa(mae, P, { titulo: esc(d.nome), sub: nomeCompleto ? esc(nomeCompleto) : `<em>${FALTA}</em>`, mae: true })}
         <div class="nucleo-corpo">
-          <div class="grupo"><h3>Identidade</h3><div class="campos">
-            ${campoLeitura('Nome curto', `<span class="v grande">${esc(d.nome)}</span>`)}
-            ${campoLeitura('Nome completo', mostraTr(d, 'nome_completo', 'medio'), { trad: true })}
-            ${campoLeitura('Descrição', mostraTr(d, 'descricao', 'texto'), { largo: true, trad: true })}
-            ${campoLeitura('Fundadores', `<span class="v">${esc((d.fundadores || []).join(' e '))}</span>`)}
-          </div></div>
-          <div class="divisor"></div>
-          <div class="duas">
-            <div class="grupo"><h3>Contato</h3><div class="campos uma">
-              ${campoLeitura('E-mail', `<a class="v" href="mailto:${esc(c.email)}">${esc(c.email)}</a>`)}
-              ${campoLeitura('Telefone e WhatsApp', `<a class="v" href="${esc(c.whatsapp_link)}" target="_blank" rel="noopener">${esc(c.telefone)}</a>`)}
-            </div></div>
-            <div class="grupo"><h3>Endereço</h3><div class="campos uma">
-              ${campoLeitura('Sede', `<span class="v">${esc(e.logradouro)}<br>${esc(e.bairro)} · ${esc(e.cidade)}/${esc(e.uf)}<br>CEP ${esc(e.cep)}</span>`)}
-              ${e.caixa_postal ? campoLeitura('Caixa postal', `<span class="v">${esc(e.caixa_postal)}</span>`) : ''}
-            </div></div>
-          </div>
+          <p class="u-apoio">Nome, contato, endereço e textos de apresentação ficam em <a href="#/empresa">O Estúdio › Empresa</a>.</p>
           <div class="divisor"></div>
           <div class="duas">
             <div class="grupo"><h3>Redes da marca</h3>${listaLinks(redesMae)}
@@ -226,20 +210,6 @@ export function criarMarca({ esc, api, toque, MARCA, lerOdisse, gravarOdisse }) 
     return `<form class="edicao" data-form="marca" novalidate>
       <section class="bloco"><div class="bloco-cab"><span class="u-rotulo">Marca-mãe</span></div>
       <div class="u-cartao painel-largo pilha">
-        ${grupo('Identidade',
-          inp('nome', 'Nome curto', d.nome) +
-          inp('nome_completo', 'Nome completo', d.nome_completo, { trad: true }) +
-          inp('descricao', 'Descrição', d.descricao, { trad: true, area: true, largo: true }) +
-          inp('fundadores', 'Fundadores', (d.fundadores || []).join(', '), { dica: en() ? '' : 'Separados por vírgula.' }))}
-        <div class="divisor"></div>
-        ${grupo('Contato',
-          inp('contato.email', 'E-mail', c.email, { tipo: 'email' }) +
-          inp('contato.telefone', 'Telefone', c.telefone, { tipo: 'tel', dica: en() ? '' : 'O WhatsApp sai deste número.' }))}
-        ${grupo('Endereço',
-          inp('endereco.logradouro', 'Logradouro, número e sala', e.logradouro, { largo: true }) +
-          inp('endereco.bairro', 'Bairro', e.bairro) + inp('endereco.cidade', 'Cidade', e.cidade) +
-          inp('endereco.uf', 'UF', e.uf) + inp('endereco.cep', 'CEP', e.cep) + inp('endereco.caixa_postal', 'Caixa postal', e.caixa_postal))}
-        <div class="divisor"></div>
         ${grupo('Redes da marca', Object.keys(d.redes || {}).filter((k) => !redesNuc.has(k)).map((k) => inp(`redes.${k}`, NOMES_REDES[k] || k, d.redes[k], { tipo: 'url' })).join(''))}
         ${grupo('Sites da marca', Object.keys(d.sites || {}).filter((k) => !sitesNuc.has(k)).map((k) => inp(`sites.${k}`, NOMES_SITES[k] || k, d.sites[k], { tipo: 'url' })).join(''))}
         <div class="divisor"></div>

@@ -106,7 +106,7 @@ const ROTULOS = {
   destinatario: ['Para', 'Uma informação por linha: nome, cargo, organização, endereço.'],
   remetente: ['De', ''], referencia: ['Referência', 'Processo, protocolo ou documento a que o ofício responde.'],
   assunto: ['Assunto', ''], titulo: ['Título', ''], saudacao: ['Saudação', 'Ex.: Prezado(a) Fulano,'],
-  corpo: ['Texto', 'Parágrafos separados por linha em branco. No começo da linha: # seção · - lista · 1. lista numerada · | tabela | · > nota · **negrito**. Ver “Modelo das folhas” na lista de Documentos.'],
+  corpo: ['Texto', 'Parágrafos separados por linha em branco. No começo da linha: # seção · - lista · 1. lista numerada · | tabela | · > nota · **negrito**. Ver “Modelo das folhas” na Biblioteca.'],
   fecho: ['Fecho', 'Ex.: Atenciosamente,'], anexos: ['Anexos', 'Um por linha.'], local: ['Local', ''],
   observacoes: ['Observações internas', 'Não aparecem no documento.'],
 };
@@ -125,58 +125,14 @@ export function criarDocumentos({ esc, api, apiBinario, toque, lerOdisse }) {
   // ---- lista ----------------------------------------------------------------
   async function lista(raiz) {
     avisoSaida = () => false;
-    raiz.innerHTML = `<div class="cab"><div><h1 class="u-titulo">Documentos</h1>
-        <p class="u-apoio">Cartas, ofícios, declarações e memorandos do estúdio, numerados e guardados no Universo.
-        A folha (Coluna ou Ficha) vem da Marca.</p></div>
-        <div class="acoes-cab">${Object.entries(TIPOS).map(([id, t]) => `<a class="u-botao" href="#/documentos/novo/${id}">+ ${t.nome}</a>`).join('')}</div></div>
-      <section class="bloco"><span class="u-rotulo">Folhas em branco</span>
-        <p class="u-apoio">Sem número, para imprimir ou usar fora do Universo. O PDF sai pela janela de impressão: escolha “Salvar como PDF”.</p>
-        <div class="cartoes compactos">${BRANCAS.map((b) => `<div class="u-cartao item"><div class="topo"><b>${esc(b.nome)}</b></div>
-          <p>${esc(b.desc)}</p><div class="rodape"><button class="u-botao" data-branca="${b.id}">Baixar PDF</button></div></div>`).join('')}</div></section>
-      <section class="bloco"><details class="docs-modelo" data-modelo><summary><span class="u-rotulo">Modelo das folhas</span>
-          <span class="u-apoio">Blocos do texto (seção, lista, tabela, nota) e como escrevê-los. Vale para todos os documentos do estúdio.</span></summary>
-        <div class="docs-modelo-grade"><div class="docs-modelo-guia">
-          <div class="docs-escolha" role="radiogroup"><label><input type="radio" name="modelo-ex" value="coluna" checked> Coluna</label>
-            <label><input type="radio" name="modelo-ex" value="ficha"> Ficha</label></div>
-          <table class="u-tabela docs-marcas"><thead><tr><th>No começo da linha</th><th>Vira</th></tr></thead><tbody>
-            ${MARCAS.map(([a, b]) => `<tr><td><code>${esc(a)}</code></td><td>${esc(b)}</td></tr>`).join('')}</tbody></table>
-          <label class="u-campo"><span>Texto de exemplo</span><textarea rows="16" data-exemplo>${esc(EXEMPLO)}</textarea>
-            <small>Edite para testar; nada é salvo.</small></label></div>
-          <div class="docs-modelo-previa"><div class="docs-escala"><div class="docs-modelo-folhas" data-folhas-ex></div></div></div></div></details></section>
+    raiz.innerHTML = `<div class="cab"><div><h1 class="u-titulo">Emissão de documentos avulsos</h1></div>
+        <div class="acoes-cab">${Object.entries(TIPOS).map(([id, t]) => `<a class="u-botao" href="#/documentos/novo/${id}">+ ${t.nome}</a>`).join('')}
+          <a class="u-botao" href="#/biblioteca">Modelos</a></div></div>
       <section class="bloco"><span class="u-rotulo">Emitidos</span>
         <div class="docs-filtros"><label class="u-campo"><span>Tipo</span><select data-f="tipo"><option value="">Todos</option>
           <option value="carta">Carta e ofício</option><option value="declaracao">Declaração</option><option value="memorando">Memorando</option></select></label>
           <label class="u-campo"><span>Buscar</span><input type="search" data-f="q" placeholder="código, assunto, destinatário"></label></div>
         <div data-lista><p class="u-apoio">Carregando…</p></div></section>`;
-    raiz.querySelectorAll('[data-branca]').forEach((b) => b.addEventListener('click', async () => {
-      b.disabled = true;
-      try { const m = await carregarMontador(); const x = BRANCAS.find((y) => y.id === b.dataset.branca); await m.imprimir(x.doc, rec, `odisse-${x.id}`); }
-      catch (e) { toque('Não foi possível montar a folha: ' + e.message); }
-      b.disabled = false;
-    }));
-    // modelo das folhas: montado só quando aberto (carrega a Marca só se for ver)
-    const det = raiz.querySelector('[data-modelo]');
-    const folhasEx = raiz.querySelector('[data-folhas-ex]');
-    let tEx, rodadaEx = 0;
-    const montarEx = async () => {
-      const minha = ++rodadaEx;
-      try {
-        const m = await carregarMontador();
-        const modelo = raiz.querySelector('[name="modelo-ex"]:checked').value;
-        const doc = paraMontador({ tipo: 'carta', modelo, codigo: 'CA-2026-0000', data: hoje(), local: 'João Pessoa',
-          destinatario: 'Nome do destinatário\nCargo\nOrganização', assunto: 'Modelo das folhas: todos os blocos', saudacao: 'Prezados,',
-          corpo: raiz.querySelector('[data-exemplo]').value, fecho: 'Atenciosamente,',
-          assinaturas: [{ equipe_id: 'exemplo', rubrica: true, nome: 'Nome de quem assina', cargo: 'Cargo', registro: 'CAU/PB A000000-0' }] });
-        const n = await m.montar(folhasEx, doc, rec);
-        if (minha !== rodadaEx) return;
-        const porLinha = Math.min(n, 2), larg = porLinha * 794 + (porLinha - 1) * 24, linhas = Math.ceil(n / porLinha);
-        const k = Math.min(1, (folhasEx.parentElement.parentElement.clientWidth - 2) / larg);
-        Object.assign(folhasEx.style, { width: larg + 'px', transform: `scale(${k})` });
-        folhasEx.parentElement.style.height = `${(linhas * 1123 + (linhas - 1) * 24) * k}px`;
-      } catch (e) { folhasEx.innerHTML = `<p class="u-apoio">Não foi possível montar o modelo: ${esc(e.message)}</p>`; }
-    };
-    det.addEventListener('toggle', () => { if (det.open) montarEx(); });
-    det.addEventListener('input', () => { clearTimeout(tEx); tEx = setTimeout(montarEx, 250); });
     const caixa = raiz.querySelector('[data-lista]');
     const carregar = async () => {
       const p = new URLSearchParams({ limite: '200' });
@@ -291,7 +247,7 @@ export function criarDocumentos({ esc, api, apiBinario, toque, lerOdisse }) {
         : `<input name="${k}" value="${esc(v)}">`}${ajuda ? `<small>${esc(ajuda)}</small>` : ''}</label>`;
     };
 
-    raiz.innerHTML = `<div class="cab"><div><nav class="u-trilha" aria-label="Caminho"><a href="#/biblioteca">Biblioteca</a><span class="sep" aria-hidden="true">/</span><a href="#/documentos">Documentos</a></nav>
+    raiz.innerHTML = `<div class="cab"><div><nav class="u-trilha" aria-label="Caminho"><a href="#/documentos">Emissão de documentos avulsos</a></nav>
         <h1 class="u-titulo">${esc(NOME_TIPO(reg))} ${reg.codigo ? esc(reg.codigo) : '<span class="u-apoio">· novo</span>'}</h1></div>
         <div class="acoes-cab"><span class="u-apoio" data-estado></span>
           <button class="u-botao" data-acao="duplicar"${reg.id ? '' : ' hidden'}>Duplicar</button>
@@ -417,7 +373,88 @@ export function criarDocumentos({ esc, api, apiBinario, toque, lerOdisse }) {
     previa();
   }
 
+  // ---- Biblioteca › Modelos de documentos ------------------------------------------
+  // Cada modelo em uma caixa (o sistema de caixas da Equipe): a 1ª folha em miniatura, montada pela Marca com um
+  // texto de exemplo, e embaixo Baixar PDF (janela de impressão → Salvar como PDF) e, nos tipos, Usar este modelo.
+  const ASSINA_EX = [{ equipe_id: 'exemplo', rubrica: true, nome: 'Nome de quem assina', cargo: 'Cargo', registro: 'CAU/PB A000000-0' }];
+  const PARAGRAFOS_EX = 'Primeiro parágrafo do texto, com o assunto do documento apresentado de forma direta.\n\nSegundo parágrafo, com os detalhes, prazos ou condições.\n\nTerceiro parágrafo, para encerrar.';
+  const MODELOS = [
+    { id: 'carta', nome: 'Carta', desc: 'Correspondência numerada (CA).', usar: 'carta',
+      reg: { tipo: 'carta', destinatario: 'Nome do destinatário\nCargo\nOrganização', assunto: 'Assunto da carta', saudacao: 'Prezados,', corpo: PARAGRAFOS_EX, fecho: 'Atenciosamente,' } },
+    { id: 'oficio', nome: 'Ofício', desc: 'Carta a órgão público, com referência e anexos.', usar: 'oficio',
+      reg: { tipo: 'carta', oficio: 1, destinatario: 'Ao Senhor\nNome do destinatário\nÓrgão', referencia: 'Processo nº 0000/2026', assunto: 'Assunto do ofício', saudacao: 'Senhor(a),', corpo: PARAGRAFOS_EX, fecho: 'Respeitosamente,', anexos: 'Planta de situação\nMemorial descritivo' } },
+    { id: 'declaracao', nome: 'Declaração', desc: 'Declaração assinada pelo estúdio (DE).', usar: 'declaracao',
+      reg: { tipo: 'declaracao', titulo: 'Declaração', corpo: 'Declaramos, para os devidos fins, que o texto da declaração entra aqui.\n\nPor ser verdade, firmamos a presente.', fecho: '' } },
+    { id: 'memorando', nome: 'Memorando', desc: 'Comunicação interna (MI).', usar: 'memorando',
+      reg: { tipo: 'memorando', remetente: 'Coordenação', destinatario: 'Equipe', assunto: 'Assunto do memorando', corpo: PARAGRAFOS_EX } },
+    ...BRANCAS.map((b) => ({ id: b.id, nome: b.nome, desc: b.desc, doc: b.doc })),
+  ];
+  const docDoModelo = (x) => x.doc || paraMontador({ modelo: 'coluna', codigo: `${TIPOS[x.usar]?.sigla || 'CA'}-2026-0000`, data: hoje(), local: 'João Pessoa', assinaturas: ASSINA_EX, ...x.reg });
+
+  async function ligarModelos(raiz) {
+    if (!raiz) return;
+    raiz.innerHTML = `<section class="bloco"><span class="u-rotulo">Modelos de documentos</span>
+      <div class="modelos-grade">${MODELOS.map((x) => `<article class="u-cartao modelo-doc" data-modelo-id="${x.id}">
+        <div class="modelo-folha"><div class="modelo-escala" data-folha></div></div>
+        <div class="modelo-txt"><b>${esc(x.nome)}</b><span class="u-apoio">${esc(x.desc)}</span></div>
+        <div class="modelo-acoes"><button type="button" class="u-botao" data-baixar="${x.id}">Baixar PDF</button>
+          ${x.usar ? `<a class="u-botao" href="#/documentos/novo/${x.usar}">Usar este modelo</a>` : ''}</div></article>`).join('')}</div></section>
+      <section class="bloco"><details class="docs-modelo" data-modelo><summary><span class="u-rotulo">Modelo das folhas</span>
+          <span class="u-apoio">Blocos do texto (seção, lista, tabela, nota) e como escrevê-los. Vale para todos os documentos do estúdio.</span></summary>
+        <div class="docs-modelo-grade"><div class="docs-modelo-guia">
+          <div class="docs-escolha" role="radiogroup"><label><input type="radio" name="modelo-ex" value="coluna" checked> Coluna</label>
+            <label><input type="radio" name="modelo-ex" value="ficha"> Ficha</label></div>
+          <table class="u-tabela docs-marcas"><thead><tr><th>No começo da linha</th><th>Vira</th></tr></thead><tbody>
+            ${MARCAS.map(([a, b]) => `<tr><td><code>${esc(a)}</code></td><td>${esc(b)}</td></tr>`).join('')}</tbody></table>
+          <label class="u-campo"><span>Texto de exemplo</span><textarea rows="16" data-exemplo>${esc(EXEMPLO)}</textarea>
+            <small>Edite para testar; nada é salvo.</small></label></div>
+          <div class="docs-modelo-previa"><div class="docs-escala"><div class="docs-modelo-folhas" data-folhas-ex></div></div></div></div></details></section>`;
+    raiz.querySelectorAll('[data-baixar]').forEach((b) => b.addEventListener('click', async () => {
+      b.disabled = true;
+      try { const m = await carregarMontador(); const x = MODELOS.find((y) => y.id === b.dataset.baixar); await m.imprimir(docDoModelo(x), rec, `odisse-modelo-${x.id}`); }
+      catch (e) { toque('Não foi possível montar o modelo: ' + e.message); }
+      b.disabled = false;
+    }));
+    // modelo das folhas: montado só quando aberto (carrega a Marca só se for ver)
+    const det = raiz.querySelector('[data-modelo]');
+    const folhasEx = raiz.querySelector('[data-folhas-ex]');
+    let tEx, rodadaEx = 0;
+    const montarEx = async () => {
+      const minha = ++rodadaEx;
+      try {
+        const m = await carregarMontador();
+        const modelo = raiz.querySelector('[name="modelo-ex"]:checked').value;
+        const doc = paraMontador({ tipo: 'carta', modelo, codigo: 'CA-2026-0000', data: hoje(), local: 'João Pessoa',
+          destinatario: 'Nome do destinatário\nCargo\nOrganização', assunto: 'Modelo das folhas: todos os blocos', saudacao: 'Prezados,',
+          corpo: raiz.querySelector('[data-exemplo]').value, fecho: 'Atenciosamente,',
+          assinaturas: [{ equipe_id: 'exemplo', rubrica: true, nome: 'Nome de quem assina', cargo: 'Cargo', registro: 'CAU/PB A000000-0' }] });
+        const n = await m.montar(folhasEx, doc, rec);
+        if (minha !== rodadaEx) return;
+        const porLinha = Math.min(n, 2), larg = porLinha * 794 + (porLinha - 1) * 24, linhas = Math.ceil(n / porLinha);
+        const k = Math.min(1, (folhasEx.parentElement.parentElement.clientWidth - 2) / larg);
+        Object.assign(folhasEx.style, { width: larg + 'px', transform: `scale(${k})` });
+        folhasEx.parentElement.style.height = `${(linhas * 1123 + (linhas - 1) * 24) * k}px`;
+      } catch (e) { folhasEx.innerHTML = `<p class="u-apoio">Não foi possível montar o modelo: ${esc(e.message)}</p>`; }
+    };
+    det.addEventListener('toggle', () => { if (det.open) montarEx(); });
+    det.addEventListener('input', () => { clearTimeout(tEx); tEx = setTimeout(montarEx, 250); });
+    // miniaturas: só a 1ª folha de cada modelo, em escala, uma de cada vez
+    try {
+      const m = await carregarMontador();
+      for (const x of MODELOS) {
+        const art = raiz.querySelector(`[data-modelo-id="${x.id}"]`);
+        if (!art || !raiz.isConnected) return;
+        const alvo = art.querySelector('[data-folha]'), caixa = alvo.parentElement;
+        await m.montar(alvo, docDoModelo(x), rec);
+        const k = caixa.clientWidth / 794;
+        Object.assign(alvo.style, { width: '794px', transform: `scale(${k})` });
+        caixa.style.height = `${1123 * k}px`;
+      }
+    } catch (e) { raiz.querySelectorAll('[data-folha]').forEach((f) => { f.innerHTML = '<p class="u-apoio">Prévia indisponível.</p>'; }); }
+  }
+
   return {
+    ligarModelos,
     ligar(raiz) {
       const partes = location.hash.split('?')[0].split('/').slice(2); // ['novo','carta'] | ['doc_…'] | []
       if (partes[0] === 'novo') { const base = copia; copia = null; return editor(raiz, null, partes[1] || 'carta', base); }

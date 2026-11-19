@@ -33,3 +33,14 @@ ok(r.status === 422, 'descrição com no máximo 120 caracteres');
 
 r = await pedir('GET', 'ferramentas-textos', null, 'vendas');
 ok(r.status === 403 || r.status === 404, 'só o hub vê');
+
+// ---- 0018: empresa (O Estúdio › Empresa)
+r = await pedir('GET', 'empresa');
+ok(r.status === 200 && r.j.itens.length === 1 && r.j.itens[0].id === 'emp_odisse' && r.j.itens[0].cidade === 'João Pessoa', 'empresa semeada com os dados da Marca');
+const emp = r.j.itens[0];
+r = await pedir('PATCH', 'empresa/emp_odisse', { versao: emp.versao, cnpj: '00.000.000/0001-00', texto_longo: 'Primeiro parágrafo.\n\nSegundo parágrafo.' });
+ok(r.status === 200 && r.j.registro.cnpj === '00.000.000/0001-00' && r.j.registro.texto_longo.includes('\n\n'), 'edita CNPJ e texto longo com parágrafos');
+r = await pedir('GET', 'empresa', null, 'vendas');
+ok(r.status === 200 && r.j.itens[0].cnpj, 'o vendas lê a empresa (contrato)');
+r = await pedir('PATCH', 'empresa/emp_odisse', { versao: 99, cnpj: 'x' }, 'vendas');
+ok(r.status >= 400, 'só o hub edita');

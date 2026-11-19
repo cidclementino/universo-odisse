@@ -3,10 +3,13 @@
   "secoes": [
     {"id": "inicio", "nome": "Início", "descricao": "O que importa hoje"},
     {"id": "ferramentas", "nome": "Ferramentas", "descricao": "Onde se trabalha"},
-    {"id": "canais", "nome": "Canais", "descricao": "O que o público vê"},
-    {"id": "equipe", "nome": "Equipe", "descricao": "Quem faz"},
-    {"id": "marca", "nome": "Marca", "descricao": "Quem somos"},
-    {"id": "biblioteca", "nome": "Biblioteca", "descricao": "O que se reutiliza"}
+    {"id": "estudio", "nome": "O Estúdio", "descricao": "Quem somos", "rota": "empresa"},
+    {"id": "empresa", "nome": "Empresa", "descricao": "Dados da empresa e textos de apresentação", "pai": "estudio"},
+    {"id": "equipe", "nome": "Equipe", "descricao": "Quem faz", "pai": "estudio"},
+    {"id": "marca", "nome": "Marca", "descricao": "Núcleos, cores, tipografia e logos", "pai": "estudio"},
+    {"id": "canais", "nome": "Canais", "descricao": "O que o público vê", "pai": "estudio"},
+    {"id": "biblioteca", "nome": "Biblioteca", "descricao": "O que se reutiliza"},
+    {"id": "emissao", "nome": "Emissão de documentos avulsos", "descricao": "Cartas, ofícios, declarações e memorandos", "rota": "documentos", "separada": true}
   ],
   "ramos": [
     {"id": "marketing", "cor": "ambar", "nome": "Marketing"},
@@ -172,6 +175,15 @@
       "status": "em-breve"
     },
     {
+      "id": "emissao",
+      "nome": "Emissão de documentos avulsos",
+      "secao": "emissao",
+      "descricao": "Cartas, ofícios, declarações e memorandos numerados",
+      "url": "https://universo.odisse.com.br/#/documentos",
+      "acesso": "interna",
+      "status": "no-ar"
+    },
+    {
       "id": "site",
       "nome": "Site institucional",
       "secao": "canais",
@@ -255,11 +267,11 @@
     },
     {
       "id": "documentos",
-      "nome": "Documentos",
+      "nome": "Modelos de documentos",
       "secao": "biblioteca",
       "grupo": "acervo",
-      "descricao": "Cartas, ofícios, declarações e memorandos numerados; folhas em branco da marca",
-      "url": "https://universo.odisse.com.br/#/documentos",
+      "descricao": "Prévia e download de cada modelo de documento e das folhas em branco",
+      "url": "https://universo.odisse.com.br/#/biblioteca",
       "acesso": "interna",
       "status": "no-ar"
     },

@@ -15,6 +15,13 @@ export const txt = (v, max, obrig = false, nome = 'campo') => {
   return s;
 };
 
+// texto com parágrafos (linha em branco entre eles): não junta as linhas como txt()
+const paragrafos = (v, max, nome) => {
+  const s = String(v ?? '').replace(/\r/g, '').replace(/[ \t]+/g, ' ').replace(/ *\n */g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+  if (s.length > max) throw new Error(`${nome}: no máximo ${max} caracteres`);
+  return s;
+};
+
 export const link = (v, nome) => {
   const s = txt(v, 300, false, nome);
   if (s && !/^https:\/\/[^\s/$.?#][^\s]*$/i.test(s)) throw new Error(`${nome}: precisa começar com https://`);
@@ -40,6 +47,16 @@ export function aplicar(atual, novo, hoje = hojeBrasilia()) {
   d.nome_completo_en = txt(novo.nome_completo_en ?? d.nome_completo_en, 120, false, 'Nome completo (inglês)');
   d.descricao = txt(novo.descricao ?? d.descricao, 400, true, 'Descrição');
   d.descricao_en = txt(novo.descricao_en ?? d.descricao_en, 400, false, 'Descrição (inglês)');
+  // 0018: textos de apresentação, editados em O Estúdio › Empresa e copiados aqui para o site ler
+  const t = novo.textos ?? d.textos;
+  if (t) {
+    const lim = { curto: 200, medio: 900, longo: 4000 };
+    d.textos = {};
+    for (const [k, max] of Object.entries(lim)) {
+      d.textos[k] = paragrafos(t[k], max, `Texto ${k}`);
+      d.textos[k + '_en'] = paragrafos(t[k + '_en'], max, `Texto ${k} (inglês)`);
+    }
+  }
 
   const fundVindos = novo.fundadores ?? d.fundadores;
   const fund = (Array.isArray(fundVindos) ? fundVindos : String(fundVindos || '').split(/\n|,/))
@@ -132,7 +149,7 @@ export function mudancas(antes, depois) {
   const out = [];
   const nomes = { nome: 'nome', nome_completo: 'nome completo', nome_completo_en: 'nome em inglês', descricao: 'descrição',
     descricao_en: 'descrição em inglês', fundadores: 'fundadores', contato: 'contato', endereco: 'endereço',
-    redes: 'redes', sites: 'sites', nucleos: 'núcleos', paleta: 'paleta', papeis: 'papéis das cores' };
+    redes: 'redes', sites: 'sites', nucleos: 'núcleos', paleta: 'paleta', papeis: 'papéis das cores', textos: 'textos de apresentação' };
   for (const [k, n] of Object.entries(nomes)) if (JSON.stringify(antes[k]) !== JSON.stringify(depois[k])) out.push(n);
   return out;
 }

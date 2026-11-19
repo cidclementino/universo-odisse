@@ -43,6 +43,7 @@
   .ub-secoes a { display: flex; align-items: center; padding: 0 12px; color: inherit; text-decoration: none; white-space: nowrap;
     opacity: .78; border-bottom: 2px solid transparent; border-top: 2px solid transparent; }
   .ub-secoes a:hover { opacity: 1; }
+  .ub-sep { flex: none; width: 1px; margin: 14px 8px; background: rgba(255,255,255,.28); }
   .ub-secoes a.ub-ativo { opacity: 1; font-weight: 600; border-bottom-color: currentColor; }
   .ub-menu { position: relative; display: inline-flex; color: inherit; flex: none;
     font: 500 13px/1 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif; }
@@ -92,7 +93,10 @@
     ardosia: 'color-mix(in srgb, #3F4B57 45%, white)', terra: 'color-mix(in srgb, #4A3726 45%, white)', grafite: 'color-mix(in srgb, #2E3036 45%, white)' };
   const corDe = (c) => CORES[c] || CORES.nevoa;
   const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  const linkSecao = (id) => (NO_HUB ? '#/' : HUB + '#/') + (id === 'inicio' ? '' : id);
+  // seção → endereço: `rota` quando a seção abre outra página (O Estúdio → Empresa; Emissão → documentos)
+  const linkSecao = (s) => { const id = typeof s === 'string' ? s : (s.rota || s.id); return (NO_HUB ? '#/' : HUB + '#/') + (id === 'inicio' ? '' : id); };
+  // seções da barra: as de cima (sem `pai`); subpáginas (Empresa, Equipe, Marca, Canais) ficam dentro de O Estúdio
+  const deCima = (dados) => dados.secoes.filter((s) => !s.pai);
 
   function itemAtual(itens) {
     // o endereço mais específico vence (ex.: odisse.com.br/admin)
@@ -106,14 +110,16 @@
   }
 
   function secaoAtual(dados, item) {
+    const subir = (id) => { const s = dados.secoes.find((x) => x.id === id || x.rota === id); return s ? (s.pai || s.id) : null; };
     if (NO_HUB) {
-      const id = (location.hash.match(/^#\/([^/?]+)/) || [])[1];
-      if (dados.secoes.some((s) => s.id === id)) return id;
-      // páginas do próprio hub fora das seções (ex.: #/documentos): a seção do item que aponta para elas
-      const dono = id && (dados.itens || []).find((f) => (f.url || '').endsWith('#/' + id));
-      return dono ? dono.secao : 'inicio';
+      const id = (location.hash.match(/^#\/([^/?]+)/) || [])[1] || 'inicio';
+      const sec = subir(id);
+      if (sec) return sec;
+      // páginas do próprio hub fora das seções: a seção do item que aponta para elas
+      const dono = (dados.itens || []).find((f) => (f.url || '').endsWith('#/' + id));
+      return dono ? (subir(dono.secao) || dono.secao) : 'inicio';
     }
-    return item ? item.secao : null;
+    return item ? (subir(item.secao) || item.secao) : null;
   }
 
   function montarMenu(raiz, dados, item, comSecoes) {
@@ -150,7 +156,7 @@
     }).join('');
 
     painel.innerHTML = (comSecoes
-      ? `<div class="ub-secs">${dados.secoes.map((s) => `<a href="${linkSecao(s.id)}">${esc(s.nome)}</a>`).join('')}</div>`
+      ? `<div class="ub-secs">${deCima(dados).map((s) => `<a href="${linkSecao(s)}">${esc(s.curto || s.nome)}</a>`).join('')}</div>`
       : '') + blocos;
 
     painel.addEventListener('click', (e) => {
@@ -179,8 +185,8 @@
     raiz.classList.add('ub-barra');
     raiz.innerHTML = `<a class="ub-casa" href="${linkSecao('inicio')}"><span class="ub-selo" aria-hidden="true"></span>
         <span class="ub-logotipo" role="img" aria-label="Odisse"></span><span class="ub-sub">Universo</span></a>
-      <nav class="ub-secoes" aria-label="Seções do Universo">${dados.secoes.map((s) =>
-        `<a href="${linkSecao(s.id)}" data-secao="${s.id}">${esc(s.nome)}</a>`).join('')}</nav>
+      <nav class="ub-secoes" aria-label="Seções do Universo">${deCima(dados).map((s) =>
+        `${s.separada ? '<span class="ub-sep" aria-hidden="true"></span>' : ''}<a href="${linkSecao(s)}" data-secao="${s.id}" title="${esc(s.nome)}">${esc(s.curto || s.nome)}</a>`).join('')}</nav>
       <span data-ub-menu></span>`;
     montarMenu(raiz.querySelector('[data-ub-menu]'), dados, item, false);
 

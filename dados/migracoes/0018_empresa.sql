@@ -1,0 +1,42 @@
+-- Universo — migração 0018: dados da empresa (página O Estúdio › Empresa, Cid 19/11).
+-- Saem da edição da Marca: identidade jurídica, contato, endereço e os textos de apresentação (curto, médio, longo,
+-- PT/EN). O contrato e os documentos leem daqui; ao salvar, o hub copia a parte pública para o odisse.json da Marca,
+-- que o site e as ferramentas continuam lendo. Um registro só: emp_odisse.
+CREATE TABLE empresa (
+  id             TEXT PRIMARY KEY CHECK (id LIKE 'emp\_%' ESCAPE '\'),
+  criado_em      TEXT NOT NULL,
+  atualizado_em  TEXT NOT NULL,
+  criado_por     TEXT,
+  atualizado_por TEXT,
+  versao         INTEGER NOT NULL DEFAULT 1,
+  arquivado_em   TEXT,
+  nome           TEXT NOT NULL,
+  nome_completo  TEXT,
+  nome_completo_en TEXT,
+  razao_social   TEXT,
+  cnpj           TEXT,
+  inscricao_municipal TEXT,
+  registro_cau   TEXT,
+  fundacao       TEXT,
+  email          TEXT,
+  telefone       TEXT,
+  logradouro     TEXT,
+  bairro         TEXT,
+  cidade         TEXT,
+  uf             TEXT,
+  cep            TEXT,
+  caixa_postal   TEXT,
+  texto_curto    TEXT,
+  texto_curto_en TEXT,
+  texto_medio    TEXT,
+  texto_medio_en TEXT,
+  texto_longo    TEXT,
+  texto_longo_en TEXT
+);
+INSERT INTO empresa (id, criado_em, atualizado_em, criado_por, atualizado_por, nome, nome_completo, nome_completo_en,
+  email, telefone, logradouro, bairro, cidade, uf, cep, caixa_postal, texto_curto, texto_curto_en)
+VALUES ('emp_odisse', '2026-11-19T05:00:00.000Z', '2026-11-19T05:00:00.000Z', 'migracao', 'migracao',
+  'Odisse', 'Odisse, Estúdio de Arquitetura e Design', NULL,
+  'contato@odisse.com.br', '+55 83 99122-3088', 'Rua Bananeiras, nº 361 – Sala 107', 'Manaíra', 'João Pessoa', 'PB', '58.038-170', '393',
+  'Estúdio de arquitetura e design em João Pessoa. Projetos de arquitetura, interiores, objetos autorais e pesquisa editorial.',
+  'Architecture and design studio in João Pessoa, Brazil. Architecture, interiors, original objects and editorial research.');
