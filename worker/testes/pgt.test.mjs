@@ -59,7 +59,7 @@ ok(await falha('GET', 'honorarios', null, 'marketing') === 403, 'marketing não 
 // ---------------------------------------------------------------- honorários (0006): o custo, pelo vendas
 let H = await chamar('GET', 'honorarios', null, 'vendas');
 ok(H.servicos.find((s) => s.id === 'srv_ne').modificador === 1 && H.servicos.find((s) => s.id === 'srv_ne').preco_por_etapa === 1, 'honorários: preço dos serviços');
-ok(H.parametros.parcela_entrada === 0.3 && !('parcela' in H.fases[0]), 'honorários: parcela de entrada (a parcela por fase saiu em 0015)');
+ok(H.parametros.parcela_entrada === 0.3 && H.parametros.acrescimo_lacuna === 0.5 && !('parcela' in H.fases[0]), 'honorários: parcela de entrada (a parcela por fase saiu em 0015)');
 ok(H.etapas.find((e) => e.id === 'pet_ce').servicos.srv_in.peso === 1, 'honorários (0015): pesos antigos viram fator 1 ou 2 (IN: 18 · 17 · 23 → 1 · 1 · 1)');
 const fatorNe = (sig) => H.etapas.find((e) => e.sigla === sig).servicos.srv_ne.peso;
 ok(fatorNe('PX') === 1 && fatorNe('PE') === 2 && fatorNe('DE') === 2, 'Executiva de NE: 8 · 16 · 16 → 1 · 2 · 2');

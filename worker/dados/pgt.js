@@ -33,7 +33,11 @@ import { ErroApi } from './regras.js';
 import { agoraISO } from './util.js';
 
 const lerJson = (s) => (s ? JSON.parse(s) : null);
-const PARAMETROS = { parcela_entrada: { rotulo: 'Parcela de entrada (na assinatura)', min: 0, max: 1 } };
+const PARAMETROS = {
+  parcela_entrada: { rotulo: 'Parcela de entrada (na assinatura)', min: 0, max: 1 },
+  // 0016: fração do peso das fases do fluxo não contratadas que vêm antes de uma contratada ("só tal fase")
+  acrescimo_lacuna: { rotulo: 'Acréscimo sobre fase anterior não contratada', min: 0, max: 1 },
+};
 // campos de custo: fora dos retratos de estrutura, dentro do retrato de honorários
 const PRECO_SERVICO = ['modificador', 'com_preco', 'preco_por_etapa'];
 // quem edita os honorários (o Projetos só lê)
