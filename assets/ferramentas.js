@@ -1,6 +1,6 @@
 // Página Ferramentas do hub (#/ferramentas): cartões empilhados por ramo, no desenho dos cartões do PGT (Cid, 19/11).
 //   - uma faixa de título por ramo, recolhível (seta ▸ que gira; aberto/fechado lembrado neste computador);
-//   - cor do ramo da paleta da Marca: filete de 4 px no bloco e faixa no tom forte; cartões no tom leve;
+//   - cor do ramo da paleta da Marca: bloco com fundo no tom claro, faixa de título no tom forte, cartões brancos; SEM barra à esquerda;
 //   - a linha inteira leva à ferramenta, exceto o lápis e o texto em edição;
 //   - lápis na descrição: edita no lugar, Enter grava, Esc desfaz. Gravada no servidor do hub
 //     (tabela ferramentas_textos, 0017); sem texto gravado, vale a descrição do ferramentas.json.

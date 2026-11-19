@@ -392,30 +392,31 @@ li.eq-item.alvo-depois { box-shadow: 0 3px 0 var(--odisse-ocre, #BB8248); }
 .eq-qualif { margin-top: 6px; padding-top: 14px; border-top: 1px solid var(--u-linha); }
 .eq-qualif p { margin: 6px 0 0; font-size: 13.5px; line-height: 1.55; max-width: 1000px; }
 
-/* Ferramentas: cartões empilhados por ramo, no desenho dos cartões do PGT (projetos-odisse/projetos.css:
-   .estado / .estado__faixa / .pilha / .card / .ctl__btn). design.md § 4, "Pilha de cartões por grupo". */
-.lista-ferramentas { --cols: 40px minmax(180px, 24%) minmax(0, 1fr) 110px 96px; margin-top: var(--u-esp-5); }
+/* Ferramentas: cartões empilhados por ramo, no desenho dos cartões do PGT, com o grupo em fundo de cor
+   (sem barra à esquerda). design.md § 4, "Pilha de cartões por grupo". */
+.lista-ferramentas { --cols: 44px minmax(180px, 24%) minmax(0, 1fr) 110px 96px; margin-top: var(--u-esp-5); }
 .ferr-cab, .ferr { display: grid; grid-template-columns: var(--cols); align-items: center; }
 .ferr-cab > *, .ferr > * { padding: 0 8px; min-width: 0; }
-.ferr-cab { padding: 0 2px 8px 17px; border-bottom: 1px solid var(--u-linha-forte); font-size: 11px; font-weight: 650; letter-spacing: .06em;
+.ferr-cab { padding: 0 9px 8px 9px; border-bottom: 1px solid var(--u-linha-forte); font-size: 11px; font-weight: 650; letter-spacing: .06em;
   text-transform: uppercase; color: var(--u-tinta-2); }
-/* grupo: filete de 4 px na cor do ramo + faixa de título no tom forte (como Fluxo projetual / Ilhas) */
-.ramo { margin-top: 22px; padding-left: 12px; border-left: 4px solid var(--g); }
-.ramo__faixa { display: flex; align-items: center; gap: 12px; width: calc(100% + 12px); margin: 0 0 6px -12px; padding: 7px 12px;
-  border: 0; border-radius: 0 var(--u-raio-p) var(--u-raio-p) 0; background: color-mix(in srgb, var(--g) 35%, transparent);
+/* grupo: SEM barra colorida à esquerda (Cid, 19/11). O bloco inteiro tem fundo no tom claro da cor do ramo;
+   a faixa de título, no tom forte; os cartões, brancos por cima. */
+.ramo { margin-top: 16px; border-radius: var(--u-raio); background: color-mix(in srgb, var(--g) 14%, var(--u-elevada, #fff)); }
+.ramo__faixa { display: flex; align-items: center; gap: 12px; width: 100%; margin: 0; padding: 9px 14px;
+  border: 0; border-radius: var(--u-raio); background: color-mix(in srgb, var(--g) 45%, var(--u-elevada, #fff));
   font: inherit; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--u-tinta); text-align: left; cursor: pointer; }
-.ramo__faixa:hover { background: color-mix(in srgb, var(--g) 50%, transparent); }
+.ramo.aberto .ramo__faixa { border-radius: var(--u-raio) var(--u-raio) 0 0; }
+.ramo__faixa:hover { background: color-mix(in srgb, var(--g) 60%, var(--u-elevada, #fff)); }
 .ramo__faixa > span:last-child { font-weight: 500; letter-spacing: 0; text-transform: none; font-size: 12px; color: var(--u-tinta-2); }
 .ramo__faixa .seta { display: inline-grid; place-items: center; width: 10px; height: 10px; line-height: 1; font-size: 10px; color: var(--u-tinta-2); transition: transform .15s; }
 .ramo.aberto .ramo__faixa .seta { transform: rotate(90deg); }
 .ramo:not(.aberto) .ramo__pilha { display: none; }
-.ramo:not(.aberto) .ramo__faixa { margin-bottom: 0; }
-/* pilha de cartões: tom leve da cor do ramo, borda leve, raio 8, 6 px entre eles; cartão de 48 px */
-.ramo__pilha { display: flex; flex-direction: column; gap: 6px; }
-.ferr { box-sizing: border-box; min-height: 52px; padding: 6px 0; font-size: 13px; background: color-mix(in srgb, var(--g) 9%, var(--u-elevada, #fff));
-  border: 1px solid color-mix(in srgb, var(--g) 30%, var(--u-linha)); border-radius: var(--u-raio); transition: border-color .15s, background-color .15s; }
+/* pilha de cartões brancos sobre o fundo do grupo: 6 px entre eles, cartão de 52 px */
+.ramo__pilha { display: flex; flex-direction: column; gap: 6px; padding: 8px; }
+.ferr { box-sizing: border-box; min-height: 52px; padding: 6px 0; font-size: 13px; background: var(--u-elevada, #fff);
+  border: 1px solid var(--u-linha); border-radius: var(--u-raio); transition: border-color .15s, background-color .15s; }
 .ferr[data-url] { cursor: pointer; }
-.ferr[data-url]:hover { background: color-mix(in srgb, var(--g) 18%, var(--u-elevada, #fff)); border-color: color-mix(in srgb, var(--g) 60%, var(--u-linha-forte)); }
+.ferr[data-url]:hover { background: color-mix(in srgb, var(--g) 8%, var(--u-elevada, #fff)); border-color: var(--u-linha-forte); }
 .ferr__nome { color: inherit; text-decoration: none; }
 .ferr strong { font-weight: 650; }
 .ferr[data-url]:hover .ferr__nome { text-decoration: underline; text-underline-offset: 3px; }
@@ -424,16 +425,16 @@ li.eq-item.alvo-depois { box-shadow: 0 3px 0 var(--odisse-ocre, #BB8248); }
 .ferr__estado { font-size: 12px; white-space: nowrap; }
 .ferr .no-ar { color: #3E6B48; font-weight: 600; }
 /* em breve: tracejado (design.md: tracejado = suspenso), sem clique */
-.ferr.is-breve { background: transparent; border-style: dashed; border-color: var(--u-linha-forte); color: #8A939C; }
+.ferr.is-breve { background: color-mix(in srgb, var(--u-elevada, #fff) 55%, transparent); border-style: dashed; border-color: var(--u-linha-forte); color: #8A939C; }
 .ferr.is-breve strong { font-weight: 550; }
 .ferr.is-breve .ferr__oque { color: #8A939C; }
-/* comandos à esquerda: os mesmos do PGT (sempre visíveis, em tom apagado) */
-.ferr__ctl { display: flex; align-items: center; padding-left: 6px !important; padding-right: 0 !important; }
-.ctl__btn { width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: 4px; background: transparent;
-  color: color-mix(in srgb, var(--u-tinta-2) 55%, transparent); cursor: pointer; padding: 0; }
+/* ✎ sempre numa caixa (Cid, 19/11): 24 × 24, borda, fundo branco; nunca ícone solto */
+.ferr__ctl { display: flex; align-items: center; padding-left: 10px !important; padding-right: 0 !important; }
+.ctl__btn { box-sizing: border-box; width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; padding: 0;
+  border: 1px solid var(--u-linha-forte); border-radius: 4px; background: var(--u-elevada, #fff); color: var(--u-tinta-2); cursor: pointer; }
 .ctl__btn svg { width: 14px; height: 14px; }
-.ctl__btn:hover, .ctl__btn:focus-visible { color: var(--u-tinta); background: rgba(63,75,87,.08); }
-.ctl__btn.is-on { color: var(--u-tinta); background: rgba(63,75,87,.08); }
+.ctl__btn:hover, .ctl__btn:focus-visible { border-color: var(--u-tinta-2); color: var(--u-tinta); }
+.ctl__btn.is-on { background: var(--u-tinta); border-color: var(--u-tinta); color: var(--u-superficie, #FAFAF7); }
 .lista-ferramentas .texto.is-editando { display: inline-block; min-width: 60%; outline: 2px solid var(--u-destaque, #BB8248); outline-offset: 2px; border-radius: 2px;
   cursor: text; background: var(--u-elevada, #fff); color: var(--u-tinta); }
 @media (max-width: 860px) {
