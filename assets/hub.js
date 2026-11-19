@@ -34,7 +34,9 @@ function cartao(f) {
   const breve = f.status === 'em-breve' || !f.url;
   const tag = breve ? '<span class="u-etiqueta suave">em breve</span>'
     : f.acesso === 'publica' ? '<span class="u-etiqueta">público</span>' : '';
-  const titulo = breve ? `<b>${esc(f.nome)}</b>` : `<a class="principal" href="${esc(f.url)}"><b>${esc(f.nome)}</b></a>`;
+  // ferramenta ou site fora do hub abre em outra aba; o Universo fica aberto
+  const novaAba = f.url && !f.url.startsWith(location.origin) ? ' target="_blank" rel="noopener"' : '';
+  const titulo = breve ? `<b>${esc(f.nome)}</b>` : `<a class="principal" href="${esc(f.url)}"${novaAba}><b>${esc(f.nome)}</b></a>`;
   const extras = (f.extra || []).map((x) => `<a href="${esc(x.url)}">${esc(x.nome)} →</a>`).join('');
   const host = !breve && f.url ? `<span>${esc(semProtocolo(f.url))}</span>` : '';
   return `<div class="u-cartao item${breve ? ' breve' : ''}">

@@ -12,6 +12,8 @@ const appDe = (url) => { const h = (url || '').match(/^https?:\/\/([^./]+)\./); 
 const LAPIS = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10.8 2.6 13.4 5.2 6 12.6 3 13 3.4 10Z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>'; // o mesmo do PGT
 const COPIA = 'ferramentas:textos';
 // seta do grupo em SVG: o caractere ▸ é um triângulo pequeno por definição e a Inter não o tem (saía minúsculo)
+// endereço fora desta página (outra ferramenta ou site) → nova aba
+const fora = (url) => { try { return new URL(url, location.href).origin !== location.origin; } catch { return false; } };
 const SETA = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const FECHADOS = 'universo:ferramentas:fechados';
 const ESCURAS = new Set(['ardosia', 'terra', 'grafite']); // como no PGT: cor escura entra clareada (45%)
@@ -64,11 +66,11 @@ export function criarFerramentas({ esc, api, toque, lerMapa, config = FERRAMENTA
   // cartão de uma ferramenta: o mesmo desenho dos cartões do PGT (Projetos › Plano Geral de Trabalho)
   function cartao(f) {
     const breve = f.status === 'em-breve' || !f.url;
-    const nome = breve ? `<strong>${esc(f.nome)}</strong>` : `<a class="ferr__nome" href="${esc(f.url)}"><strong>${esc(f.nome)}</strong></a>`;
+    const nome = breve ? `<strong>${esc(f.nome)}</strong>` : `<a class="ferr__nome" href="${esc(f.url)}"${fora(f.url) ? ' target="_blank" rel="noopener"' : ''}><strong>${esc(f.nome)}</strong></a>`;
     return `<div class="ferr${breve ? ' is-breve' : ''}" data-id="${esc(f.id)}"${breve ? '' : ` data-url="${esc(f.url)}"`}>
       <div class="ferr__ctl"><button type="button" class="ctl__btn" data-editar title="Editar descrição"
         aria-label="Editar a descrição de ${esc(f.nome)}">${LAPIS}</button></div>
-      <div class="ferr__titulo">${nome}${(f.extra || []).map((x) => `<a class="etq etq--link" href="${esc(x.url)}">${esc(x.nome)}</a>`).join('')}</div>
+      <div class="ferr__titulo">${nome}${(f.extra || []).map((x) => `<a class="etq etq--link" href="${esc(x.url)}"${fora(x.url) ? ' target="_blank" rel="noopener"' : ''}>${esc(x.nome)}</a>`).join('')}</div>
       <div class="ferr__oque"><span class="texto">${esc(f.descricao || '')}</span></div>
       <div class="ferr__onde">${breve ? '<span class="vazio">—</span>' : `<span class="etq">${esc(config.onde ? config.onde(f) : appDe(f.url))}</span>`}</div>
       <div class="ferr__estado">${breve ? '<span class="etq etq--breve">em breve</span>' : '<span class="etq etq--ok">no ar</span>'}</div>
@@ -162,7 +164,8 @@ export function criarFerramentas({ esc, api, toque, lerMapa, config = FERRAMENTA
       if (ev.target.closest('.is-editando, a')) return; // o link do nome segue sozinho (e com Ctrl/⌘ abre em outra aba)
       const card = ev.target.closest('.ferr[data-url]');
       if (!card || getSelection().toString()) return;
-      if (ev.ctrlKey || ev.metaKey) window.open(card.dataset.url, '_blank'); else location.href = card.dataset.url;
+      // ferramentas e canais abrem em outra aba; o Universo continua aberto (Cid, 19/11)
+      if (fora(card.dataset.url) || ev.ctrlKey || ev.metaKey) window.open(card.dataset.url, '_blank', 'noopener'); else location.href = card.dataset.url;
     });
     // confere por baixo: só redesenha se o servidor tiver textos diferentes da cópia
     api('/api/v1/ferramentas-textos?limite=200').then((r) => {

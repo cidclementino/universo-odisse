@@ -134,7 +134,7 @@
     const prontos = dados.itens.filter((f) => f.url && f.status !== 'em-breve');
     const linha = (f) => {
       const ativo = item && item.id === f.id ? ' ub-ativo' : '';
-      const extras = (f.extra || []).map((x) => `<a class="ub-extra" href="${esc(x.url)}">${esc(x.nome)}</a>`).join('');
+      const extras = (f.extra || []).map((x) => `<a class="ub-extra" href="${esc(x.url)}"${NO_HUB ? ' target="_blank" rel="noopener"' : ''}>${esc(x.nome)}</a>`).join('');
       // o item é um bloco (div) para caber as etiquetas extras como links próprios; o clique no bloco leva ao endereço
       return `<div class="ub-item${ativo}" data-url="${esc(f.url)}" role="link" tabindex="0"><b>${esc(f.nome)}</b>` +
         (f.descricao ? `<small>${esc(f.descricao)}</small>` : '') + (extras ? `<div class="ub-extras">${extras}</div>` : '') + '</div>';
@@ -163,11 +163,13 @@
       if (e.target.closest('a')) return;
       const it = e.target.closest('.ub-item[data-url]');
       if (!it) return;
-      if (e.ctrlKey || e.metaKey) window.open(it.dataset.url, '_blank'); else location.href = it.dataset.url;
+      // no Universo, as ferramentas abrem em outra aba e o hub fica aberto (Cid, 19/11)
+      const fora = new URL(it.dataset.url, location.href).origin !== location.origin;
+      if ((NO_HUB && fora) || e.ctrlKey || e.metaKey) window.open(it.dataset.url, '_blank', 'noopener'); else location.href = it.dataset.url;
     });
     painel.addEventListener('keydown', (e) => {
       const it = e.target.closest('.ub-item[data-url]');
-      if (it && e.key === 'Enter') location.href = it.dataset.url;
+      if (it && e.key === 'Enter') { const fora = new URL(it.dataset.url, location.href).origin !== location.origin; if (NO_HUB && fora) window.open(it.dataset.url, '_blank', 'noopener'); else location.href = it.dataset.url; }
     });
 
     const fechar = () => { painel.hidden = true; botao.setAttribute('aria-expanded', 'false'); };
