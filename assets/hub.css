@@ -16,6 +16,9 @@
 .item { position: relative; display: flex; flex-direction: column; gap: 6px; min-height: 128px; transition: border-color .15s, transform .15s; }
 .compactos .item { min-height: 0; }
 .item:has(a.principal):hover { border-color: var(--u-tinta-2); transform: translateY(-1px); }
+/* rótulo do ramo (Ferramentas): pequeno, em cima do nome */
+.item .ramo { font-size: 10.5px; font-weight: 650; letter-spacing: .08em; text-transform: uppercase; color: var(--u-tinta-2); line-height: 1; }
+.item.breve .ramo { opacity: .6; }
 .item .topo { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--u-esp-2); }
 .item b { font-size: 15px; font-weight: 650; letter-spacing: -.01em; }
 .item a.principal { color: inherit; text-decoration: none; }

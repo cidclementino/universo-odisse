@@ -34,7 +34,9 @@ function cartao(f) {
   const titulo = breve ? `<b>${esc(f.nome)}</b>` : `<a class="principal" href="${esc(f.url)}"><b>${esc(f.nome)}</b></a>`;
   const extras = (f.extra || []).map((x) => `<a href="${esc(x.url)}">${esc(x.nome)} →</a>`).join('');
   const host = !breve && f.url ? `<span>${esc(semProtocolo(f.url))}</span>` : '';
+  const ramo = f.ramo && (MAPA.ramos || []).find((r) => r.id === f.ramo);
   return `<div class="u-cartao item${breve ? ' breve' : ''}">
+    ${ramo ? `<span class="ramo">${esc(ramo.nome)}</span>` : ''}
     <div class="topo">${titulo}${tag}</div>
     ${f.descricao ? `<p>${esc(f.descricao)}</p>` : ''}
     ${host || extras ? `<div class="rodape">${host}${extras}</div>` : ''}
@@ -44,6 +46,15 @@ function cartao(f) {
 function cabecalho(titulo, texto, lado = '') {
   return `<div class="cab"><div><h1 class="u-titulo">${esc(titulo)}</h1>${texto ? `<p class="u-apoio">${texto}</p>` : ''}</div>
     ${lado ? `<div class="lado u-apoio">${lado}</div>` : ''}</div>`;
+}
+
+// Ferramentas: uma grade só, na ordem dos ramos; cada cartão diz o seu ramo (Cid, 19/11).
+function gradeDeRamos(secao) {
+  const ordem = (MAPA.ramos || []).map((r) => r.id);
+  const pos = (f) => { const i = ordem.indexOf(f.ramo); return i < 0 ? ordem.length : i; };
+  const itens = MAPA.itens.filter((f) => f.secao === secao)
+    .map((f, i) => [f, i]).sort((a, b) => pos(a[0]) - pos(b[0]) || a[1] - b[1]).map(([f]) => f);
+  return itens.length ? `<section class="bloco"><div class="cartoes">${itens.map(cartao).join('')}</div></section>` : '';
 }
 
 function blocosDaSecao(secao, compactos = false) {
@@ -114,7 +125,7 @@ const PAGINAS = {
   },
 
   ferramentas() {
-    return cabecalho('Ferramentas', 'Onde se trabalha. As internas pedem a própria senha, por enquanto.') + blocosDaSecao('ferramentas');
+    return cabecalho('Ferramentas', 'Onde se trabalha. As internas pedem a própria senha, por enquanto.') + gradeDeRamos('ferramentas');
   },
 
   canais() {

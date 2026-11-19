@@ -26,7 +26,7 @@ Os endereços das redes em Canais e os dados em Marca vêm do `odisse.json` da m
 | `assets/equipe.js` | Página Equipe: lista, ficha da pessoa (foto, cargo, registro, quem assina, assinatura manuscrita, bios do site) e listas de cargos e títulos |
 | `assets/memoria.js` | Cópias locais das leituras (a página abre na hora com a última cópia e confere por baixo) e imagens guardadas no navegador pelo id do arquivo. **Regra para todas as páginas:** nada de recarregar tudo do zero |
 | `assets/documentos.js` | Página Documentos: lista, editor com prévia e PDF. O desenho da folha vem da Marca (`marca.odisse.com.br/v1/documentos/`) |
-| `ferramentas.json` | **O mapa do Universo:** seções, grupos e itens. Alimenta as páginas do hub e a barra de todas as ferramentas |
+| `ferramentas.json` | **O mapa do Universo:** seções, ramos, grupos e itens. Alimenta as páginas do hub e a barra de todas as ferramentas |
 | `base/v1/barra.js` | Barra e menu do Universo, para incluir em cada ferramenta |
 | `base/v1/universo.css` | Camada de interface das ferramentas internas (botões, campos, tabelas, cartões) |
 | `base/v1/assinantes.js` | Seletor de quem assina (módulo): equipe com foto, nome e registro, vários assinantes, último lembrado, pessoa de fora. Devolve a cópia que o documento guarda; a rubrica entra só na emissão |
@@ -55,7 +55,7 @@ Os sites públicos (odisse.com.br, projetos, Herma) **não** usam `universo.css`
 
 ## Adicionar ou mudar um item
 
-Editar `ferramentas.json`. Campos de cada item: `id`, `nome`, `descricao`, `secao`, `grupo`, `url`, `hosts` (endereços que identificam a ferramenta, para a barra marcar a seção certa), `extra` (links secundários, ex.: o painel do site), `acesso` (`interna` ou `publica`) e `status` (`no-ar` ou `em-breve`). Itens em breve aparecem nas páginas, mas não no menu "Ir para".
+Editar `ferramentas.json`. Campos de cada item: `id`, `nome`, `descricao`, `secao`, `ramo` (só nas Ferramentas: marketing, comercial, produção, gestão — vira o rótulo do cartão; a página é uma grade só, na ordem de `ramos`) ou `grupo` (Canais e Biblioteca), `url`, `hosts` (endereços que identificam a ferramenta, para a barra marcar a seção certa), `extra` (links secundários, ex.: o painel do site), `acesso` (`interna` ou `publica`) e `status` (`no-ar` ou `em-breve`). Itens em breve aparecem nas páginas, mas não no menu "Ir para".
 
 ## Regras
 
