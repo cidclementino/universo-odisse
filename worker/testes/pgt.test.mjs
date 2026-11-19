@@ -258,7 +258,7 @@ ok(await falha('POST', 'pgt/lote', { ops: [] }, 'vendas') === 403, 'lote: vendas
     'as seis entregas que viraram eventos estão arquivadas');
   const ce2 = evs.find((e) => e.codigo === 'CE-M02');
   ok(ce2.nome === 'Apresentação da Concepção Esquemática' && ce2.tipo === 'apresentacao' && ce2.cliente === 1 && ce2.servicos.srv_ne === 'P' && !ce2.servicos.srv_co, 'CE-M02 com tipo, cliente e pertinência');
-  ok(evs.find((e) => e.id === 'pev_ce_m04').clausula === 'Dupla rodada de ajuste' && evs.find((e) => e.id === 'pev_ce_m04').servicos.srv_ne === 'O', 'segunda rodada de ajuste: opcional, com cláusula');
+  ok(evs.find((e) => e.id === 'pev_ce_m04').clausula_marcada === 1 && !('clausula' in evs.find((e) => e.id === 'pev_ce_m04')) && evs.find((e) => e.id === 'pev_ce_m04').servicos.srv_ne === 'O', 'segunda rodada de ajuste: opcional, marcada como cláusula (o texto fica no vendas)');
   const enc = evs.find((e) => e.encerramento);
   ok(enc.codigo === 'ENC' && enc.etapa_id === 'pet_pe' && enc.instancias.length === 9 && Object.values(enc.servicos).every((p) => p === 'S') && Object.keys(enc.servicos).length === 9,
     'Encerramento: ENC, padrão no PE, 9 instâncias, perpétuo nos 9 serviços');

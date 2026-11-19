@@ -657,14 +657,15 @@ export const TABELAS = {
       tempo: T('lista', { valores: TEMPOS_EVENTO, rotulo: 'De quem é o tempo' }),
       prazo_turnos: T('real', { min: 0.5, max: 40, rotulo: 'Duração (turnos)' }),
       quantidade: T('inteiro', { min: 1, max: 99, rotulo: 'Quantidade incluída' }),
-      clausula: T('textoLongo', { max: 1000, rotulo: 'Cláusula' }),
+      clausula: T('textoLongo', { max: 1000, rotulo: 'Cláusula' }),             // texto: redigido no vendas (Gestor de cláusulas)
+      clausula_marcada: T('sn', { rotulo: 'É cláusula' }),                         // 0019: a marca fica no PGT
       observacoes: T('textoLongo', { max: 4000, rotulo: 'Observações' }),
       ordem: T('inteiro', { min: 0, max: 9999, rotulo: 'Ordem' }),
       travado: T('sn', { rotulo: 'Travado' }),
       instancias: T('json', { rotulo: 'Etapas onde o encerramento pode ficar' }),
       decisao: T('json', { max: 8000, rotulo: 'Decisão (resultados e cartões relacionados)' }),
     },
-    padroes: { cliente: 0, terceiros: 0, tempo: 'pontual', travado: 0 },
+    padroes: { cliente: 0, terceiros: 0, tempo: 'pontual', travado: 0, clausula_marcada: 0 },
     permissoes: PGT,
     // 0019: o texto da cláusula também se edita no vendas (Contratos › Gestor de cláusulas)
     editaveis_por: { vendas: ['clausula'] },

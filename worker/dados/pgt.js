@@ -176,7 +176,8 @@ export async function retratoPgt(env) {
   const eventos = evt.results.filter((r) => sigla[r.etapa_id] || r.encerramento).map((r) => {
     let codigo = 'ENC';
     if (!r.encerramento) { posM[r.etapa_id] = (posM[r.etapa_id] || 0) + 1; codigo = `${sigla[r.etapa_id]}-M${String(posM[r.etapa_id]).padStart(2, '0')}`; }
-    return { ...sem(r, ...SO_TELA), codigo, instancias: lerJson(r.instancias), decisao: lerJson(r.decisao), servicos: porEvt[r.id] || {} };
+    // 0019: o texto da cláusula é do vendas (vai no retrato dos Honorários); aqui fica só a marca
+    return { ...sem(r, ...SO_TELA, 'clausula'), codigo, instancias: lerJson(r.instancias), decisao: lerJson(r.decisao), servicos: porEvt[r.id] || {} };
   });
   // prazo da etapa por serviço, em turnos, pela sequência (ver prazosDaEtapa)
   const servicos = srvs.results.map((x) => x.id);
@@ -206,7 +207,7 @@ export async function retratoHonorarios(env) {
       JOIN bases_servicos s ON s.id = x.servico_id JOIN pgt_fases f ON f.id = x.fase_id
       WHERE s.arquivado_em IS NULL AND f.arquivado_em IS NULL AND x.peso IS NOT NULL ORDER BY f.ordem, s.ordem`),
     // 0019: textos das cláusulas (dos eventos e do vendas), editados em Contratos › Gestor de cláusulas
-    env.DB.prepare(`SELECT id, clausula FROM pgt_eventos WHERE arquivado_em IS NULL AND clausula IS NOT NULL AND clausula <> '' ORDER BY id`),
+    env.DB.prepare(`SELECT id, clausula FROM pgt_eventos WHERE arquivado_em IS NULL AND clausula_marcada = 1 AND clausula IS NOT NULL AND trim(clausula) <> '' ORDER BY id`),
     env.DB.prepare('SELECT id, grupo, texto, padrao, ordem FROM vendas_clausulas WHERE arquivado_em IS NULL ORDER BY grupo, ordem, id'),
   ]);
   const vale = mapaDerivado(der.results);
@@ -319,6 +320,7 @@ async function paginaHonorarios(env) {
     etapas: eta.results.map((e) => ({ ...e, servicos: porEtapa[e.id] || {} })),
     parametros: r.parametros,
     parametros_rotulos: Object.fromEntries(Object.entries(PARAMETROS).map(([k, v]) => [k, v.rotulo])),
+    clausulas_eventos: r.clausulas_eventos,
     ...(await situacao(env, 'honorarios', r)),
   };
 }

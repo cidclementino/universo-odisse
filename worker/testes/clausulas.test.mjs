@@ -36,6 +36,14 @@ const u = await chamar('GET', 'publicacoes/ultima?tipo=honorarios');
 ok(u.numero === pub.numero && u.dados.clausulas_eventos.pev_ce_m03 === 'Inclui uma rodada de ajuste do estudo.', 'retrato dos Honorários com o texto do evento');
 ok(u.dados.clausulas.filter((c) => c.grupo === 'despesa').length === 4, 'retrato dos Honorários com as despesas');
 await chamar('PATCH', `vendas-clausulas/${nova.id}`, { texto: 'Cópias autenticadas de documentos.', versao: nova.versao });
+// marca no PGT, texto no vendas: marcado sem texto = a redigir (fora do retrato)
+const g2 = await chamar('GET', 'pgt-eventos/pev_ce_m01'); const e1 = g2.registro || g2;
+ok(e1.clausula_marcada === 0, 'evento sem cláusula começa desmarcado');
+await chamar('PATCH', 'pgt-eventos/pev_ce_m01', { clausula_marcada: 1, versao: e1.versao }, 'projetos');
+const pg = await chamar('GET', 'pgt', null, 'projetos');
+ok(pg.eventos.find((v) => v.id === 'pev_ce_m01').clausula_marcada === 1 && !('clausula' in pg.eventos[0]), 'PGT marca a cláusula e não mostra o texto');
+ok((await pedir('PATCH', 'pgt-eventos/pev_ce_m01', { clausula_marcada: 0, versao: e1.versao + 1 })).status === 403, 'vendas não muda a marca');
 const h = await chamar('GET', 'honorarios');
+ok(!('pev_ce_m01' in h.clausulas_eventos) && h.clausulas_eventos.pev_ce_m03, 'cláusula a redigir fica fora; as redigidas vêm na página dos Honorários');
 ok(h.pendente === true, 'mudar uma cláusula deixa os Honorários pendentes de publicação');
 console.log('todos os testes das cláusulas passaram');
