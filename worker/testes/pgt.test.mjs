@@ -59,12 +59,21 @@ ok(await falha('GET', 'honorarios', null, 'marketing') === 403, 'marketing não 
 // ---------------------------------------------------------------- honorários (0006): o custo, pelo vendas
 let H = await chamar('GET', 'honorarios', null, 'vendas');
 ok(H.servicos.find((s) => s.id === 'srv_ne').modificador === 1 && H.servicos.find((s) => s.id === 'srv_ne').preco_por_etapa === 1, 'honorários: preço dos serviços');
-ok(H.fases.find((f) => f.id === 'pfa_conceitual').parcela === 0.2 && H.parametros.parcela_entrada === 0.3, 'honorários: parcelas da fase e de entrada');
-ok(H.etapas.find((e) => e.id === 'pet_ce').servicos.srv_in.peso === 17, 'honorários: pesos das etapas');
+ok(H.parametros.parcela_entrada === 0.3 && !('parcela' in H.fases[0]), 'honorários: parcela de entrada (a parcela por fase saiu em 0015)');
+ok(H.etapas.find((e) => e.id === 'pet_ce').servicos.srv_in.peso === 1, 'honorários (0015): pesos antigos viram fator 1 ou 2 (IN: 18 · 17 · 23 → 1 · 1 · 1)');
+const fatorNe = (sig) => H.etapas.find((e) => e.sigla === sig).servicos.srv_ne.peso;
+ok(fatorNe('PX') === 1 && fatorNe('PE') === 2 && fatorNe('DE') === 2, 'Executiva de NE: 8 · 16 · 16 → 1 · 2 · 2');
+const fasePeso = (f, sv) => H.fases.find((x) => x.id === f).pesos[sv];
+ok(fasePeso('pfa_conceitual', 'srv_ne') === 40 && fasePeso('pfa_legal', 'srv_ne') === 20 && fasePeso('pfa_executiva', 'srv_ne') === 40, 'peso das fases de NE = soma dos pesos antigos (40 · 20 · 40)');
+ok(fasePeso('pfa_conceitual', 'srv_in') === 58 && H.fases.find((f) => f.id === 'pfa_obra').acrescimo === 1 && !fasePeso('pfa_obra', 'srv_ne'), 'IN Conceitual 58; Obra é acréscimo, sem peso de partida');
 ok(H.pendente === true && H.publicacao === null, 'honorários ainda não publicados');
-await chamar('POST', 'honorarios/pesos', { etapa_id: 'pet_ce', servico_id: 'srv_in', peso: 18 }, 'vendas');
-ok(await falha('POST', 'honorarios/pesos', { etapa_id: 'pet_ce', servico_id: 'srv_ev', peso: 5 }, 'vendas') === 422, 'peso onde a etapa não vale → 422');
-ok(await falha('POST', 'honorarios/pesos', { etapa_id: 'pet_ce', servico_id: 'srv_in', peso: 120 }, 'vendas') === 422, 'peso acima de 100 → 422');
+await chamar('POST', 'honorarios/pesos', { etapa_id: 'pet_ce', servico_id: 'srv_in', peso: 2 }, 'vendas');
+ok(await falha('POST', 'honorarios/pesos', { etapa_id: 'pet_ce', servico_id: 'srv_ev', peso: 1 }, 'vendas') === 422, 'peso onde a etapa não vale → 422');
+ok(await falha('POST', 'honorarios/pesos', { etapa_id: 'pet_ce', servico_id: 'srv_in', peso: 3 }, 'vendas') === 422, 'fator da etapa só 1 ou 2 → 422');
+await chamar('POST', 'honorarios/fases', { fase_id: 'pfa_obra', servico_id: 'srv_ne', peso: 15 }, 'vendas');
+ok(await falha('POST', 'honorarios/fases', { fase_id: 'pfa_ilhas', servico_id: 'srv_ne', peso: 10 }, 'vendas') === 422, 'fase-ilha sem peso → 422');
+ok(await falha('POST', 'honorarios/fases', { fase_id: 'pfa_legal', servico_id: 'srv_ne', peso: 120 }, 'vendas') === 422, 'peso da fase acima de 100 → 422');
+ok(await falha('POST', 'honorarios/fases', { fase_id: 'pfa_legal', servico_id: 'srv_ne', peso: 10 }, 'projetos') === 403, 'Projetos não edita o peso das fases');
 const srvNe = H.servicos.find((s) => s.id === 'srv_ne');
 await chamar('PATCH', 'bases-servicos/srv_ne', { versao: srvNe.versao, modificador: 1.1 }, 'vendas');
 const fCon = H.fases.find((f) => f.id === 'pfa_conceitual');
@@ -72,8 +81,8 @@ await chamar('PATCH', 'pgt-fases/pfa_conceitual', { versao: fCon.versao, parcela
 await chamar('POST', 'honorarios/parametros', { chave: 'parcela_entrada', valor: 0.25 }, 'vendas');
 ok(await falha('POST', 'honorarios/parametros', { chave: 'parcela_entrada', valor: 2 }, 'vendas') === 422, 'parâmetro fora da faixa → 422');
 H = await chamar('GET', 'honorarios', null, 'vendas');
-ok(H.etapas.find((e) => e.id === 'pet_ce').servicos.srv_in.peso === 18 && H.servicos.find((s) => s.id === 'srv_ne').modificador === 1.1
-  && H.fases.find((f) => f.id === 'pfa_conceitual').parcela === 0.25 && H.parametros.parcela_entrada === 0.25, 'vendas edita peso, preço, parcela e entrada');
+ok(H.etapas.find((e) => e.id === 'pet_ce').servicos.srv_in.peso === 2 && H.fases.find((f) => f.id === 'pfa_obra').pesos.srv_ne === 15 && H.servicos.find((s) => s.id === 'srv_ne').modificador === 1.1
+  && H.parametros.parcela_entrada === 0.25, 'vendas edita fator da etapa, peso da fase (acréscimo da Obra), preço, parcela e entrada');
 // a pertinência da etapa vem dos entregáveis; tirar todos de um serviço some com a célula, mas o peso fica guardado
 ok(await falha('POST', 'pgt/etapas-servicos', { etapa_id: 'pet_ce', servico_id: 'srv_in', pertinencia: 'O' }) === 422, 'pertinência da etapa não se marca à mão');
 const ceIn = (await chamar('GET', 'pgt')).entregaveis.filter((x) => x.etapa_id === 'pet_ce' && x.servicos.srv_in);
@@ -81,10 +90,10 @@ const pertCeIn = Object.fromEntries(ceIn.map((x) => [x.id, x.servicos.srv_in]));
 await chamar('POST', 'pgt/entregaveis-servicos', { entregavel_ids: ceIn.map((x) => x.id), servico_id: 'srv_in', pertinencia: null });
 H = await chamar('GET', 'honorarios', null, 'vendas');
 ok(!H.etapas.find((e) => e.id === 'pet_ce').servicos.srv_in, 'sem entregáveis de IN, CE deixa de valer para IN');
-ok(await falha('POST', 'honorarios/pesos', { etapa_id: 'pet_ce', servico_id: 'srv_in', peso: 5 }, 'vendas') === 422, 'peso onde a etapa não vale (calculado) → 422');
+ok(await falha('POST', 'honorarios/pesos', { etapa_id: 'pet_ce', servico_id: 'srv_in', peso: 1 }, 'vendas') === 422, 'peso onde a etapa não vale (calculado) → 422');
 await chamar('POST', 'pgt/entregaveis-servicos', { entregavel_ids: ceIn.filter((x) => pertCeIn[x.id] === 'O').map((x) => x.id), servico_id: 'srv_in', pertinencia: 'O' });
 H = await chamar('GET', 'honorarios', null, 'vendas');
-ok(H.etapas.find((e) => e.id === 'pet_ce').servicos.srv_in?.peso === 18 || !ceIn.some((x) => pertCeIn[x.id] === 'O'), 'o peso volta junto com a célula');
+ok(H.etapas.find((e) => e.id === 'pet_ce').servicos.srv_in?.peso === 2 || !ceIn.some((x) => pertCeIn[x.id] === 'O'), 'o peso volta junto com a célula');
 for (const p of ['P', 'O']) {
   const ids = ceIn.filter((x) => pertCeIn[x.id] === p).map((x) => x.id);
   if (ids.length) await chamar('POST', 'pgt/entregaveis-servicos', { entregavel_ids: ids, servico_id: 'srv_in', pertinencia: p });
@@ -94,7 +103,7 @@ const ph = await chamar('POST', 'honorarios/publicar', { nota: 'primeira' }, 've
 ok(ph.numero === 1, 'honorários publicados: versão 1');
 ok(await falha('POST', 'honorarios/publicar', {}, 'vendas') === 409, 'publicar honorários sem mudança → 409');
 const uh = await chamar('GET', 'publicacoes/ultima?tipo=honorarios', null, 'vendas');
-ok(uh.dados.pesos.pet_ce.srv_in === 18 && uh.dados.servicos.length === 9 && 'bases_numero' in uh.dados && 'pgt_numero' in uh.dados, 'retrato dos honorários com pesos e versões de que depende');
+ok(uh.dados.pesos.pet_ce.srv_in === 2 && uh.dados.fases_pesos.pfa_executiva.srv_ne === 40 && uh.dados.fases_pesos.pfa_obra.srv_ne === 15 && uh.dados.servicos.length === 9 && 'bases_numero' in uh.dados && 'pgt_numero' in uh.dados, 'retrato dos honorários com pesos e versões de que depende');
 ok(await falha('GET', 'bases', null, 'marketing') === 403, 'marketing não vê as Bases');
 
 // ---------------------------------------------------------------- publicar

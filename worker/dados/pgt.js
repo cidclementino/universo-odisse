@@ -19,7 +19,8 @@
 //   POST bases/faixas-prazo        { faixas: [{ ate: 150, mult: 1 }, …, { ate: null, mult: 2.4 }] }  (0008)
 //   POST bases/publicar | pgt/publicar  { nota }  -> retrato numerado (409 nada_mudou se igual ao último)
 //   GET  honorarios                          -> preço dos serviços, fases com parcela, etapas com pesos, parâmetros
-//   POST honorarios/pesos       { etapa_id, servico_id, peso }   (só onde a etapa vale para o serviço)
+//   POST honorarios/pesos       { etapa_id, servico_id, peso }   fator 1 ou 2 da etapa na fase (só onde a etapa vale)
+//   POST honorarios/fases       { fase_id, servico_id, peso }    % da fase no honorário do serviço (0 a 100)
 //   POST honorarios/parametros  { chave, valor }
 //   POST honorarios/publicar    { nota }
 //   (preço dos serviços e parcela das fases: PATCH bases-servicos / pgt-fases, campos liberados ao vendas)
@@ -180,26 +181,34 @@ export async function retratoPgt(env) {
       ...eventos.filter((x) => x.etapa_id === e.id && !x.encerramento).map((x) => ({ ...x, tipo_passo: 'evento' }))].sort(ordemDaSequencia);
     e.prazos = prazosDaEtapa(passos, servicos).prazos;
   }
-  return { fases: fas.results.map((r) => sem(r, 'parcela', ...SO_TELA)), etapas, entregaveis, eventos, materiais: mat.results.map((r) => sem(r)) };
+  return { fases: fas.results.map((r) => sem(r, 'parcela', 'acrescimo', ...SO_TELA)), etapas, entregaveis, eventos, materiais: mat.results.map((r) => sem(r)) };
 }
 
-// Honorários: o custo sobre a estrutura. Pesos só onde a etapa vale para o serviço (P ou O).
+// Honorários: o custo sobre a estrutura (0015):
+//   fases_pesos[fase][serviço] = % do honorário do projeto (as fases do fluxo somam 100; fase de acréscimo, à parte);
+//   pesos[etapa][serviço] = fator 1 ou 2 da etapa dentro da fase (nulo = 1), só onde a etapa vale (P ou O).
+// A % de cada etapa é fórmula: fator ÷ soma dos fatores das etapas CONTRATADAS da fase (calculada no vendas).
 export async function retratoHonorarios(env) {
-  const [srv, fas, es, par, der] = await env.DB.batch([
+  const [srv, fas, es, par, der, fs] = await env.DB.batch([
     env.DB.prepare(`SELECT id, sigla, nome, ${PRECO_SERVICO.join(', ')} FROM bases_servicos WHERE arquivado_em IS NULL ORDER BY ordem, nome`),
-    env.DB.prepare('SELECT id, nome, ilha, parcela FROM pgt_fases WHERE arquivado_em IS NULL ORDER BY ordem'),
+    env.DB.prepare('SELECT id, nome, ilha, acrescimo FROM pgt_fases WHERE arquivado_em IS NULL ORDER BY ordem'),
     env.DB.prepare(`SELECT x.etapa_id, x.servico_id, x.peso FROM pgt_etapas_servicos x
       JOIN bases_servicos s ON s.id = x.servico_id JOIN pgt_etapas e ON e.id = x.etapa_id JOIN pgt_fases f ON f.id = e.fase_id
       WHERE s.arquivado_em IS NULL AND e.arquivado_em IS NULL AND f.arquivado_em IS NULL AND x.peso IS NOT NULL
       ORDER BY f.ordem, e.ordem, s.ordem`),
     env.DB.prepare('SELECT chave, valor FROM bases_parametros ORDER BY chave'),
     env.DB.prepare(SQL_PERT_DERIVADA),
+    env.DB.prepare(`SELECT x.fase_id, x.servico_id, x.peso FROM pgt_fases_servicos x
+      JOIN bases_servicos s ON s.id = x.servico_id JOIN pgt_fases f ON f.id = x.fase_id
+      WHERE s.arquivado_em IS NULL AND f.arquivado_em IS NULL AND x.peso IS NOT NULL ORDER BY f.ordem, s.ordem`),
   ]);
   const vale = mapaDerivado(der.results);
   const pesos = {};
   for (const x of es.results) if (vale[x.etapa_id]?.[x.servico_id]) (pesos[x.etapa_id] ||= {})[x.servico_id] = x.peso;
+  const fases_pesos = {};
+  for (const x of fs.results) (fases_pesos[x.fase_id] ||= {})[x.servico_id] = x.peso;
   return {
-    servicos: srv.results, fases: fas.results, pesos,
+    servicos: srv.results, fases: fas.results, fases_pesos, pesos,
     parametros: Object.fromEntries(par.results.filter((p) => PARAMETROS[p.chave]).map((p) => [p.chave, lerJson(p.valor)])),
   };
 }
@@ -297,7 +306,7 @@ async function paginaHonorarios(env) {
   for (const [eta, m] of Object.entries(vale)) for (const [sv, p] of Object.entries(m)) (porEtapa[eta] ||= {})[sv] = { pertinencia: p, peso: peso[`${eta}|${sv}`] ?? null };
   return {
     servicos: r.servicos.map((s) => ({ ...s, versao: vers[s.id] })),
-    fases: r.fases.map((f) => ({ ...f, versao: vers[f.id] })),
+    fases: r.fases.map((f) => ({ ...f, versao: vers[f.id], pesos: r.fases_pesos[f.id] || {} })),
     etapas: eta.results.map((e) => ({ ...e, servicos: porEtapa[e.id] || {} })),
     parametros: r.parametros,
     parametros_rotulos: Object.fromEntries(Object.entries(PARAMETROS).map(([k, v]) => [k, v.rotulo])),
@@ -309,7 +318,7 @@ async function pesoEtapa(env, ferramenta, c) {
   await ativo(env, 'pgt_etapas', c.etapa_id, 'Etapa');
   await ativo(env, 'bases_servicos', c.servico_id, 'Serviço');
   const peso = numOuNulo(c.peso, 'Peso');
-  if (peso !== null && peso > 100) throw new ErroApi(422, 'Peso: de 0 a 100');
+  if (peso !== null && peso !== 1 && peso !== 2) throw new ErroApi(422, 'Peso da etapa: 1 ou 2');
   if (!(await pertinenciaDerivada(env))[c.etapa_id]?.[c.servico_id]) {
     throw new ErroApi(422, 'esta etapa não vale para este serviço (nenhum entregável dela está marcado para ele no Plano Geral de Trabalho)');
   }
@@ -322,6 +331,25 @@ async function pesoEtapa(env, ferramenta, c) {
     hist(env, c.etapa_id, 'pgt_etapas', ferramenta, { [`peso:${c.servico_id}`]: [antes.peso ?? null, peso] }),
   ]);
   return { ok: true, etapa_id: c.etapa_id, servico_id: c.servico_id, peso };
+}
+
+// Peso da fase no honorário do serviço (% do projeto; 0 a 100). Fase-ilha não tem peso.
+async function pesoFase(env, ferramenta, c) {
+  await ativo(env, 'pgt_fases', c.fase_id, 'Fase');
+  await ativo(env, 'bases_servicos', c.servico_id, 'Serviço');
+  const fase = await env.DB.prepare('SELECT ilha FROM pgt_fases WHERE id = ?').bind(c.fase_id).first();
+  if (fase.ilha) throw new ErroApi(422, 'fase-ilha não tem peso no honorário');
+  const peso = numOuNulo(c.peso, 'Peso');
+  if (peso !== null && peso > 100) throw new ErroApi(422, 'Peso da fase: de 0 a 100');
+  const antes = (await env.DB.prepare('SELECT peso FROM pgt_fases_servicos WHERE fase_id = ? AND servico_id = ?')
+    .bind(c.fase_id, c.servico_id).first()) || {};
+  if ((antes.peso ?? null) === peso) return { ok: true, semMudanca: true };
+  await env.DB.batch([
+    env.DB.prepare(`INSERT INTO pgt_fases_servicos (fase_id, servico_id, peso) VALUES (?, ?, ?)
+      ON CONFLICT (fase_id, servico_id) DO UPDATE SET peso = excluded.peso`).bind(c.fase_id, c.servico_id, peso),
+    hist(env, c.fase_id, 'pgt_fases', ferramenta, { [`peso:${c.servico_id}`]: [antes.peso ?? null, peso] }),
+  ]);
+  return { ok: true, fase_id: c.fase_id, servico_id: c.servico_id, peso };
 }
 
 // ---------------------------------------------------------------- matrizes de pertinência
@@ -544,6 +572,7 @@ export async function rotasPgt(env, ferramenta, m, [rota, id, acao], corpo, url,
     if (pode !== 'E') throw new ErroApi(403, 'esta ferramenta não pode editar isto');
     const c = corpo || {};
     if (id === 'pesos') return pesoEtapa(env, ferramenta, c);
+    if (id === 'fases') return pesoFase(env, ferramenta, c);
     if (id === 'parametros') return parametro(env, ferramenta, c);
     if (id === 'publicar') return publicar(env, ferramenta, 'honorarios', c);
     throw new ErroApi(404, 'rota não encontrada');

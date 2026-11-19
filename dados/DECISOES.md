@@ -105,6 +105,13 @@ Compromissos aceitos: o hub é ponto único de falha para os dados comuns; mudan
 - O retrato dos honorários leva os números das Bases e do PGT publicados na hora (`bases_numero`, `pgt_numero`), fora da assinatura. A proposta vai registrar as três versões.
 - A 0006 refaz `pgt_publicacoes` para aceitar o tipo `honorarios` (o CHECK do SQLite não se altera), mantendo os retratos já publicados. Como os retratos de Bases e PGT mudaram de forma, as duas páginas aparecem "pendentes" uma vez depois desta mudança.
 
+## Preço por fase e etapa (migração 0015, casa: vendas)
+
+- **Decisão do Cid (18/11)**: a % de cada etapa é **fórmula**, não peso fixo. Cada **fase** tem um peso por serviço (% do honorário do projeto, `pgt_fases_servicos`); as fases do fluxo somam 100. Dentro da fase, a etapa tem **fator 1 ou 2** (`pgt_etapas_servicos.peso`, nulo = 1) e leva fator ÷ soma dos fatores das etapas **contratadas** da fase: a não contratada redistribui o valor da fase entre as que ficaram. A conta é feita no vendas (proposta) e mostrada na página Honorários (% na fase · % no projeto).
+- **Fase de acréscimo** (`pgt_fases.acrescimo`, Obra): o peso dela vai além dos 100% e é escolhido à parte; o vendas liga ou desliga a marca. Fase-ilha não tem peso (os serviços dela têm preço único).
+- Peso por serviço (e não global) porque os serviços repartem diferente (Interiores sem a fase Legal, por exemplo).
+- A 0015 converte os pesos antigos: peso da fase = soma dos pesos antigos das etapas; fator = peso antigo ÷ menor peso da fase, arredondado, 1 a 2 (conta sobre uma cópia, para o menor não mudar no meio). `pgt_fases.parcela` fica sem uso: o pagamento de referência é a entrada + o peso das fases contratadas. O vendas lê também retratos publicados antes da 0015, convertendo do mesmo jeito, até a próxima publicação.
+
 ## Eventos, sequência da etapa e Encerramento (migração 0008, casa: Projetos)
 
 - **Eventos** (`pgt_eventos`, `pev_`): marcos de controle do fluxo, ao lado das entregas. Têm tipo, se o cliente participa (`cliente`, base da futura plataforma do cliente), de quem é o tempo (`estudio` conta no prazo; `cliente`, `terceiros` e `pontual` não), duração, quantidade incluída e uma **cláusula** opcional. Não vão para o contrato como itens: o vendas vai ofertar a cláusula conforme a pertinência (P obrigatória e travada, O check disponível, sem marca não ofertável).
