@@ -1,11 +1,12 @@
 // Páginas do hub. Rotas por hash: #/ (Início), #/ferramentas, #/canais, #/equipe, #/marca, #/biblioteca.
 // Tudo vem de dois arquivos: ferramentas.json (aqui) e odisse.json (marca.odisse.com.br).
 // A página Marca mora em assets/marca.js; a página Documentos (#/documentos, aberta pela Biblioteca), em assets/documentos.js;
-// a página Equipe (#/equipe, seção própria da barra), em assets/equipe.js.
+// a página Equipe (#/equipe, seção própria da barra), em assets/equipe.js; a página Ferramentas, em assets/ferramentas.js.
 
 import { criarMarca } from './marca.js';
 import { criarDocumentos } from './documentos.js';
 import { criarEquipe } from './equipe.js';
+import { criarFerramentas, aplicarTextos, textosGuardados } from './ferramentas.js';
 
 const MARCA = 'https://marca.odisse.com.br/';
 const API = 'https://universo-hub.reservaprojectbasework.workers.dev';
@@ -23,6 +24,7 @@ async function carregar() {
     fetch(MARCA + 'odisse.json', { cache: 'no-cache' }).then((r) => r.json()).catch(() => null),
   ]);
   MAPA = mapa; ODISSE = odisse;
+  aplicarTextos(MAPA, textosGuardados()); // descrições editadas no lápis (última cópia; a página Ferramentas confere)
 }
 
 // ---- peças ---------------------------------------------------------------
@@ -44,33 +46,6 @@ function cartao(f) {
 function cabecalho(titulo, texto, lado = '') {
   return `<div class="cab"><div><h1 class="u-titulo">${esc(titulo)}</h1>${texto ? `<p class="u-apoio">${texto}</p>` : ''}</div>
     ${lado ? `<div class="lado u-apoio">${lado}</div>` : ''}</div>`;
-}
-
-// Ferramentas: lista compacta, uma linha de grupo por ramo, cada ramo com uma cor da paleta (Cid, 19/11).
-const APPS = { marketing: 'marketing', vendas: 'vendas', projetos: 'Projetos', radar: 'Radar', universo: 'Universo' };
-const appDe = (url) => { const h = (url || '').match(/^https?:\/\/([^./]+)\./); return h ? (APPS[h[1]] || h[1]) : '—'; };
-
-function listaDeRamos(secao) {
-  const itens = MAPA.itens.filter((f) => f.secao === secao);
-  const grupos = (MAPA.ramos || []).map((r) => {
-    const doRamo = itens.filter((f) => f.ramo === r.id);
-    if (!doRamo.length) return '';
-    const cor = `var(--odisse-${esc(r.cor || 'nevoa')})`;
-    const linhas = doRamo.map((f) => {
-      const breve = f.status === 'em-breve' || !f.url;
-      const nome = breve ? esc(f.nome) : `<a href="${esc(f.url)}">${esc(f.nome)}</a>`;
-      return `<tr class="${breve ? 'breve' : ''}">
-        <td class="nome">${nome}</td>
-        <td class="oque">${esc(f.descricao)}</td>
-        <td class="onde">${breve ? '—' : esc(appDe(f.url))}</td>
-        <td class="estado">${breve ? '<span class="u-etiqueta suave">em breve</span>' : '<span class="no-ar">no ar</span>'}</td>
-      </tr>`;
-    }).join('');
-    return `<tbody style="--ramo:${cor}"><tr class="ramo-linha"><th colspan="4" scope="rowgroup">${esc(r.nome)}
-        <span class="conta">${doRamo.length}</span></th></tr>${linhas}</tbody>`;
-  }).join('');
-  return `<section class="bloco"><div class="lista-ferramentas"><table class="u-tabela">
-    <thead><tr><th>Ferramenta</th><th>O que faz</th><th>Onde</th><th>Estado</th></tr></thead>${grupos}</table></div></section>`;
 }
 
 function blocosDaSecao(secao, compactos = false) {
@@ -122,6 +97,7 @@ const marca = criarMarca({
 
 const documentos = criarDocumentos({ esc, api, apiBinario, toque, lerOdisse: () => ODISSE });
 const equipe = criarEquipe({ esc, api, apiBinario, toque });
+const ferramentas = criarFerramentas({ esc, api, toque, lerMapa: () => MAPA });
 
 // ---- páginas -------------------------------------------------------------
 
@@ -141,7 +117,7 @@ const PAGINAS = {
   },
 
   ferramentas() {
-    return cabecalho('Ferramentas', 'Onde se trabalha. As internas pedem a própria senha, por enquanto.') + listaDeRamos('ferramentas');
+    return '<div id="pagina-ferramentas" class="pagina-ferramentas"></div>';
   },
 
   canais() {
@@ -178,6 +154,7 @@ function depois(rota) {
   if (rota === 'marca') marca.ligar(vista.querySelector('#pagina-marca'));
   if (rota === 'documentos') documentos.ligar(vista.querySelector('#pagina-documentos'));
   if (rota === 'equipe') equipe.ligar(vista.querySelector('#pagina-equipe'));
+  if (rota === 'ferramentas') ferramentas.ligar(vista.querySelector('#pagina-ferramentas'));
 }
 
 function rota() {

@@ -37,6 +37,7 @@ export const PREFIXOS = {
   doc: 'documentos',
   crg: 'cargos',
   tit: 'titulos',
+  frt: 'ferramentas_textos',
 };
 
 // Ferramentas que podem chamar a API. 'hub' = o próprio Universo (senha da equipe);
@@ -236,6 +237,18 @@ export const TABELAS = {
     permissoes: LISTAS_EQUIPE,
     filtros: [],
     ordem: 'ordem, nome_m',
+  },
+
+  // 0017: descrição de cada ferramenta editada no hub (lápis na página Ferramentas); chave = id no ferramentas.json
+  ferramentas_textos: {
+    prefixo: 'frt',
+    campos: {
+      chave: T('texto', { obrig: true, max: 40, rotulo: 'Ferramenta' }),
+      descricao: T('texto', { obrig: true, max: 120, rotulo: 'Descrição' }),
+    },
+    permissoes: { hub: 'E', maquina: 'E' },
+    filtros: [],
+    ordem: 'chave',
   },
 
   titulos: {
@@ -683,6 +696,7 @@ export const ROTAS = {
   equipe: 'equipe',
   cargos: 'cargos',
   titulos: 'titulos',
+  'ferramentas-textos': 'ferramentas_textos',
   sinteses: 'sinteses',
   arquivos: 'arquivos',
   vinculos: 'vinculos',
