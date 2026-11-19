@@ -12,6 +12,8 @@
     - <script ... data-auto="nao">      → não insere nada sozinha.
 
   Seções e itens vêm de ferramentas.json, no próprio hub: mudou lá, muda em todas.
+  O menu segue o padrão das listas (design.md): ferramentas por ramo em fundo de tons, grupos recolhíveis
+  (lembrados em universo:menu:fechados), seta em SVG, itens que reagem ao mouse; extras viram etiquetas no item.
   Os estilos ficam aqui dentro, com prefixo .ub-, para não depender de nada da ferramenta.
   Se o hub estiver fora do ar, nada aparece e a ferramenta segue normalmente.
 */
@@ -49,19 +51,41 @@
     background: transparent; color: inherit; font: inherit; cursor: pointer; white-space: nowrap; }
   .ub-botao:hover, .ub-botao[aria-expanded="true"] { background: color-mix(in srgb, currentColor 12%, transparent); }
   .ub-botao svg { width: 10px; height: 10px; }
-  .ub-painel { position: absolute; top: calc(100% + 6px); right: 0; z-index: 2147483000; width: 340px; max-width: calc(100vw - 24px);
+  .ub-painel { position: absolute; top: calc(100% + 6px); right: 0; z-index: 2147483000; width: 380px; max-width: calc(100vw - 24px);
     max-height: 75vh; overflow-y: auto; background: #FAFAF7; color: #3F4B57; border: 1px solid #D7DADD; border-radius: 8px;
     box-shadow: 0 12px 32px rgba(46,48,54,.18); padding: 8px; text-align: left; }
   .ub-painel[hidden] { display: none; }
-  .ub-cab { font-size: 10.5px; font-weight: 650; letter-spacing: .09em; text-transform: uppercase; opacity: .6; padding: 10px 10px 4px; }
-  .ub-secs { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px 6px 8px; border-bottom: 1px solid #D7DADD; margin-bottom: 4px; }
-  .ub-secs a { padding: 6px 9px; border-radius: 6px; color: inherit; text-decoration: none; font-weight: 600; font-size: 12.5px; background: #E6E8EB; }
+  .ub-secs { display: flex; flex-wrap: wrap; gap: 4px; padding: 2px 2px 10px; }
+  .ub-secs a { padding: 6px 9px; border-radius: 999px; color: inherit; text-decoration: none; font-weight: 600; font-size: 12.5px; background: #E6E8EB; }
   .ub-secs a:hover { background: #3F4B57; color: #FAFAF7; }
-  .ub-item { display: block; padding: 7px 10px; border-radius: 6px; color: inherit; text-decoration: none; }
-  .ub-item:hover { background: #E6E8EB; }
-  .ub-item b { display: block; font-weight: 600; font-size: 13px; }
-  .ub-item small { display: block; font-size: 12px; line-height: 1.35; opacity: .7; font-weight: 400; margin-top: 2px; }
-  .ub-item.ub-ativo { background: #E6E8EB; }
+  /* lista no padrão das listas do Universo (design.md § 0 e § 4): grupo em fundo de tons, sem barra à esquerda;
+     faixa de título no tom forte, recolhível (seta em SVG); itens brancos que reagem ao mouse no tom do grupo */
+  .ub-grupo { margin-top: 6px; border-radius: 8px; background: color-mix(in srgb, var(--g) 14%, #fff); }
+  .ub-grupo + .ub-grupo { margin-top: 8px; }
+  .ub-faixa { display: flex; align-items: center; gap: 8px; width: 100%; padding: 7px 10px; border: 0; border-radius: 8px;
+    background: color-mix(in srgb, var(--g) 45%, #fff); color: #3F4B57; font: 700 10.5px/1.2 'Inter', system-ui, sans-serif;
+    letter-spacing: .08em; text-transform: uppercase; text-align: left; cursor: pointer; }
+  .ub-grupo.ub-aberto .ub-faixa { border-radius: 8px 8px 0 0; }
+  .ub-faixa:hover { background: color-mix(in srgb, var(--g) 60%, #fff); }
+  .ub-faixa span:last-child { font-weight: 500; letter-spacing: 0; text-transform: none; font-size: 11.5px; color: #5B6773; }
+  .ub-seta { display: inline-grid; place-items: center; width: 14px; height: 14px; flex: none; transition: transform .15s; }
+  .ub-seta svg { width: 12px; height: 12px; }
+  .ub-grupo.ub-aberto .ub-seta { transform: rotate(90deg); }
+  .ub-lista { display: none; flex-direction: column; gap: 4px; padding: 6px; }
+  .ub-grupo.ub-aberto .ub-lista { display: flex; }
+  .ub-item { display: block; padding: 7px 10px; border-radius: 6px; color: inherit; text-decoration: none; background: #fff; border: 1px solid #D7DADD;
+    transition: background-color .15s, border-color .15s, box-shadow .15s, transform .15s; }
+  .ub-item:hover { background: color-mix(in srgb, var(--g) 16%, #fff); border-color: color-mix(in srgb, var(--g) 75%, #5B6773);
+    box-shadow: 0 3px 10px rgba(46,48,54,.09); transform: translateY(-1px); }
+  .ub-item b { display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 13px; }
+  .ub-item small { display: block; font-size: 12px; line-height: 1.35; color: #5B6773; font-weight: 400; margin-top: 2px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ub-item.ub-ativo { border-color: color-mix(in srgb, var(--g) 75%, #5B6773); background: color-mix(in srgb, var(--g) 22%, #fff); }
+  .ub-item.ub-ativo b::after { content: 'aqui'; margin-left: auto; padding: 2px 7px; border-radius: 999px; font-size: 10.5px; font-weight: 600; background: #3F4B57; color: #FAFAF7; }
+  .ub-extras { display: flex; gap: 4px; margin-top: 5px; }
+  .ub-extra { padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 500; background: #E6E8EB; color: #5B6773; text-decoration: none; }
+  .ub-extra:hover { background: #3F4B57; color: #FAFAF7; }
+  @media (prefers-reduced-motion: reduce) { .ub-item, .ub-seta { transition: none; } .ub-item:hover { transform: none; } }
   /* telas estreitas: sem espaço para centrar, as seções ocupam o meio e rolam */
   @media (max-width: 860px) { .ub-sub { display: none; } }
   @media (max-width: 640px) { .ub-barra { grid-template-columns: auto minmax(0, 1fr) auto; column-gap: 10px; }
@@ -69,6 +93,12 @@
   `;
 
   const seta = '<svg viewBox="0 0 10 10" aria-hidden="true"><path d="M1.5 3.5 5 7l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>';
+  const SETA = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const FECHADOS = 'universo:menu:fechados';
+  // cores da paleta da Marca (a barra não depende do marca.css); escuras entram clareadas, como no design.md
+  const CORES = { ambar: '#ECC28F', ocre: '#BB8248', pessego: '#F2DDBE', areia: '#E3D9C6', nevoa: '#C9CED3',
+    ardosia: 'color-mix(in srgb, #3F4B57 45%, white)', terra: 'color-mix(in srgb, #4A3726 45%, white)', grafite: 'color-mix(in srgb, #2E3036 45%, white)' };
+  const corDe = (c) => CORES[c] || CORES.nevoa;
   const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const linkSecao = (id) => (NO_HUB ? '#/' : HUB + '#/') + (id === 'inicio' ? '' : id);
 
@@ -101,21 +131,60 @@
     const botao = raiz.querySelector('.ub-botao');
     const painel = raiz.querySelector('.ub-painel');
 
-    // só o que tem endereço e está no ar: o menu é para ir, não para listar planos
+    // só o que tem endereço e está no ar: o menu é para ir, não para listar planos.
+    // Ferramentas por ramo (cor do ramo); Canais e Biblioteca num bloco neutro cada.
     const prontos = dados.itens.filter((f) => f.url && f.status !== 'em-breve');
+    const fech = (() => { try { return new Set(JSON.parse(localStorage.getItem(FECHADOS) || '[]')); } catch { return new Set(); } })();
+    const linha = (f) => {
+      const ativo = item && item.id === f.id ? ' ub-ativo' : '';
+      const extras = (f.extra || []).map((x) => `<a class="ub-extra" href="${esc(x.url)}">${esc(x.nome)}</a>`).join('');
+      // o item é um bloco (div) para caber as etiquetas extras como links próprios; o clique no bloco leva ao endereço
+      return `<div class="ub-item${ativo}" data-url="${esc(f.url)}" role="link" tabindex="0"><b>${esc(f.nome)}</b>` +
+        (f.descricao ? `<small>${esc(f.descricao)}</small>` : '') + (extras ? `<div class="ub-extras">${extras}</div>` : '') + '</div>';
+    };
+    const bloco = (id, nome, cor, itens) => {
+      const aberto = !fech.has(id);
+      return `<div class="ub-grupo${aberto ? ' ub-aberto' : ''}" data-grupo="${esc(id)}" style="--g:${cor}">
+        <button type="button" class="ub-faixa" aria-expanded="${aberto}"><span class="ub-seta">${SETA}</span>${esc(nome)}<span>${itens.length}</span></button>
+        <div class="ub-lista">${itens.map(linha).join('')}</div></div>`;
+    };
     const blocos = dados.secoes.map((s) => {
       const daSecao = prontos.filter((f) => f.secao === s.id);
       if (!daSecao.length) return '';
-      return `<div class="ub-cab">${esc(s.nome)}</div>` + daSecao.map((f) => {
-        const ativo = item && item.id === f.id ? ' ub-ativo' : '';
-        return `<a class="ub-item${ativo}" href="${esc(f.url)}"><b>${esc(f.nome)}</b><small>${esc(f.descricao)}</small></a>` +
-          (f.extra || []).map((x) => `<a class="ub-item" href="${esc(x.url)}"><b>${esc(x.nome)}</b></a>`).join('');
-      }).join('');
+      if (s.id === 'ferramentas' && dados.ramos) {
+        return dados.ramos.map((r) => {
+          const doRamo = daSecao.filter((f) => f.ramo === r.id);
+          return doRamo.length ? bloco('r:' + r.id, r.nome, corDe(r.cor), doRamo) : '';
+        }).join('');
+      }
+      return bloco('s:' + s.id, s.nome, CORES.nevoa, daSecao);
     }).join('');
 
     painel.innerHTML = (comSecoes
       ? `<div class="ub-secs">${dados.secoes.map((s) => `<a href="${linkSecao(s.id)}">${esc(s.nome)}</a>`).join('')}</div>`
       : '') + blocos;
+
+    painel.addEventListener('click', (e) => {
+      const faixa = e.target.closest('.ub-faixa');
+      if (faixa) {
+        e.stopPropagation();
+        const g = faixa.closest('.ub-grupo');
+        const aberto = g.classList.toggle('ub-aberto');
+        faixa.setAttribute('aria-expanded', String(aberto));
+        const s = (() => { try { return new Set(JSON.parse(localStorage.getItem(FECHADOS) || '[]')); } catch { return new Set(); } })();
+        aberto ? s.delete(g.dataset.grupo) : s.add(g.dataset.grupo);
+        try { localStorage.setItem(FECHADOS, JSON.stringify([...s])); } catch {}
+        return;
+      }
+      if (e.target.closest('a')) return;
+      const it = e.target.closest('.ub-item[data-url]');
+      if (!it) return;
+      if (e.ctrlKey || e.metaKey) window.open(it.dataset.url, '_blank'); else location.href = it.dataset.url;
+    });
+    painel.addEventListener('keydown', (e) => {
+      const it = e.target.closest('.ub-item[data-url]');
+      if (it && e.key === 'Enter') location.href = it.dataset.url;
+    });
 
     const fechar = () => { painel.hidden = true; botao.setAttribute('aria-expanded', 'false'); };
     botao.addEventListener('click', (e) => {
@@ -123,7 +192,7 @@
       const abrir = painel.hidden;
       painel.hidden = !abrir; botao.setAttribute('aria-expanded', String(abrir));
     });
-    painel.addEventListener('click', (e) => { if (e.target.closest('a')) fechar(); });
+    painel.addEventListener('click', (e) => { if (e.target.closest('a, .ub-item')) fechar(); });
     document.addEventListener('click', (e) => { if (!raiz.contains(e.target)) fechar(); });
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') fechar(); });
   }
