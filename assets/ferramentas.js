@@ -1,5 +1,5 @@
 // Página Ferramentas do hub (#/ferramentas): cartões empilhados por ramo, no desenho dos cartões do PGT (Cid, 19/11).
-//   - uma faixa de título por ramo, recolhível (seta ▸ que gira; aberto/fechado lembrado neste computador);
+//   - uma faixa de título por ramo, recolhível (seta › em SVG que gira; aberto/fechado lembrado neste computador);
 //   - cor do ramo da paleta da Marca: bloco com fundo no tom claro, faixa de título no tom forte, cartões brancos; SEM barra à esquerda;
 //   - a linha inteira leva à ferramenta, exceto o lápis e o texto em edição;
 //   - lápis na descrição: edita no lugar, Enter grava, Esc desfaz. Gravada no servidor do hub
@@ -11,6 +11,8 @@ const APPS = { marketing: 'marketing', vendas: 'vendas', projetos: 'Projetos', r
 const appDe = (url) => { const h = (url || '').match(/^https?:\/\/([^./]+)\./); return h ? (APPS[h[1]] || h[1]) : '—'; };
 const LAPIS = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10.8 2.6 13.4 5.2 6 12.6 3 13 3.4 10Z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>'; // o mesmo do PGT
 const COPIA = 'ferramentas:textos';
+// seta do grupo em SVG: o caractere ▸ é um triângulo pequeno por definição e a Inter não o tem (saía minúsculo)
+const SETA = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const FECHADOS = 'universo:ferramentas:fechados';
 const ESCURAS = new Set(['ardosia', 'terra', 'grafite']); // como no PGT: cor escura entra clareada (45%)
 
@@ -59,7 +61,7 @@ export function criarFerramentas({ esc, api, toque, lerMapa }) {
       const cor = `var(--odisse-${esc(r.cor || 'nevoa')})`;
       const forca = ESCURAS.has(r.cor) ? '45%' : '100%';
       return `<section class="ramo${aberto ? ' aberto' : ''}" data-ramo="${esc(r.id)}" style="--g:color-mix(in srgb, ${cor} ${forca}, white)">
-        <button type="button" class="ramo__faixa" aria-expanded="${aberto}"><span class="seta" aria-hidden="true">▸</span>${esc(r.nome)}
+        <button type="button" class="ramo__faixa" aria-expanded="${aberto}"><span class="seta" aria-hidden="true">${SETA}</span>${esc(r.nome)}
           <span>${conta}</span></button>
         <div class="ramo__pilha">${doRamo.map(cartao).join('')}</div>
       </section>`;
