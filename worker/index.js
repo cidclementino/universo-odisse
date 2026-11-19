@@ -28,6 +28,8 @@
 // Início (exige a senha da equipe; ver inicio.js):
 //   GET  /api/inicio           -> panorama do dia (Radar, publicações, Instagram e site de ontem)
 //   POST /api/inicio/publicar  <- { tipo: 'item'|'pauta', id } -> confirma a publicação no marketing
+// Mapa de preços (exige a senha da equipe):
+//   GET  /api/precos           -> { em, contratos, concursos } do Radar (ponto de entrada Universo, precos())
 //
 //   POST /api/marca/logo <- { sha, nucleo, modo: 'novo'|'substituir', alvo?, nome?, svg }
 //                       -> { dados, sha, commit, caminho }. O SVG é conferido (só desenho) e entra no
@@ -161,6 +163,11 @@ export default {
       if (pathname === '/api/estado') return json({ ok: true, marca: !!env.MARCA_GITHUB_TOKEN });
 
       if (pathname === '/api/inicio' && request.method === 'GET') return json(await inicio(env));
+      // Mapa de preços (Cid, 19/11): contratos só de projeto e concursos, lidos do Radar Worker a Worker
+      if (pathname === '/api/precos' && request.method === 'GET') {
+        if (!env.RADAR) return erro('Radar: ligação não configurada', 503);
+        return json(await env.RADAR.precos());
+      }
       if (pathname === '/api/inicio/publicar') {
         if (request.method !== 'POST') return erro('método não aceito', 405);
         const r = await publicar(env, await request.json().catch(() => null));

@@ -99,6 +99,16 @@
       "status": "no-ar"
     },
     {
+      "id": "precos",
+      "nome": "Mapa de preços",
+      "secao": "ferramentas",
+      "ramo": "comercial",
+      "descricao": "Quanto o mercado público paga por projetos, para orientar as propostas",
+      "url": "https://universo.odisse.com.br/#/precos",
+      "acesso": "interna",
+      "status": "no-ar"
+    },
+    {
       "id": "contratos",
       "nome": "Contratos comerciais",
       "secao": "ferramentas",
