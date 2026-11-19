@@ -132,8 +132,12 @@ export function criarPrecos({ esc, api }) {
 
   function linhaContrato(c) {
     const l = c.leitura;
+    // Sem área: leva ao cartão do contrato no Radar, onde o botão "Ler o termo de referência" lê o TR na hora.
+    const noRadar = `https://radar.odisse.com.br/licitacoes?fase=contratadas&id=${encodeURIComponent(c.id)}`;
+    const estado = l ? (l.legivel === false ? 'TR não lido' : 'sem área no TR') : c.tr ? 'TR a ler' : 'sem TR';
     const area = l?.area_m2 ? `<b>${esc(m2(l.area_m2))}</b><small>${esc(reais(porM2(c)))}/m²</small>`
-      : `<span class="pre-etq ${l?.legivel === false ? 'problema' : 'opcional'}" title="${esc(l?.erro || '')}">${l ? (l.legivel === false ? 'TR não lido' : 'sem área no TR') : c.tr ? 'TR a ler' : 'sem TR'}</span>`;
+      : `<span class="pre-etq ${l?.legivel === false ? 'problema' : 'opcional'}" title="${esc(l?.erro || '')}">${estado}</span>
+         <a class="pre-ler" href="${esc(noRadar)}" target="_blank" rel="noopener">${l?.legivel ? 'Ler de novo no Radar' : 'Ler o TR no Radar'}</a>`;
     const fases = l?.fases?.length ? `<span class="pre-linha__fases">${esc(l.fases.map((x) => FASES[x] || x).join(' · '))}</span>` : '';
     const links = [
       c.contrato ? `<a class="pre-etq link" href="${esc(c.contrato)}" target="_blank" rel="noopener">Contrato</a>` : '',
@@ -196,7 +200,7 @@ export function criarPrecos({ esc, api }) {
     return `<section class="pre-notas">
         <div><span class="u-rotulo">De onde vem</span><p>Contratos só de projeto assinados por órgãos públicos de todo o Brasil e publicados no PNCP, que o Radar coleta todo dia útil (a carga inicial cobriu 30 dias). Os concursos são os acompanhados no Radar cujo site oficial diz como o vencedor será contratado. O prêmio não entra: o preço do projeto é o contrato.</p></div>
         <div><span class="u-rotulo">O que entra</span><p>Só contratos cujo objeto é elaborar projeto de arquitetura, interiores, urbanismo, paisagismo, restauro ou plano diretor. Ficam fora obra, projeto e obra juntos, compra, só disciplinas complementares e valores simbólicos de credenciamento. Um contrato pode reunir vários projetos (credenciamento, por demanda): por isso os extremos.</p></div>
-        <div><span class="u-rotulo">Área e preço por m²</span><p>A área vem da leitura do termo de referência, um palpite a conferir no documento (link TR). Enquanto os termos de referência não forem lidos de novo pela coleta, poucos ou nenhum contrato terá área, e o preço por m² fica vazio.</p></div>
+        <div><span class="u-rotulo">Área e preço por m²</span><p>A área vem da leitura do termo de referência, um palpite a conferir no documento (link TR). A coleta lê o TR dos contratos novos; para um contrato sem área, “Ler o TR no Radar” abre o cartão dele no Radar, onde o botão lê o documento na hora.</p></div>
         <div><span class="u-rotulo">Próximos passos</span><p>Converter os valores em CUBs por m² (com a tabela do CUB atualizada) para comparar com a Fórmula das propostas, separar por fase contratada e mostrar onde cai cada proposta do Odisse.</p></div>
       </section>`;
   }
