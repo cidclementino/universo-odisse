@@ -714,3 +714,81 @@ a.ini-grupo__faixa:focus-visible, .ini-linha:focus-visible, .ini-alerta:focus-vi
   .pre-sec__lado .pre-seletor { order: 2; }
 }
 @media (prefers-reduced-motion: reduce) { .pre-linha { transition: none; } .pre-linha.clicavel:hover { transform: none; } }
+
+/* ---- Biblioteca › Estrutura de pastas (#/pastas; assets/pastas.js) ------------------------------------
+   Seletores quadrados, Placar, Régua e Sanfona em árvore. Sem barra à esquerda: o nível vem do recuo. */
+.pas-filtros { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: var(--u-esp-5) 0 var(--u-esp-4); }
+.pas-seletor { display: inline-flex; border: 1px solid var(--u-linha-forte); border-radius: var(--u-raio-p, 6px); overflow: hidden; background: var(--u-elevada, #fff); }
+.pas-seletor button { font: inherit; font-size: 12.5px; font-weight: 500; padding: 7px 11px; min-height: 32px; border: 0; background: none; color: var(--u-tinta); cursor: pointer; }
+.pas-seletor button + button { border-left: 1px solid var(--u-linha); }
+.pas-seletor button:hover { background: rgba(63,75,87,.05); }
+.pas-seletor button.ativo { background: var(--u-tinta); color: var(--u-superficie); font-weight: 600; }
+.pas-acoes { display: inline-flex; gap: 12px; margin-left: auto; }
+.pas-texto, .pas-trocar { font: inherit; font-size: 12.5px; background: none; border: 0; padding: 4px 2px; color: var(--u-tinta-2); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.pas-texto:hover, .pas-trocar:hover { color: var(--u-tinta); }
+.pas-texto:disabled { opacity: .45; cursor: default; text-decoration: none; }
+.pas-seletor button:focus-visible, .pas-texto:focus-visible, .pas-trocar:focus-visible, .pas-linha:focus-visible { outline: 2px solid var(--u-foco); outline-offset: 1px; }
+
+.pas-placar { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.pas-num-cx { display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: 14px 16px; background: var(--u-elevada, #fff); border: 1px solid var(--u-linha); border-radius: var(--u-raio); }
+.pas-rot { font-size: var(--u-t-rotulo); font-weight: 650; letter-spacing: .06em; text-transform: uppercase; color: var(--u-tinta-2); }
+.pas-num-cx b { font-size: 24px; font-weight: 700; letter-spacing: -.02em; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.pas-pe { font-size: 12px; color: var(--u-tinta-2); }
+
+.pas-raiz { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: var(--u-esp-6) 0 var(--u-esp-3); font-size: 13px; }
+.pas-raiz b { font-weight: 650; }
+.pas-icone { display: inline-grid; place-items: center; width: 16px; height: 16px; flex: none; color: var(--u-tinta-2); }
+.pas-icone svg { width: 16px; height: 16px; }
+
+.pas-regua, .pas-linha { display: grid; grid-template-columns: minmax(0, 2.2fr) minmax(0, 3fr) 72px; gap: 16px; align-items: center; }
+.pas-regua { padding: 9px 14px; margin-bottom: 4px; border-radius: var(--u-raio); background: rgba(255,255,255,.55);
+  font-size: var(--u-t-rotulo); font-weight: 650; letter-spacing: .06em; text-transform: uppercase; color: var(--u-tinta-2); }
+.pas-regua .num, .pas-num { text-align: right; }
+.pas-arvore { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.pas-arvore .pas-arvore { margin-top: 4px; }
+.pas-linha { width: 100%; box-sizing: border-box; min-height: 40px; padding: 7px 14px; font: inherit; font-size: 13px; text-align: left; color: var(--u-tinta);
+  background: var(--u-elevada, #fff); border: 1px solid var(--u-linha); border-radius: var(--u-raio); }
+.pas-linha.clicavel { cursor: pointer; transition: background .15s, border-color .15s, box-shadow .15s, transform .15s; }
+.pas-linha.clicavel:hover { background: color-mix(in srgb, var(--odisse-nevoa, #E6E8EB) 45%, #fff); border-color: var(--u-tinta-2);
+  box-shadow: 0 3px 10px rgba(46,48,54,.09); transform: translateY(-1px); }
+.pas-linha.clicavel:active { transform: none; box-shadow: 0 1px 3px rgba(46,48,54,.08); }
+.pas-linha.falta { background: transparent; border-style: dashed; border-color: var(--u-linha-forte); color: #8A939C; }
+.pas-linha.falta .pas-icone { color: #8A939C; }
+.pas-nome { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 0; padding-left: calc(var(--nivel, 0) * 22px); }
+.pas-nome b { font-weight: 600; overflow-wrap: anywhere; }
+.pas-nome small { font-size: 11.5px; color: var(--u-tinta-2); font-variant-numeric: tabular-nums; }
+.pas-seta { display: inline-grid; place-items: center; width: 14px; height: 14px; flex: none; color: var(--u-tinta-2); transition: transform .15s; }
+.pas-seta svg { width: 14px; height: 14px; }
+.pas-item.aberta > .pas-linha .pas-seta { transform: rotate(90deg); }
+.pas-nota { font-size: 12.5px; line-height: 1.4; color: var(--u-tinta-2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.pas-num { font-weight: 600; font-variant-numeric: tabular-nums; }
+.pas-linha.falta .pas-num { font-weight: 400; }
+
+.pas-etq { display: inline-block; white-space: nowrap; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: 600; line-height: 1.35;
+  background: var(--odisse-nevoa, #E6E8EB); color: var(--u-tinta); }
+.pas-etq.problema { background: #F3E1DE; color: var(--u-perigo, #A4473B); }
+.pas-etq.atencao { background: rgba(187,130,72,.14); color: #8A5A2B; }
+.pas-etq.tracejada { background: transparent; border: 1px dashed var(--u-linha-forte); color: #8A939C; padding: 1px 6px; }
+
+.pas-vazio { margin-top: var(--u-esp-4); padding: 24px; border: 1px dashed var(--u-linha-forte); border-radius: var(--u-raio); text-align: center; font-size: 13px; color: var(--u-tinta-2); }
+.pas-vazio p { margin: 0 0 12px; }
+.pas-vazio p:last-child { margin: 0; }
+
+.pas-notas { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: var(--u-esp-5); margin-top: var(--u-esp-7);
+  padding-top: var(--u-esp-5); border-top: 1px solid var(--u-linha-forte); font-size: 12.5px; line-height: 1.5; color: var(--u-tinta-2); }
+.pas-notas h3 { margin: 0 0 8px; }
+.pas-notas p { margin: 0 0 8px; }
+.pas-notas ul { margin: 0; padding-left: 18px; }
+.pas-notas li + li { margin-top: 4px; }
+.pas-notas b { color: var(--u-tinta); font-weight: 600; }
+
+@media (max-width: 860px) {
+  .pas-placar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pas-regua { display: none; }
+  .pas-linha { grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; }
+  .pas-nota { grid-column: 1 / -1; grid-row: 2; padding-left: calc(var(--nivel, 0) * 22px + 52px); }
+  .pas-nota:empty { display: none; }
+  .pas-acoes { margin-left: 0; }
+}
+@media (max-width: 640px) { .pas-nome { padding-left: calc(var(--nivel, 0) * 14px); } .pas-nota { padding-left: 0; } }
+@media (prefers-reduced-motion: reduce) { .pas-linha.clicavel, .pas-seta { transition: none; } .pas-linha.clicavel:hover { transform: none; } }

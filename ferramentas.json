@@ -258,6 +258,16 @@
       "status": "no-ar"
     },
     {
+      "id": "estrutura-pastas",
+      "nome": "Estrutura de pastas",
+      "secao": "biblioteca",
+      "grupo": "acervo",
+      "descricao": "Como se organizam as pastas do template de projeto, da Imagem e da Administração, conferidas com o Drive",
+      "url": "https://universo.odisse.com.br/#/pastas",
+      "acesso": "interna",
+      "status": "no-ar"
+    },
+    {
       "id": "padroes-posts",
       "nome": "Padrões dos posts",
       "secao": "biblioteca",

@@ -39,6 +39,7 @@ import { WorkerEntrypoint } from 'cloudflare:workers';
 import { api } from './dados/api.js';
 import { aplicar, mudancas, gerarCss, validarSvg, incluirLogo } from './marca.js';
 import { inicio, publicar } from './inicio.js';
+import { lerPastas, gravarPastas } from './pastas.js';
 
 const REPO = 'cidclementino/marca-odisse';
 const ARQUIVO = 'odisse.json';
@@ -167,6 +168,13 @@ export default {
       if (pathname === '/api/precos' && request.method === 'GET') {
         if (!env.RADAR) return erro('Radar: ligação não configurada', 503);
         return json(await env.RADAR.precos());
+      }
+      // Biblioteca › Estrutura de pastas (Cid, 19/11): norma + retrato do Drive, guardados no R2 (worker/pastas.js)
+      if (pathname === '/api/pastas') {
+        const r = request.method === 'GET' ? await lerPastas(env)
+          : request.method === 'PUT' ? await gravarPastas(env, await request.text())
+          : { status: 405, erro: 'método não aceito' };
+        return r.dados ? json(r.dados) : erro(r.erro, r.status);
       }
       if (pathname === '/api/inicio/publicar') {
         if (request.method !== 'POST') return erro('método não aceito', 405);
