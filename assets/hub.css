@@ -392,39 +392,52 @@ li.eq-item.alvo-depois { box-shadow: 0 3px 0 var(--odisse-ocre, #BB8248); }
 .eq-qualif { margin-top: 6px; padding-top: 14px; border-top: 1px solid var(--u-linha); }
 .eq-qualif p { margin: 6px 0 0; font-size: 13.5px; line-height: 1.55; max-width: 1000px; }
 
-/* Ferramentas: lista compacta por ramo (design.md § 4, Tabelas: linha de grupo recolhível com a cor do grupo).
-   Linha do grupo no tom forte da cor do ramo; as ferramentas no tom leve; a linha inteira é clicável. */
-.lista-ferramentas { background: var(--u-elevada, #fff); border: 1px solid var(--u-linha); border-radius: var(--u-raio); overflow-x: auto; }
-.lista-ferramentas .u-tabela { min-width: 640px; }
-.lista-ferramentas thead th { background: var(--u-superficie); }
-.lista-ferramentas .ramo-linha th { padding: 0; text-transform: none; letter-spacing: 0; border-top: 1px solid var(--u-linha-forte);
-  background: color-mix(in srgb, var(--ramo) 30%, var(--u-elevada, #fff)); }
-.lista-ferramentas .ramo-alternar { display: flex; align-items: center; gap: 8px; width: 100%; padding: 11px 12px; border: 0; background: none;
-  font: inherit; font-size: 13.5px; font-weight: 650; color: var(--u-tinta); text-align: left; cursor: pointer; }
-.lista-ferramentas .ramo-alternar .seta { display: inline-grid; place-items: center; width: 12px; height: 12px; line-height: 1; font-size: 11px; color: var(--u-tinta-2); transition: transform .15s; }
-.lista-ferramentas tbody.aberto .seta { transform: rotate(90deg); }
-.lista-ferramentas .ramo-alternar .conta { font-size: 11.5px; font-weight: 500; color: var(--u-tinta-2); font-variant-numeric: tabular-nums; }
-.lista-ferramentas tbody:not(.aberto) tr.ferr { display: none; }
-.lista-ferramentas tr.ferr { background: color-mix(in srgb, var(--ramo) 9%, var(--u-elevada, #fff)); }
-.lista-ferramentas tr.ferr td { padding: 15px 12px; vertical-align: middle; border-bottom-color: color-mix(in srgb, var(--ramo) 18%, var(--u-elevada, #fff)); }
-.lista-ferramentas tr.ferr[data-url] { cursor: pointer; transition: background-color .15s; }
-.lista-ferramentas tr.ferr[data-url]:hover { background: color-mix(in srgb, var(--ramo) 16%, var(--u-elevada, #fff)); }
-.lista-ferramentas td.nome { width: 26%; font-weight: 600; white-space: nowrap; }
-.lista-ferramentas td.nome a { color: inherit; text-decoration: none; }
-.lista-ferramentas tr.ferr[data-url]:hover td.nome a { text-decoration: underline; text-underline-offset: 3px; }
-.lista-ferramentas td.oque { color: var(--u-tinta-2); }
-.lista-ferramentas td.onde { width: 12%; color: var(--u-tinta-2); white-space: nowrap; }
-.lista-ferramentas td.estado { width: 9%; white-space: nowrap; font-size: 12px; }
-.lista-ferramentas .no-ar { color: #3E6B48; font-weight: 600; }
-.lista-ferramentas tr.breve td { color: #8A939C; }
-.lista-ferramentas tr.breve td.nome { font-weight: 500; }
-/* lápis (padrão do Radar): invisível até passar o mouse na linha; sempre visível no toque */
-.editar-nome { display: inline-grid; place-items: center; width: 22px; height: 22px; padding: 0; margin: -3px 0 -3px 6px; vertical-align: middle;
-  background: none; border: 1px solid transparent; border-radius: 4px; color: #8A939C; cursor: pointer; opacity: 0; transition: opacity .15s; }
-tr.ferr:hover .editar-nome, .editar-nome:focus-visible { opacity: 1; }
-@media (hover: none) { .editar-nome { opacity: 1; } }
-.editar-nome:hover { color: var(--u-tinta); border-color: var(--u-linha-forte); background: var(--u-elevada, #fff); }
-.lista-ferramentas .texto.is-editando { outline: 2px solid var(--u-destaque, #BB8248); outline-offset: 2px; border-radius: 2px; cursor: text;
-  background: var(--u-elevada, #fff); color: var(--u-tinta); }
-@media (max-width: 860px) { .lista-ferramentas td.onde, .lista-ferramentas thead th:nth-child(3) { display: none; } }
-@media (prefers-reduced-motion: reduce) { .lista-ferramentas .seta, .lista-ferramentas tr.ferr, .editar-nome { transition: none; } }
+/* Ferramentas: cartões empilhados por ramo, no desenho dos cartões do PGT (projetos-odisse/projetos.css:
+   .estado / .estado__faixa / .pilha / .card / .ctl__btn). design.md § 4, "Pilha de cartões por grupo". */
+.lista-ferramentas { --cols: 40px minmax(180px, 24%) minmax(0, 1fr) 110px 96px; margin-top: var(--u-esp-5); }
+.ferr-cab, .ferr { display: grid; grid-template-columns: var(--cols); align-items: center; }
+.ferr-cab > *, .ferr > * { padding: 0 8px; min-width: 0; }
+.ferr-cab { padding: 0 2px 8px 17px; border-bottom: 1px solid var(--u-linha-forte); font-size: 11px; font-weight: 650; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--u-tinta-2); }
+/* grupo: filete de 4 px na cor do ramo + faixa de título no tom forte (como Fluxo projetual / Ilhas) */
+.ramo { margin-top: 22px; padding-left: 12px; border-left: 4px solid var(--g); }
+.ramo__faixa { display: flex; align-items: center; gap: 12px; width: calc(100% + 12px); margin: 0 0 6px -12px; padding: 7px 12px;
+  border: 0; border-radius: 0 var(--u-raio-p) var(--u-raio-p) 0; background: color-mix(in srgb, var(--g) 35%, transparent);
+  font: inherit; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--u-tinta); text-align: left; cursor: pointer; }
+.ramo__faixa:hover { background: color-mix(in srgb, var(--g) 50%, transparent); }
+.ramo__faixa > span:last-child { font-weight: 500; letter-spacing: 0; text-transform: none; font-size: 12px; color: var(--u-tinta-2); }
+.ramo__faixa .seta { display: inline-grid; place-items: center; width: 10px; height: 10px; line-height: 1; font-size: 10px; color: var(--u-tinta-2); transition: transform .15s; }
+.ramo.aberto .ramo__faixa .seta { transform: rotate(90deg); }
+.ramo:not(.aberto) .ramo__pilha { display: none; }
+.ramo:not(.aberto) .ramo__faixa { margin-bottom: 0; }
+/* pilha de cartões: tom leve da cor do ramo, borda leve, raio 8, 6 px entre eles; cartão de 48 px */
+.ramo__pilha { display: flex; flex-direction: column; gap: 6px; }
+.ferr { box-sizing: border-box; min-height: 52px; padding: 6px 0; font-size: 13px; background: color-mix(in srgb, var(--g) 9%, var(--u-elevada, #fff));
+  border: 1px solid color-mix(in srgb, var(--g) 30%, var(--u-linha)); border-radius: var(--u-raio); transition: border-color .15s, background-color .15s; }
+.ferr[data-url] { cursor: pointer; }
+.ferr[data-url]:hover { background: color-mix(in srgb, var(--g) 18%, var(--u-elevada, #fff)); border-color: color-mix(in srgb, var(--g) 60%, var(--u-linha-forte)); }
+.ferr__nome { color: inherit; text-decoration: none; }
+.ferr strong { font-weight: 650; }
+.ferr[data-url]:hover .ferr__nome { text-decoration: underline; text-underline-offset: 3px; }
+.ferr__oque, .ferr__onde { color: var(--u-tinta-2); }
+.ferr__onde { white-space: nowrap; }
+.ferr__estado { font-size: 12px; white-space: nowrap; }
+.ferr .no-ar { color: #3E6B48; font-weight: 600; }
+/* em breve: tracejado (design.md: tracejado = suspenso), sem clique */
+.ferr.is-breve { background: transparent; border-style: dashed; border-color: var(--u-linha-forte); color: #8A939C; }
+.ferr.is-breve strong { font-weight: 550; }
+.ferr.is-breve .ferr__oque { color: #8A939C; }
+/* comandos à esquerda: os mesmos do PGT (sempre visíveis, em tom apagado) */
+.ferr__ctl { display: flex; align-items: center; padding-left: 6px !important; padding-right: 0 !important; }
+.ctl__btn { width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: 4px; background: transparent;
+  color: color-mix(in srgb, var(--u-tinta-2) 55%, transparent); cursor: pointer; padding: 0; }
+.ctl__btn svg { width: 14px; height: 14px; }
+.ctl__btn:hover, .ctl__btn:focus-visible { color: var(--u-tinta); background: rgba(63,75,87,.08); }
+.ctl__btn.is-on { color: var(--u-tinta); background: rgba(63,75,87,.08); }
+.lista-ferramentas .texto.is-editando { display: inline-block; min-width: 60%; outline: 2px solid var(--u-destaque, #BB8248); outline-offset: 2px; border-radius: 2px;
+  cursor: text; background: var(--u-elevada, #fff); color: var(--u-tinta); }
+@media (max-width: 860px) {
+  .lista-ferramentas { --cols: 36px minmax(0, 1fr) 86px; }
+  .ferr-cab > :nth-child(3), .ferr-cab > :nth-child(4), .ferr__oque, .ferr__onde { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .ramo__faixa .seta, .ferr { transition: none; } }
