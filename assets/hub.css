@@ -1017,6 +1017,8 @@ span.bol-fonte + .bol-caixa, .bol-titulo + .bol-caixa { margin-left: auto; }
   .bol-linha > :nth-child(5) { justify-self: end; }
   .bol-linha > :nth-child(6) { grid-column: 1 / -1; }
   .bol-linha > :nth-child(6):empty { display: none; }
+  .bol-faixa { width: auto; max-width: 45%; white-space: normal; }
+  .bol-trilho { min-width: 90px; }
   .bol-ontem::before { content: 'Ontem'; font-size: 11px; font-weight: 650; letter-spacing: .06em; text-transform: uppercase; color: var(--u-tinta-2); margin-right: 4px; }
   .bol-valor { text-align: right; align-items: flex-end; }
   .bol-origem .bol-origem__lista { grid-column: 1 / -1; }
@@ -1024,7 +1026,7 @@ span.bol-fonte + .bol-caixa, .bol-titulo + .bol-caixa { margin-left: auto; }
   .met-cols .bol-nome { grid-column: 1 / -1; }
   .met-tabela .bol-regua-cab { display: none; }
 }
-@media (max-width: 640px) { .bol-faixa { width: auto; white-space: normal; } .bol-trilho { min-width: 90px; } .bol-var:has(> .bol-nada:only-child) { display: none; } .bol-bloco { padding: 16px 14px 8px; } .bol-fonte { display: none; } .bol-acoes { margin-left: 0; } }
+@media (max-width: 640px) { .bol-var:has(> .bol-nada:only-child) { display: none; } .bol-bloco { padding: 16px 14px 8px; } .bol-fonte { display: none; } .bol-acoes { margin-left: 0; } }
 @media (prefers-reduced-motion: reduce) { .bol-seta, .abas-caixa a { transition: none; } }
 .ini-balanco { align-items: center; }
 .ini-balanco .ini-etq svg { width: 12px; height: 12px; display: block; }
