@@ -8,6 +8,8 @@
 // novas peças Bloco, Faixa de criar, Gráfico, Passos e Resumo; Abas em caixa com o nome da seção; Seletor quadrado; nada em pílula.
 // 19/11 (vendas › Propostas): Assistente com passos corridos, Passos e Resumo colados nas laterais, nome do passo como título;
 // Bloco recolhível (seta à direita); Barra de emitir (variação da Barra de salvar); Prévia de folha com as folhas da Marca e Seletor de modelo.
+// 20/11 (servicos › Catálogo e montador de landing pages): Pilha arrastada pela alça, sem setas; peças novas Inserir entre e Miniatura;
+// o produto do catálogo abre em subpágina (Abas + Trilha), não em Gaveta; campos de Bloco em três colunas explícitas, como a Empresa.
 
 const H = 'https://universo.odisse.com.br/';
 const V = 'https://vendas.odisse.com.br/';
@@ -15,6 +17,7 @@ const P = 'https://projetos.odisse.com.br/';
 const R = 'https://radar.odisse.com.br/';
 const M = 'https://marketing.odisse.com.br/';
 const S = 'https://www.odisse.com.br/admin/';
+const SV = 'https://servicos.odisse.com.br/painel/';
 
 // lugares (nome, ferramenta, endereço)
 const L = {
@@ -38,6 +41,10 @@ const L = {
   funil: ['Funil', 'vendas', V + 'crm.html'],
   contatos: ['Contatos', 'vendas', V + 'contatos.html'],
   propostas: ['Propostas', 'vendas', V + 'index.html'],
+  catalogoServ: ['Catálogo de serviços', 'servicos', SV + '#/'],
+  produtoServ: ['Catálogo › produto', 'servicos', SV + '#/'],
+  montadorLp: ['Produto › Landing page', 'servicos', SV + '#/'],
+  modulosServ: ['Biblioteca de módulos', 'servicos', SV + '#/modulos'],
   emissor: ['Emissor de proposta', 'vendas', V + 'index.html'],
   historico: ['Propostas › Histórico', 'vendas', V + 'index.html'],
   contratos: ['Contratos', 'vendas', V + 'contratos.html'],
@@ -83,6 +90,7 @@ const alca = '<svg viewBox="0 0 16 16" aria-hidden="true"><g fill="currentColor"
 const cadeado = '<svg viewBox="0 0 16 16" aria-hidden="true"><rect x="3.5" y="7" width="9" height="6.5" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>';
 const cima = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 10 8 6l4 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
 const baixo = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6 8 10l4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
+const mais = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3.5v9M3.5 8h9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
 const xis = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 4.5 11.5 11.5M11.5 4.5 4.5 11.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
 
 const tr = (n = 1, larg = []) => Array.from({ length: n }, (_, i) => `<i class="pi-tx" style="width:${larg[i] || 70}%"></i>`).join('');
@@ -120,8 +128,16 @@ const AMOSTRA = {
     <div class="pi-mural${i === 0 ? ' is-hover' : ''}"><div class="pi-banner" style="--c:var(--pi-${c})">${etq('novo', 'ok')}</div><b>Concurso ${i + 1}</b>${tr(1, [80])}${etq(u === 'alta' ? '5 dias' : u === 'média' ? '18 dias' : '40 dias', u === 'alta' ? 'atencao' : '')}</div>`).join('')}</div>`,
 
   pilha: () => `<div class="pi-pilha">${['Arquiteto coordenador', 'Arquiteta', 'Desenhista'].map((n, i) => `
-    <div class="pi-item"><span class="pi-pos">${i + 1}</span><b>${n}</b><span class="pi-ctls">${caixaCtl(cima)}${caixaCtl(baixo)}${caixaCtl(xis)}</span></div>`).join('')}
+    <div class="pi-item${i === 1 ? ' is-arrastado' : ''}"><span class="pi-ctl ctl__btn pi-alca">${alca}</span><b>${n}</b><span class="pi-ctls">${caixaCtl(xis)}</span></div>`).join('')}
     <div class="pi-item pi-item--novo">+ Acrescentar</div></div>`,
+
+  'inserir-entre': () => `<div class="pi-pilha pi-pilha--junta">
+    <div class="pi-item"><span class="pi-ctl ctl__btn pi-alca">${alca}</span><b>Abertura</b>${caixaCtl(xis)}</div>
+    <div class="pi-ins"><span class="pi-ctl ctl__btn">${mais}</span></div>
+    <div class="pi-item"><span class="pi-ctl ctl__btn pi-alca">${alca}</span><b>Portfólio</b>${caixaCtl(xis)}</div></div>`,
+
+  miniatura: () => `<div class="pi-pilha">${[['Abertura', 'pi-mini--escura'], ['Itens numerados', '']].map(([n, k]) => `
+    <div class="pi-item pi-item--alto"><span class="pi-ctl ctl__btn pi-alca">${alca}</span><span class="pi-mini ${k}"><i></i><i></i><i></i></span><span><b>${n}</b><small>título do módulo</small></span></div>`).join('')}</div>`,
 
   sanfona: () => `<div class="pi-pilha">
     <div class="pi-sanf"><div class="pi-sanf__cab"><span class="pi-seta">${seta}</span><b>Concurso Sede Municipal</b>${etq('acompanhando')}</div></div>
@@ -241,12 +257,13 @@ const DISPOSICOES = [
       onde: { s: ['ferramentas', 'canais'] } },
     { id: 'registro', nome: 'Registro', modelo: 'Propostas › Histórico', decisao: 'padrão próprio (Cid, 19/11)',
       para: 'Listas de registros que crescem: Filtros e Seletor no alto, Régua, linhas em cartões brancos, 10 por página com setas em caixa. Linha clicável abre o registro ou a Gaveta.',
-      onde: { s: ['historico'], v: ['contatos', 'projetos', 'emitidos'] },
+      onde: { s: ['historico', 'catalogoServ'], v: ['contatos', 'projetos', 'emitidos'] },
       ajustar: 'Contatos e Projetos: linha sob o título (barra antiga do vendas e do Projetos).' },
-    { id: 'pilha', nome: 'Pilha', modelo: 'Cargos e títulos',
-      para: 'Itens em ordem que se reordenam: posição, alça, ↑ ↓ ×, "Acrescentar" tracejado no fim.',
-      onde: { s: ['cargos', 'gestor'], v: ['pgt'] },
-      ajustar: 'PGT: pilhas aninhadas com Fluxo e Ilhas em barra à esquerda e comandos sem caixa (com sua aprovação).' },
+    { id: 'pilha', nome: 'Pilha', modelo: 'Produto › Landing page',
+      para: 'Itens em ordem que se reordenam: alça ⋮⋮ em caixa à esquerda para arrastar (o cartão fica a .4 e os outros abrem espaço; com o teclado, ↑ ↓ na alça), × em caixa à direita, "Acrescentar" tracejado no fim e Inserir entre os itens. Itens grandes podem levar a Miniatura ao lado do nome e se recolher como Bloco.',
+      decisao: 'arrastar pela alça, sem setas ↑ ↓; + entre dois itens (Cid, 20/11, montador de landing pages)',
+      onde: { s: ['montadorLp'], v: ['pgt'], a: ['cargos', 'gestor'] },
+      ajustar: 'Cargos e títulos e Gestor de cláusulas ainda com ↑ ↓ (levar ao arrastar quando o Cid liberar). PGT: pilhas aninhadas com Fluxo e Ilhas em barra à esquerda e comandos sem caixa (com sua aprovação).' },
     { id: 'sanfona', nome: 'Sanfona', modelo: null,
       para: 'Itens longos lidos um de cada vez: cartões largos que abrem e fecham no lugar.',
       onde: { s: ['acomp'], v: ['pgt'] } },
@@ -258,7 +275,7 @@ const DISPOSICOES = [
     { id: 'vitrine', nome: 'Vitrine', modelo: 'Biblioteca › Modelos',
       para: 'Arquivos vistos pela miniatura. A miniatura toma a proporção do arquivo (A4, 3:4, 16:9…); os comandos seguem o que o item é: modelo = Baixar PDF · Usar; post = Abrir · Duplicar · Arquivar.',
       decisao: 'o Mosaico entrou na Vitrine (Cid, 19/11)',
-      onde: { s: ['biblioteca', 'imagens'], a: ['publicacoes'] },
+      onde: { s: ['biblioteca', 'imagens', 'modulosServ'], a: ['publicacoes'] },
       ajustar: 'Publicações (marketing): visual anterior ao Universo e comandos só no hover (fica para depois).' },
     { id: 'mural', nome: 'Mural', modelo: null,
       para: 'Oportunidades com imagem que se abrem no lugar; alterna com uma lista em linhas.',
@@ -336,11 +353,11 @@ const PECAS = [
       ajustar: 'marketing e painel do site com barra própria (fica para depois).' },
     { id: 'trilha', nome: 'Trilha', modelo: 'Equipe › pessoa',
       para: 'No lugar de "← Voltar", em páginas internas: rótulos em maiúsculas separados por "/".',
-      onde: { s: ['pessoa', 'emitidos'], v: ['emissor'], a: ['editorMkt'] },
+      onde: { s: ['pessoa', 'emitidos', 'produtoServ'], v: ['emissor'], a: ['editorMkt'] },
       ajustar: 'Editor do marketing ainda com "← Publicações".' },
     { id: 'abas', nome: 'Abas', modelo: 'Contratos', decisao: 'em caixa, com o nome da seção à esquerda (Cid, 19/11)',
       para: 'Subpáginas de uma mesma seção: nome da seção à esquerda, abas em caixa ao lado; contagem quando ajuda.',
-      onde: { s: ['contratos', 'estudio'], v: ['contatos', 'referencias', 'bases', 'pgt', 'concursos'], a: ['publicacoes', 'metricas', 'painelSite'] },
+      onde: { s: ['contratos', 'estudio', 'produtoServ'], v: ['contatos', 'referencias', 'bases', 'pgt', 'concursos'], a: ['publicacoes', 'metricas', 'painelSite'] },
       ajustar: 'Em caixa já existe (vendas, Projetos, Radar), falta o nome da seção à esquerda (Contratos, KPIs e O Estúdio já têm). As sublinhadas (marketing, painel do site) mudam de desenho.' },
     { id: 'seletor', nome: 'Seletor', modelo: 'Propostas › Histórico', decisao: 'quadrado (Cid, 19/11)',
       para: 'Escolher um modo, um filtro ou uma unidade na mesma página (não navega): Todas / Propostas / Simulações, Coluna / Ficha, % / R$. Versão pequena nas grades (critérios da Complexidade).',
@@ -355,9 +372,9 @@ const PECAS = [
   ] },
   { grupo: 'Conteúdo', itens: [
     { id: 'bloco', nome: 'Bloco', modelo: 'Empresa',
-      para: 'Caixa branca com título, campos em até três colunas e partes separadas por filete leve; um assunto por Bloco (temático, nunca um Bloco por passo inteiro). Recolhível pelo título, com a seta (chevron SVG) à direita e o estado lembrado. Botões dentro do Bloco: meia largura. Fluido: os Blocos de uma página correm em colunas; quando o conteúdo cabe numa largura menor (slots curtos), o Bloco ocupa só parte da página e o seguinte sobe ao lado, no PC; abaixo dessa largura, um embaixo do outro. A Ficha é feita de Blocos; o Assistente e o Editor com prévia também os usam.',
+      para: 'Caixa branca com título, campos em até três colunas (colunas explícitas, como na Empresa: textos curtos empilhados numa, texto longo e listas nas outras) e partes separadas por filete leve; um assunto por Bloco (temático, nunca um Bloco por passo inteiro). Recolhível pelo título, com a seta (chevron SVG) à direita e o estado lembrado. Botões dentro do Bloco: meia largura. Fluido: os Blocos de uma página correm em colunas; quando o conteúdo cabe numa largura menor (slots curtos), o Bloco ocupa só parte da página e o seguinte sobe ao lado, no PC; abaixo dessa largura, um embaixo do outro. A Ficha é feita de Blocos; o Assistente e o Editor com prévia também os usam.',
       decisao: 'temático e recolhível, seta à direita; fluido, o seguinte sobe ao lado quando cabe (Cid, 19/11)',
-      onde: { s: ['empresa', 'pessoa', 'marca', 'kpisMetas'], v: ['emissao', 'emissor'] } },
+      onde: { s: ['empresa', 'pessoa', 'marca', 'kpisMetas', 'produtoServ', 'montadorLp'], v: ['emissao', 'emissor'] } },
     { id: 'regua', nome: 'Régua', modelo: 'Ferramentas',
       para: 'Rótulos das colunas de uma lista: cartão translúcido, sem linha.',
       onde: { s: ['ferramentas', 'canais'] } },
@@ -374,6 +391,10 @@ const PECAS = [
     { id: 'grafico', nome: 'Gráfico', modelo: null,
       para: 'Séries no tempo em caixa branca, cores seguras para daltonismo (azul e ocre), legenda embaixo.',
       onde: { a: ['metricas'] } },
+    { id: 'miniatura', nome: 'Miniatura', modelo: 'Produto › Landing page',
+      para: 'O desenho de verdade, reduzido, ao lado do nome do item: o que se monta se reconhece pela forma, não só pelo título. Acompanha o que se digita (com uma pausa) e não recebe clique (clicar abre ou recolhe o item).',
+      decisao: 'prévia do módulo escolhido à esquerda, não só o título (Cid, 20/11)',
+      onde: { s: ['montadorLp', 'modulosServ'] } },
     { id: 'resumo', nome: 'Resumo', modelo: 'Emissor de proposta',
       para: 'O resultado em números enquanto se monta algo, colado na lateral direita: total em destaque, as partes embaixo, conferências calculadas e avisos (ex.: simulação). Abaixo de 1180 px vira barra no pé (total e prazo) que se abre.',
       onde: { s: ['emissor'] } },
@@ -392,8 +413,12 @@ const PECAS = [
     { id: 'barra-de-salvar', nome: 'Barra de salvar', modelo: 'Empresa',
       para: 'Presa ao pé, ardósia, só aparece com mudança: "N mudanças não salvas", Descartar e Salvar em Ocre. Variação Barra de emitir (Assistente): sempre visível no pé do formulário, com o que falta (leva ao passo), Salvar rascunho e Emitir em Ocre, que só se ativa com tudo preenchido.',
       onde: { s: ['empresa', 'pessoa', 'marca', 'emissor'], v: ['editorMkt'] } },
+    { id: 'inserir-entre', nome: 'Inserir entre', modelo: 'Produto › Landing page',
+      para: 'Acrescentar no meio de uma Pilha: ao passar o mouse entre dois itens, aparece uma linha tracejada com + em caixa; o clique abre a escolha e põe o novo ali. Some enquanto se arrasta. O "Acrescentar" tracejado do fim continua.',
+      decisao: 'linha tracejada com + entre dois módulos (Cid, 20/11)',
+      onde: { s: ['montadorLp'] } },
     { id: 'gaveta', nome: 'Gaveta', modelo: null,
-      para: 'Criar ou editar sem sair da página: painel que entra pela direita sobre a página escurecida.',
+      para: 'Criar ou editar sem sair da página: painel que entra pela direita sobre a página escurecida. Registro com muitos campos ou subpáginas (ex.: produto do Catálogo de serviços, com a landing page) abre numa subpágina, com Abas e Trilha, e não na Gaveta (Cid, 20/11).',
       onde: { s: ['funil', 'contatos', 'projetos', 'bases', 'imagens'] } },
   ] },
   { grupo: 'Mensagens', itens: [

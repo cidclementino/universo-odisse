@@ -177,6 +177,21 @@
 .pi-item b { margin-right: auto; }
 .pi-pos { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--odisse-nevoa, #E6E8EB); font-size: 9.5px; font-weight: 650; }
 .pi-ctls { display: flex; gap: 3px; }
+.pi-alca { color: var(--u-tinta-2, #5B6773); cursor: grab; }
+.pi-item.is-arrastado { opacity: .4; }
+.pi-item--alto { min-height: 52px; padding: 6px 8px; }
+.pi-item--alto small { display: block; }
+.pi-pilha--junta { gap: 0; }
+.pi-ins { position: relative; height: 26px; display: grid; place-items: center; }
+.pi-ins::before { content: ''; position: absolute; left: 6px; right: 6px; top: 50%; border-top: 2px dashed var(--u-linha-forte, #C3C8CD); }
+.pi-ins .pi-ctl { position: relative; background: #fff; }
+.pi-mini { flex: none; width: 64px; height: 40px; border-radius: 4px; border: 1px solid var(--u-linha, #D7DADD); background: var(--odisse-papel, #FAFAF7);
+  display: flex; flex-direction: column; justify-content: center; gap: 3px; padding: 0 7px; }
+.pi-mini i { display: block; height: 3px; border-radius: 2px; background: var(--u-linha-forte, #C3C8CD); width: 80%; }
+.pi-mini i:first-child { height: 5px; width: 60%; background: var(--odisse-ardosia, #3F4B57); }
+.pi-mini--escura { background: var(--odisse-ardosia, #3F4B57); }
+.pi-mini--escura i { background: rgba(250, 250, 247, .4); }
+.pi-mini--escura i:first-child { background: var(--odisse-papel, #FAFAF7); }
 .pi-item--novo { justify-content: center; background: transparent; border-style: dashed; border-color: var(--u-linha-forte, #C3C8CD); color: var(--u-tinta-2, #5B6773); }
 
 /* Sanfona */
