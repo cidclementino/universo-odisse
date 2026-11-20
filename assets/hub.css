@@ -452,11 +452,6 @@ li.eq-item.alvo-depois { box-shadow: 0 3px 0 var(--odisse-ocre, #BB8248); }
 @media (prefers-reduced-motion: reduce) { .ramo__faixa .seta, .ferr { transition: none; } .ferr[data-url]:hover { transform: none; } }
 
 /* ---- O Estúdio: abas das subpáginas (Empresa · Equipe · Marca · Canais) — design.md § 3, abas em pílula ---- */
-.abas-estudio { display: flex; align-items: center; gap: 14px; margin-bottom: var(--u-esp-5); }
-.abas { display: inline-flex; gap: 2px; padding: 3px; border-radius: 999px; background: rgba(63,75,87,.07); }
-.abas a { padding: 6px 14px; border-radius: 999px; color: var(--u-tinta-2); text-decoration: none; font-size: 13px; font-weight: 550; }
-.abas a:hover { color: var(--u-tinta); }
-.abas a.ativa { background: var(--u-elevada, #fff); color: var(--u-tinta); font-weight: 650; box-shadow: 0 1px 3px rgba(46,48,54,.12); }
 
 /* ---- Empresa: ficha no sistema de caixas da Equipe ---- */
 .emp-cidade { display: grid; grid-template-columns: 1fr 84px 1fr; gap: 0 10px; }
@@ -1129,7 +1124,8 @@ span.bol-fonte + .bol-caixa, .bol-titulo + .bol-caixa { margin-left: auto; }
   .cre-g-botoes { flex-wrap: wrap; justify-content: flex-end; }
   .acv-gaveta-pe:has(.cre-g-botoes) { flex-direction: column; align-items: stretch; }
 }
-/* O Estúdio com cinco abas: no celular as abas rolam de lado em vez de alargar a página */
-.abas-estudio { min-width: 0; flex-wrap: wrap; }
-.abas-estudio .abas { max-width: 100%; overflow-x: auto; scrollbar-width: none; }
-.abas-estudio .abas a { flex: none; }
+/* Abas em caixa: no celular rolam de lado em vez de alargar a página (O Estúdio tem cinco) */
+.abas-caixa { max-width: 100%; overflow-x: auto; scrollbar-width: none; box-sizing: border-box; }
+.abas-caixa a { flex: none; white-space: nowrap; }
+/* Trilha abaixo das Abas: o caminho dentro da subpágina (Equipe / Nome), colado ao título */
+.abas-caixa-linha + .cab .u-trilha, .abas-caixa-linha + * .cab .u-trilha { margin-bottom: 4px; }

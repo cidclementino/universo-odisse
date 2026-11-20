@@ -388,7 +388,7 @@ export function criarEquipe({ esc, api, apiBinario, toque, cred }) {
     const chk = (nome, v, texto) => `<label class="eq-check"><input type="checkbox" name="${nome}"${v ? ' checked' : ''}> ${texto}</label>`;
     const assina = (reg.assina || '').split(',').filter(Boolean);
 
-    raiz.innerHTML = `<div class="cab"><div>${trilha(['Equipe', '#/equipe'], ['Ficha'])}
+    raiz.innerHTML = `<div class="cab"><div>${trilha(['Equipe', '#/equipe'], [pes.nome])}
         <h1 class="u-titulo">${esc(pes.nome)}</h1><p class="u-apoio" data-resumo></p></div>
         ${ativo ? '' : `<div class="acoes-cab"><span class="chip">desligado${reg.ate ? ' em ' + esc(dataBr(reg.ate)) : ''}</span></div>`}</div>
       <form class="eq-ficha" autocomplete="off">

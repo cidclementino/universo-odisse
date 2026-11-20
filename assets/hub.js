@@ -122,9 +122,10 @@ const empresa = criarEmpresa({ esc, api, toque, cred, lerOdisse: () => ODISSE, g
 // O Estúdio (Cid, 19/11): Empresa · Equipe · Marca · Canais · Credenciais são subpáginas, com abas no alto
 const ESTUDIO = ['empresa', 'equipe', 'marca', 'canais', 'credenciais'];
 function abasEstudio(atual) {
+  // Abas em caixa com o nome da seção à esquerda (design.md § 0; mesmo desenho dos KPIs)
   const subs = MAPA.secoes.filter((s) => s.pai === 'estudio');
-  return `<nav class="abas-estudio" aria-label="O Estúdio"><span class="u-rotulo">O Estúdio</span>
-    <div class="abas">${subs.map((s) => `<a href="#/${s.id}"${s.id === atual ? ' class="ativa" aria-current="page"' : ''}>${esc(s.nome)}</a>`).join('')}</div></nav>`;
+  return `<nav class="abas-caixa-linha" aria-label="O Estúdio"><span class="u-rotulo">O Estúdio</span>
+    <span class="abas-caixa">${subs.map((s) => `<a href="#/${s.id}"${s.id === atual ? ' class="ativa" aria-current="page"' : ''}>${esc(s.nome)}</a>`).join('')}</span></nav>`;
 }
 
 // ---- páginas -------------------------------------------------------------
