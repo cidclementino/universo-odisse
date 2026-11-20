@@ -22,6 +22,7 @@
 //   GET    arquivos/:id/conteudo?variante=g|m|s
 //   GET    acervo | acervo/alvos | acervo/site/…  -> banco único de imagens (ver acervo.js)
 //   GET    credenciais/quadro | credenciais/vencidas    -> documentos para editais (ver credenciais.js)
+//   GET    financeiro/despesas, POST financeiro/despesas/lote  -> Financeiro › Despesas fixas (ver financeiro.js)
 //   POST   revisoes/:id/resolver { versao, situacao: 'mesmo'|'diferentes', manter }  -> junta dois contatos
 //   GET    comercial/propostas?de=0&limite=10&q=…&simulacoes=0|so -> propostas leves com oportunidade e cliente, e o total
 //   GET    comercial/painel                   -> oportunidades abertas com cliente, co-clientes, última proposta e próxima ação
@@ -50,6 +51,7 @@ import { rotasEquipe } from './equipe.js';
 import { rotasAcervo } from './acervo.js';
 import { rotasCredenciais, regraCredenciais } from './credenciais.js';
 import { rotasEscopo } from './escopo.js';
+import { rotasFinanceiro, regraDespesas } from './financeiro.js';
 import { ErroApi, REGRAS, proximoNumero, ajustarSequencia, valorSequencia, painelComercial, listaContatos, fichaContato, listaPropostas } from './regras.js';
 
 export { proximoNumero };
@@ -102,7 +104,7 @@ function sqlBusca(tabela, id, linha, guardado) {
 function sqlHistorico(tabela, id, acao, por, mudancas, guardado) {
   const def = TABELAS[tabela];
   let registro = mudancas;
-  if (def.sensivel && mudancas) registro = { campos: Object.keys(mudancas) };
+  if ((def.sensivel || def.historico_sem_valores) && mudancas) registro = { campos: Object.keys(mudancas) };
   const sql = `INSERT INTO historico (registro_id, tabela, acao, por, em, mudancas)
     SELECT ?, ?, ?, ?, ?, ? ${guardado ? 'WHERE changes() = 1' : ''}`;
   return [sql, [id, tabela, acao, por, agoraISO(), registro ? JSON.stringify(registro) : null]];
@@ -130,6 +132,7 @@ function traduzirErro(e) {
 const AUX = { validar: (...a) => validar(...a), novoId, sqlBusca, sqlHistorico: (...a) => sqlHistorico(...a) };
 // regras que moram fora de regras.js (evita importação circular)
 REGRAS.credenciais = regraCredenciais;
+REGRAS.despesas_fixas = regraDespesas;
 
 async function buscarLinha(env, tabela, id) {
   return env.DB.prepare(`SELECT * FROM ${tabela} WHERE id = ?`).bind(id).first();
@@ -822,6 +825,9 @@ export async function api(env, ferramenta, request, url, cors) {
     // Credenciais: quadro juntado e vencidas (credenciais.js); o resto pelas rotas comuns
     const rc = await rotasCredenciais(env, ferramenta, m, partes, { exigir });
     if (rc !== undefined) return json(rc);
+    // Financeiro › Despesas fixas (0025): leitura juntada com a cotação do dólar e o lote (financeiro.js)
+    const rf = await rotasFinanceiro(env, ferramenta, m, partes, corpo, { exigir, criar });
+    if (rf !== undefined) return json(rf, m === 'POST' ? 201 : 200);
     // Escopo do Projeto (0023): leitura, gerar e as ações do dia a dia (escopo.js)
     const rx = await rotasEscopo(env, ferramenta, m, partes, corpo, { exigir });
     if (rx !== undefined) return json(rx);

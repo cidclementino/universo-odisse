@@ -50,6 +50,8 @@ export const PREFIXOS = {
   // Escopo do Projeto (0023)
   esc: 'escopo_cartoes',
   eal: 'escopo_alteracoes',
+  // Financeiro (0025)
+  dfx: 'despesas_fixas',
 };
 
 // Ferramentas que podem chamar a API. 'hub' = o próprio Universo (senha da equipe);
@@ -417,6 +419,35 @@ export const TABELAS = {
     permissoes: { hub: 'E', maquina: 'E' },
     filtros: ['dono_id', 'tipo'],
     ordem: 'vence_em, criado_em',
+  },
+  // Financeiro › Despesas fixas (0025; Cid, 20/11): só o hub. A leitura juntada e o lote ficam em financeiro.js;
+  // os valores ao longo do tempo (despesas_fixas_valores) são gravados pela regra, no mesmo lote.
+  // historico_sem_valores: o histórico guarda só o nome dos campos mudados (há pró-labore e salários aqui).
+  despesas_fixas: {
+    prefixo: 'dfx',
+    campos: {
+      nome: T('texto', { obrig: true, max: 120, rotulo: 'Despesa' }),
+      grupo: T('lista', { valores: ['geral', 'pessoal'], rotulo: 'Grupo' }),
+      categoria: T('texto', { max: 60, rotulo: 'Categoria' }),
+      moeda: T('lista', { valores: ['brl', 'usd'], rotulo: 'Moeda' }),
+      valor: T('centavos', { obrig: true, rotulo: 'Valor' }),
+      periodicidade: T('lista', { valores: ['mensal', 'trimestral', 'semestral', 'anual'], rotulo: 'Periodicidade' }),
+      dia: T('inteiro', { obrig: true, min: 1, max: 31, rotulo: 'Dia do vencimento' }),
+      mes: T('inteiro', { min: 1, max: 12, rotulo: 'Mês do pagamento' }),
+      forma: T('lista', { valores: ['boleto', 'debito', 'cartao', 'pix', 'transferencia'], rotulo: 'Forma de pagamento' }),
+      fornecedor: T('texto', { max: 120, rotulo: 'Fornecedor' }),
+      inicio: T('data', { rotulo: 'Início' }),
+      fim: T('data', { rotulo: 'Fim' }),
+      reajuste_mes: T('inteiro', { min: 1, max: 12, rotulo: 'Mês do reajuste' }),
+      reajuste_indice: T('texto', { max: 40, rotulo: 'Índice do reajuste' }),
+      observacoes: T('textoLongo', { max: 2000, rotulo: 'Observações' }),
+      arquivo_id: T('ref', { prefixos: ['arq'], rotulo: 'Contrato ou comprovante' }),
+    },
+    padroes: { grupo: 'geral', moeda: 'brl', periodicidade: 'mensal' },
+    permissoes: { hub: 'E' },
+    historico_sem_valores: true,
+    filtros: ['grupo', 'categoria'],
+    ordem: 'grupo, categoria, nome',
   },
   // Escopo do Projeto (0023): sem rotas comuns; tudo passa por escopo/:prj (escopo.js)
   escopo_cartoes: {
@@ -923,6 +954,7 @@ export const ROTAS = {
   objetos: 'objetos',
   galeria: 'galeria',
   credenciais: 'credenciais',
+  'despesas-fixas': 'despesas_fixas',
 };
 
 export const COMUNS = ['id', 'criado_em', 'atualizado_em', 'criado_por', 'atualizado_por', 'versao', 'arquivado_em'];

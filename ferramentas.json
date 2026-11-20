@@ -7,6 +7,7 @@
       "nome": "KPIs",
       "descricao": "Como o estúdio está indo"
     },
+    {"id": "financeiro", "nome": "Financeiro", "descricao": "Despesas fixas e previsão de custos do ano"},
     {"id": "ferramentas", "nome": "Ferramentas", "descricao": "Onde se trabalha"},
     {"id": "estudio", "nome": "O Estúdio", "descricao": "Quem somos", "rota": "empresa"},
     {"id": "empresa", "nome": "Empresa", "descricao": "Dados da empresa e textos de apresentação", "pai": "estudio"},
@@ -196,9 +197,10 @@
       "nome": "Financeiro",
       "secao": "ferramentas",
       "ramo": "gestao",
-      "descricao": "Controla recebimentos, pagamentos e caixa",
+      "descricao": "Despesas fixas e previsão de custos do ano",
+      "url": "https://universo.odisse.com.br/#/financeiro",
       "acesso": "interna",
-      "status": "em-breve"
+      "status": "no-ar"
     },
     {
       "id": "emissao",

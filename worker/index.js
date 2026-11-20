@@ -43,6 +43,7 @@ import { aplicar, mudancas, gerarCss, validarSvg, incluirLogo } from './marca.js
 import { inicio, publicar } from './inicio.js';
 import { lerPastas, gravarPastas } from './pastas.js';
 import { lerKpis, lerBalanco, gravarMetas, fecharMes, rotina } from './kpis.js';
+import { cotacao } from './dados/financeiro.js';
 
 const REPO = 'cidclementino/marca-odisse';
 const ARQUIVO = 'odisse.json';
@@ -147,6 +148,8 @@ export default {
   // Cron diário (KPIs): guarda os números de ontem dos canais e, no dia 1º, fecha o mês anterior.
   async scheduled(evento, env, ctx) {
     ctx.waitUntil(rotina(env).then((r) => console.log('kpis', JSON.stringify(r)), (e) => console.error('kpis', e)));
+    // Financeiro (0025): cotação do dólar do dia (PTAX), para as somas das despesas fixas em US$
+    ctx.waitUntil(cotacao(env, { forcar: true }).then((c) => console.log('cotacao', JSON.stringify(c)), (e) => console.error('cotacao', e)));
   },
 
   async fetch(request, env, ctx) {

@@ -1,4 +1,4 @@
-// Páginas do hub. Rotas por hash: #/ (Início, em assets/inicio.js), #/credenciais (assets/credenciais.js), #/ferramentas, #/canais, #/equipe, #/marca, #/biblioteca, #/padroes, #/precos (Mapa de preços, em assets/precos.js),
+// Páginas do hub. Rotas por hash: #/ (Início, em assets/inicio.js), #/financeiro (assets/financeiro.js), #/credenciais (assets/credenciais.js), #/ferramentas, #/canais, #/equipe, #/marca, #/biblioteca, #/padroes, #/precos (Mapa de preços, em assets/precos.js),
 // #/pastas (Estrutura de pastas, em assets/pastas.js), #/acervo (Acervo de imagens, em assets/acervo.js).
 // Tudo vem de dois arquivos: ferramentas.json (aqui) e odisse.json (marca.odisse.com.br).
 // A página Marca mora em assets/marca.js; a página Documentos (#/documentos, aberta pela Biblioteca), em assets/documentos.js;
@@ -16,6 +16,7 @@ import { criarPastas } from './pastas.js';
 import { criarAcervo } from './acervo.js';
 import { criarKpis } from './kpis.js';
 import { criarCredenciais } from './credenciais.js';
+import { criarFinanceiro } from './financeiro.js';
 
 const MARCA = 'https://marca.odisse.com.br/';
 const API = 'https://universo-hub.reservaprojectbasework.workers.dev';
@@ -116,6 +117,7 @@ const inicio = criarInicio({ esc, api, toque });
 const precos = criarPrecos({ esc, api });
 const pastas = criarPastas({ esc, api, toque });
 const kpis = criarKpis({ esc, api, toque });
+const financeiro = criarFinanceiro({ esc, api, toque });
 const acervo = criarAcervo({ esc, api, apiBinario, toque });
 const empresa = criarEmpresa({ esc, api, toque, cred, lerOdisse: () => ODISSE, gravarOdisse: (d) => { ODISSE = d; } });
 
@@ -140,6 +142,12 @@ const PAGINAS = {
   // KPIs (Cid, 19/11): seção do menu principal, atalho em Ferramentas › Gestão (assets/kpis.js)
   kpis() {
     return '<div id="pagina-kpis" class="pagina-kpis"></div>';
+  },
+
+  // Financeiro (Cid, 20/11): seção do menu principal, atalho em Ferramentas › Gestão; por ora, Despesas fixas
+  // com a previsão de custos do ano (assets/financeiro.js)
+  financeiro() {
+    return '<div id="pagina-financeiro" class="pagina-financeiro"></div>';
   },
 
   ferramentas() {
@@ -214,6 +222,7 @@ function depois(rota) {
   if (rota === 'precos') precos.ligar(vista.querySelector('#pagina-precos'));
   if (rota === 'pastas') pastas.ligar(vista.querySelector('#pagina-pastas'));
   if (rota === 'kpis') kpis.ligar(vista.querySelector('#pagina-kpis'));
+  if (rota === 'financeiro') financeiro.ligar(vista.querySelector('#pagina-financeiro'));
   if (rota === 'acervo') acervo.ligar(vista.querySelector('#pagina-acervo'));
   if (rota === 'biblioteca') documentos.ligarModelos(vista.querySelector('#biblioteca-modelos'));
 }
