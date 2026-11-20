@@ -148,3 +148,6 @@ if (arqOk) {
 const hT = await historico(env, '2026-11', 12);
 const tr = trimestresAte(await cpm(env), hT, '2026-11');
 ok(tr.length === 4 && tr[3].numero === 4 && tr[3].parcial && tr[2].numero === 3 && tr[2].ate === '2026-09' && !tr[2].parcial && tr[0].ano === '2026', 'quatro trimestres, o último até o mês');
+
+const kc = await lerKpis(env, null, new Date('2026-11-06T12:00:00Z'));
+ok(kc.dados.ontem.comercial.atual.leads === 1 && kc.dados.ontem.comercial.anterior.leads === 0, 'ontem no comercial: lead criado em 05/11');

@@ -22,7 +22,7 @@ const FUNIL = 'https://vendas.odisse.com.br/crm.html';
 
 // Temas (como na planilha de KPIs). `ontem`: o tema traz a coluna com o número do dia anterior.
 const GRUPOS = [
-  { id: 'comercial', nome: 'Comercial', onde: 'vendas.odisse', link: FUNIL },
+  { id: 'comercial', nome: 'Comercial', onde: 'vendas.odisse', link: FUNIL, ontem: true },
   { id: 'instagram', nome: 'Redes sociais', onde: 'Instagram e Pinterest', link: METRICAS, ontem: true },
   { id: 'site', nome: 'Site', onde: 'odisse.com.br', link: SITE_PAINEL, ontem: true },
 ];
@@ -254,7 +254,9 @@ export function criarKpis({ esc, api, toque }) {
   function ontemDe(id, o) {
     if (!o) return null;
     const a = o.instagram?.atual || {}, b = o.instagram?.anterior || {}, s = o.site?.total || {}, sa = o.site?.anterior || {};
+    const c = o.comercial?.atual || {}, ca = o.comercial?.anterior || {};
     const m = {
+      leads: [c.leads, ca.leads], propostas: [c.propostas, ca.propostas], contratos: [c.contratos, ca.contratos], contratado: [c.contratado, ca.contratado],
       alcance: [a.alcance, b.alcance], interacoes: [a.interacoes, b.interacoes], visitas_perfil: [a.visitas, b.visitas],
       toques_link: [a.toques, b.toques], novos_seguidores: [a.novos, b.novos], seguidores: [o.instagram?.seguidores, null],
       engajamento: [a.alcance ? a.interacoes / a.alcance : null, b.alcance ? b.interacoes / b.alcance : null],

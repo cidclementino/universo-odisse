@@ -386,13 +386,27 @@ export async function rotina(env, agora = new Date()) {
 }
 
 // ---- leituras da página e da Início ---------------------------------------------------------------------
+// Comercial de um dia (Brasília): leads criados, propostas emitidas, contratos assinados e o valor deles.
+async function comercialDoDia(env, dia) {
+  if (!env.DB) return null;
+  const [l, p, c] = await Promise.all([
+    env.DB.prepare(`SELECT COUNT(*) AS n FROM oportunidades WHERE arquivado_em IS NULL AND substr(datetime(criado_em, '-3 hours'), 1, 10) = ?`).bind(dia).first(),
+    env.DB.prepare(`SELECT COUNT(*) AS n FROM propostas WHERE simulacao = 0 AND revisao = 0 AND arquivo_pdf_id IS NOT NULL AND arquivado_em IS NULL AND substr(data, 1, 10) = ?`).bind(dia).first(),
+    env.DB.prepare(`SELECT COUNT(*) AS n, COALESCE(SUM(valor_total), 0) AS v FROM contratos WHERE tipo = 'principal' AND situacao IN ('assinado', 'encerrado')
+      AND arquivado_em IS NULL AND substr(assinado_em, 1, 10) = ?`).bind(dia).first(),
+  ]);
+  return { leads: l?.n || 0, propostas: p?.n || 0, contratos: c?.n || 0, contratado: (c?.v || 0) / 100 };
+}
+
 async function ontem(env, hoje) {
   const d = somarDias(hoje, -1);
+  const [comAtual, comAntes] = await Promise.all([comercialDoDia(env, d), comercialDoDia(env, somarDias(d, -1))]).catch(() => [null, null]);
   const [mkt, site] = await Promise.all([
     env.MARKETING ? comPrazo(env.MARKETING.resumo(hoje)).catch((e) => ({ erro: e.message })) : { erro: 'ligação não configurada' },
     env.SITE_ODISSE ? comPrazo(env.SITE_ODISSE.metricasDoDia(d)).catch((e) => ({ erro: e.message })) : { erro: 'ligação não configurada' },
   ]);
-  return { dia: d, instagram: mkt?.erro ? { erro: mkt.erro } : mkt?.instagram || { erro: 'Instagram não conectado' }, site };
+  return { dia: d, comercial: comAtual ? { atual: comAtual, anterior: comAntes } : null,
+    instagram: mkt?.erro ? { erro: mkt.erro } : mkt?.instagram || { erro: 'Instagram não conectado' }, site };
 }
 
 async function mesesFechados(env) {
