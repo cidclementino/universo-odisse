@@ -51,8 +51,9 @@ export async function fichaProjeto(env, id, { verLocal }) {
   const lotes = [
     env.DB.prepare(`SELECT e.*, (SELECT COALESCE(sum(h.minutos), 0) FROM horas h WHERE h.etapa_id = e.id AND h.arquivado_em IS NULL) AS minutos
       FROM etapas e WHERE e.projeto_id = ? AND e.arquivado_em IS NULL ORDER BY e.ordem, e.criado_em`).bind(id),
-    env.DB.prepare(`SELECT h.*, pe.nome AS pessoa_nome, e.nome AS etapa_nome
+    env.DB.prepare(`SELECT h.*, pe.nome AS pessoa_nome, COALESCE(c.texto, e.nome) AS etapa_nome
       FROM horas h JOIN equipe q ON q.id = h.equipe_id JOIN pessoas pe ON pe.id = q.pessoa_id LEFT JOIN etapas e ON e.id = h.etapa_id
+        LEFT JOIN escopo_cartoes c ON c.id = h.cartao_id
       WHERE h.projeto_id = ? AND h.arquivado_em IS NULL ORDER BY h.data DESC, h.criado_em DESC LIMIT 300`).bind(id),
     env.DB.prepare(`SELECT c.id, c.codigo, c.tipo, c.situacao, c.valor_total, c.assinado_em, c.arquivo_assinado_id, c.proposta_id,
         pp.codigo AS proposta_codigo, pp.arquivo_pdf_id AS proposta_pdf_id
@@ -94,9 +95,9 @@ export async function horasPeriodo(env, url) {
   const conds = ['h.arquivado_em IS NULL', 'h.data >= ?', 'h.data <= ?'];
   const args = [de, ate];
   for (const f of ['equipe_id', 'projeto_id']) if (q.get(f)) { conds.push(`h.${f} = ?`); args.push(q.get(f)); }
-  const { results } = await env.DB.prepare(`SELECT h.*, pe.nome AS pessoa_nome, e.nome AS etapa_nome, p.codigo AS projeto_codigo, p.nome AS projeto_nome
+  const { results } = await env.DB.prepare(`SELECT h.*, pe.nome AS pessoa_nome, COALESCE(c.texto, e.nome) AS etapa_nome, p.codigo AS projeto_codigo, p.nome AS projeto_nome
     FROM horas h JOIN equipe qq ON qq.id = h.equipe_id JOIN pessoas pe ON pe.id = qq.pessoa_id
-      JOIN projetos p ON p.id = h.projeto_id LEFT JOIN etapas e ON e.id = h.etapa_id
+      JOIN projetos p ON p.id = h.projeto_id LEFT JOIN etapas e ON e.id = h.etapa_id LEFT JOIN escopo_cartoes c ON c.id = h.cartao_id
     WHERE ${conds.join(' AND ')} ORDER BY h.data DESC, h.criado_em DESC LIMIT 1000`).bind(...args).all();
   return { itens: results };
 }

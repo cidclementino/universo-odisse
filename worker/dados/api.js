@@ -49,6 +49,7 @@ import { rotasPgt, listaDeServicos } from './pgt.js';
 import { rotasEquipe } from './equipe.js';
 import { rotasAcervo } from './acervo.js';
 import { rotasCredenciais, regraCredenciais } from './credenciais.js';
+import { rotasEscopo } from './escopo.js';
 import { ErroApi, REGRAS, proximoNumero, ajustarSequencia, valorSequencia, painelComercial, listaContatos, fichaContato, listaPropostas } from './regras.js';
 
 export { proximoNumero };
@@ -821,6 +822,9 @@ export async function api(env, ferramenta, request, url, cors) {
     // Credenciais: quadro juntado e vencidas (credenciais.js); o resto pelas rotas comuns
     const rc = await rotasCredenciais(env, ferramenta, m, partes, { exigir });
     if (rc !== undefined) return json(rc);
+    // Escopo do Projeto (0023): leitura, gerar e as ações do dia a dia (escopo.js)
+    const rx = await rotasEscopo(env, ferramenta, m, partes, corpo, { exigir });
+    if (rx !== undefined) return json(rx);
     // o site só enxerga as rotas públicas da equipe e as do acervo
     if (ferramenta === 'site') throw new ErroApi(403, 'esta ferramenta não pode ver isto');
     // servicos.odisse (0022): só a lista dos serviços do PGT, para ligar cada produto do catálogo a um serviço

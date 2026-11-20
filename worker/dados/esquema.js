@@ -46,6 +46,9 @@ export const PREFIXOS = {
   gal: 'galeria',
   // Credenciais (0021)
   cre: 'credenciais',
+  // Escopo do Projeto (0023)
+  esc: 'escopo_cartoes',
+  eal: 'escopo_alteracoes',
 };
 
 // Ferramentas que podem chamar a API. 'hub' = o próprio Universo (senha da equipe);
@@ -414,6 +417,33 @@ export const TABELAS = {
     filtros: ['dono_id', 'tipo'],
     ordem: 'vence_em, criado_em',
   },
+  // Escopo do Projeto (0023): sem rotas comuns; tudo passa por escopo/:prj (escopo.js)
+  escopo_cartoes: {
+    prefixo: 'esc',
+    campos: {
+      projeto_id: T('ref', { obrig: true, prefixos: ['prj'], rotulo: 'Projeto' }),
+      tipo: T('lista', { obrig: true, valores: ['etapa', 'entrega', 'evento'], rotulo: 'Tipo' }),
+      etapa_id: T('ref', { prefixos: ['esc'], rotulo: 'Etapa' }),
+      texto: T('texto', { obrig: true, max: 400, rotulo: 'Texto' }),
+      dias: T('inteiro', { min: 1, max: 400, rotulo: 'Dias' }),
+      folga: T('inteiro', { min: -400, max: 400, rotulo: 'Folga' }),
+      observacoes: T('textoLongo', { max: 4000, rotulo: 'Observações' }),
+    },
+    permissoes: { hub: 'L', vendas: 'L', projetos: 'E', maquina: 'E' },
+    filtros: ['projeto_id'],
+    ordem: 'ordem',
+  },
+  escopo_alteracoes: {
+    prefixo: 'eal',
+    campos: {
+      projeto_id: T('ref', { obrig: true, prefixos: ['prj'], rotulo: 'Projeto' }),
+      motivo: T('textoLongo', { max: 2000, rotulo: 'Motivo' }),
+    },
+    permissoes: { hub: 'L', vendas: 'L', projetos: 'E', maquina: 'E' },
+    filtros: ['projeto_id'],
+    ordem: 'em',
+  },
+
   galeria: {
     prefixo: 'gal',
     campos: {
@@ -608,6 +638,7 @@ export const TABELAS = {
       equipe_id: T('ref', { obrig: true, prefixos: ['eqp'], rotulo: 'Quem' }),
       projeto_id: T('ref', { obrig: true, prefixos: ['prj'], rotulo: 'Projeto' }),
       etapa_id: T('ref', { prefixos: ['eta'], rotulo: 'Etapa' }),
+      cartao_id: T('ref', { prefixos: ['esc'], rotulo: 'Etapa do escopo' }),   // 0023
       data: T('data', { obrig: true, rotulo: 'Dia' }),
       minutos: T('inteiro', { obrig: true, min: 1, max: 1440, rotulo: 'Duração (minutos)' }),
       descricao: T('textoLongo', { max: 2000, rotulo: 'O que foi feito' }),
