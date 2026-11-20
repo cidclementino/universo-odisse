@@ -350,3 +350,16 @@
   .pi-ub__m { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { .is-hover { transform: none; } }
+
+/* Boletim (KPIs › Painel) */
+.pi-boletim { display: flex; flex-direction: column; background: #fff; border: 1px solid var(--u-linha, #D7DADD); border-radius: 8px; padding: 4px 10px; }
+.pi-bol-linha { display: grid; grid-template-columns: 70px 30px 1fr 70px; gap: 10px; align-items: center; padding: 7px 0; font-size: 12px; }
+.pi-bol-linha + .pi-bol-linha { border-top: 1px solid var(--u-linha, #D7DADD); }
+.pi-bol-linha strong { font-size: 14px; }
+.pi-bol-trilho { position: relative; display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px; height: 6px; }
+.pi-bol-trilho i:nth-child(1) { background: #E7C3BD; } .pi-bol-trilho i:nth-child(2) { background: #EBD3B4; }
+.pi-bol-trilho i:nth-child(3) { background: #C6D8C1; } .pi-bol-trilho i:nth-child(4) { background: #93B48C; }
+.pi-bol-trilho i { border-radius: 2px; opacity: .6; }
+.pi-bol-trilho em { position: absolute; top: -4px; width: 3px; height: 14px; margin-left: -1.5px; border-radius: 2px; background: var(--u-tinta, #3F4B57); box-shadow: 0 0 0 2px #fff; }
+.pi-bol-ok { color: #3E6B48; } .pi-bol-atencao { color: #8A5A2B; } .pi-bol-problema { color: var(--u-perigo, #A4473B); }
+.pi-bol-linha small { font-weight: 600; }

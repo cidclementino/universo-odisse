@@ -26,6 +26,7 @@ const L = {
   cargos: ['Cargos e títulos', 'Universo', H + '#/equipe/cargos'],
   marca: ['Marca', 'Universo', H + '#/marca'],
   biblioteca: ['Biblioteca', 'Universo', H + '#/biblioteca'],
+  kpis: ['KPIs › Painel', 'Universo', H + '#/kpis'],
   acervo: ['Acervo e referências', 'Universo', H + '#/biblioteca'],
   imagens: ['Acervo de imagens', 'Universo', H + '#/acervo'],
   emitidos: ['Emissão › emitidos', 'Universo', H + '#/documentos'],
@@ -127,6 +128,8 @@ const AMOSTRA = {
       <div class="pi-sanf__corpo">${tr(3, [90, 75, 60])}</div></div>
     <div class="pi-sanf"><div class="pi-sanf__cab"><span class="pi-seta">${seta}</span><b>Concurso Biblioteca</b>${etq('acompanhando')}</div></div></div>`,
 
+  boletim: () => `<div class="pi-boletim">${[['Leads', '24', 0.62, 'adequado', 'ok'], ['Propostas', '5', 0.4, 'no mínimo', 'atencao'], ['Contratos', '0', 0.08, 'abaixo', 'problema']].map(([n, v, p, f, c]) => `
+      <span class="pi-bol-linha"><b>${n}</b><strong>${v}</strong><span class="pi-bol-trilho"><i></i><i></i><i></i><i></i><em style="left:${p * 100}%"></em></span><small class="pi-bol-${c}">${f}</small></span>`).join('')}</div>`,
   quadro: () => `<div class="pi-quadro">${[['Novo', 2], ['Conversa', 1], ['Proposta', 2], ['Negociação', 1]].map(([n, q], c) => `
     <div class="pi-col"><b>${n} <small>${q}</small></b>${Array.from({ length: q }, (_, i) => `<div class="pi-op${c === 2 && i === 0 ? ' is-hover' : ''}"><b>Oportunidade</b>${tr(1, [70])}<em>ligar amanhã</em></div>`).join('')}</div>`).join('')}</div>`,
 
@@ -267,6 +270,9 @@ const DISPOSICOES = [
       para: 'Tabelas de ajuste com muitas colunas: grupos em tons, números à direita, soma presa ao pé.',
       onde: { s: ['fases'], v: ['referencias', 'bases', 'materiais'] },
       ajustar: 'Bases › Tipologias: faixa colorida à esquerda deve virar fundo em tons.' },
+    { id: 'boletim', nome: 'Boletim', modelo: 'KPIs › Painel',
+      para: 'Acompanhar indicadores contra metas: um Bloco por tema; em cada linha, o valor, a régua das faixas da meta com o marcador, a variação, os 12 meses em barras e, se houver, o dia anterior (Cid, 19/11).',
+      onde: { s: ['kpis'] } },
     { id: 'quadro', nome: 'Quadro', modelo: null,
       para: 'Itens que andam por etapas: colunas por etapa, cartões arrastáveis.',
       onde: { s: ['funil'] },
