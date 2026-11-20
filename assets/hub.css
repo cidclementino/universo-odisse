@@ -956,6 +956,10 @@ span.bol-fonte + .bol-caixa, .bol-titulo + .bol-caixa { margin-left: auto; }
 .bol-nome { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .bol-nome b { font-size: 13.5px; font-weight: 600; }
 .bol-nome small { font-size: 11.5px; color: var(--u-tinta-2); }
+/* rótulo de medição da meta: mensal (névoa) ou trimestral (areia), raio 4 */
+.bol-medicao { display: inline-block; margin-left: 8px; padding: 1px 6px; border-radius: 4px; vertical-align: 1px;
+  font-size: 10.5px; font-weight: 650; letter-spacing: .02em; background: var(--odisse-nevoa, #E6E8EB); color: var(--u-tinta-2); }
+.bol-medicao.tri { background: var(--odisse-areia, #E3D9C6); color: var(--odisse-terra, #4A3726); }
 .bol-valor { display: flex; flex-direction: column; gap: 1px; font-size: 20px; font-weight: 650; letter-spacing: -.015em; line-height: 1.2; white-space: nowrap; }
 .bol-valor small { font-size: 11.5px; font-weight: 500; letter-spacing: 0; color: var(--u-tinta-2); }
 .bol-nada { color: #8A939C; font-size: 13px; }

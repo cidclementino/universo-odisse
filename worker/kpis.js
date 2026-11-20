@@ -24,6 +24,9 @@ import { diaBR, somarDias } from './inicio.js';
 
 // ---- catálogo de indicadores (definição, não dado) -----------------------------------------------
 // rede: no tema Redes sociais, a rede de cada indicador (subtítulo no Painel, nas Metas e no PDF).
+// medicao: 'trimestral' = a meta vale para o trimestre (jan–mar, abr–jun, jul–set, out–dez), como na planilha:
+//   a faixa compara o acumulado do trimestre até o mês (razões e médias sobre o trimestre; seguidores, o total
+//   no fim); sem o campo, a meta é mensal.
 // sentido: 1 = quanto mais, melhor · -1 = quanto menos, melhor. formato: num · reais · pct · dias
 export const INDICADORES = [
   { id: 'leads', grupo: 'comercial', nome: 'Leads', formato: 'num', sentido: 1, nota: 'Oportunidades criadas no Funil no mês' },
@@ -31,14 +34,14 @@ export const INDICADORES = [
   { id: 'contratos', grupo: 'comercial', nome: 'Contratos fechados', formato: 'num', sentido: 1, nota: 'Contratos principais assinados no mês' },
   { id: 'contratado', grupo: 'comercial', nome: 'Valor contratado', formato: 'reais', sentido: 1, nota: 'Soma dos contratos assinados no mês' },
   { id: 'ticket', grupo: 'comercial', nome: 'Ticket médio', formato: 'reais', sentido: 1, nota: 'Valor contratado ÷ contratos fechados' },
-  { id: 'decisao', grupo: 'comercial', nome: 'Tempo de decisão', formato: 'dias', sentido: -1, nota: 'Média de dias entre a data da proposta e a assinatura do contrato' },
-  { id: 'ief', grupo: 'comercial', nome: 'Eficiência do funil', formato: 'pct', sentido: 1, nota: 'IEF = 0,4 × propostas ÷ leads + 0,6 × contratos ÷ propostas' },
+  { id: 'decisao', grupo: 'comercial', nome: 'Tempo de decisão', formato: 'dias', sentido: -1, medicao: 'trimestral', nota: 'Média de dias entre a data da proposta e a assinatura do contrato' },
+  { id: 'ief', grupo: 'comercial', nome: 'Eficiência do funil', formato: 'pct', sentido: 1, medicao: 'trimestral', nota: 'IEF = 0,4 × propostas ÷ leads + 0,6 × contratos ÷ propostas' },
   { id: 'alcance', grupo: 'instagram', rede: 'instagram', nome: 'Alcance', formato: 'num', sentido: 1, nota: 'Soma do alcance diário' },
   { id: 'interacoes', grupo: 'instagram', rede: 'instagram', nome: 'Interações', formato: 'num', sentido: 1, nota: 'Soma das interações diárias' },
   { id: 'engajamento', grupo: 'instagram', rede: 'instagram', nome: 'Taxa de resposta', formato: 'pct', sentido: 1, nota: 'Interações ÷ alcance' },
   { id: 'visitas_perfil', grupo: 'instagram', rede: 'instagram', nome: 'Visitas ao perfil', formato: 'num', sentido: 1, nota: 'Soma das visitas diárias ao perfil' },
   { id: 'toques_link', grupo: 'instagram', rede: 'instagram', nome: 'Toques no link', formato: 'num', sentido: 1, nota: 'Soma dos toques diários no link do perfil' },
-  { id: 'seguidores', grupo: 'instagram', rede: 'instagram', nome: 'Seguidores', formato: 'num', sentido: 1, nota: 'Total no fim do mês' },
+  { id: 'seguidores', grupo: 'instagram', rede: 'instagram', nome: 'Seguidores', formato: 'num', sentido: 1, medicao: 'trimestral', nota: 'Total no fim do período' },
   { id: 'novos_seguidores', grupo: 'instagram', rede: 'instagram', nome: 'Novos seguidores', formato: 'num', sentido: 1, nota: 'Soma dos ganhos diários' },
   { id: 'publicacoes', grupo: 'instagram', rede: 'instagram', nome: 'Publicações', formato: 'num', sentido: 1, nota: 'Posts e reels publicados no mês (sem stories), contados na conta do Instagram' },
   { id: 'pins', grupo: 'instagram', rede: 'pinterest', nome: 'Pins publicados', formato: 'num', sentido: 1, nota: 'Pins confirmados como publicados no calendário editorial' },
@@ -242,9 +245,16 @@ const variacaoPct = (a, b) => (a == null || b == null || b === 0 ? null : (a - b
 const media = (l) => { const v = l.filter((x) => x != null); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; };
 
 // Frase de um indicador: valor, comparação com o mês anterior e com a média dos 3 anteriores, faixa.
-export function frase(id, mes, valores, historico, metas) {
-  const v = valores[id];
+export function frase(id, mes, valores, historico, metas, trimestre) {
   const ind = POR_ID[id];
+  if (ind?.medicao === 'trimestral' && trimestre) {
+    const vt = trimestre.valores?.[id];
+    if (vt == null) return null;
+    const fxT = faixaDe(id, vt, metas);
+    const nomeT = trimestre.meses.length > 1 ? `${nomeMes(trimestre.de)} a ${nomeMes(trimestre.ate)}` : nomeMes(trimestre.ate);
+    return `${ind.nome} no ${trimestre.numero}º trimestre (${nomeT}): ${formatar(id, vt)}${fxT ? `, ${FAIXA_TXT[fxT]}` : ''}.`;
+  }
+  const v = valores[id];
   if (v == null) return null;
   const ant = historico.find((h) => h.mes === somarMeses(mes, -1))?.valores?.[id];
   const tres = media([1, 2, 3].map((k) => historico.find((h) => h.mes === somarMeses(mes, -k))?.valores?.[id]));
@@ -261,14 +271,36 @@ export function frase(id, mes, valores, historico, metas) {
 }
 
 // ---- montar um mês -------------------------------------------------------------------------------------
+// Trimestre do calendário a que o mês pertence, do primeiro mês até o próprio mês.
+export const trimestreDe = (mes) => {
+  const m = +mes.slice(5, 7);
+  const ini = `${mes.slice(0, 4)}-${String(m - ((m - 1) % 3)).padStart(2, '0')}`;
+  return { de: ini, ate: mes, numero: Math.ceil(m / 3), meses: Array.from({ length: (m - 1) % 3 + 1 }, (_, i) => somarMeses(ini, i)) };
+};
+// Valores das metas trimestrais: acumulado do trimestre até o mês.
+function valoresDoTrimestre(comercial, mes, valoresMes) {
+  const t = trimestreDe(mes);
+  const soma = { leads: 0, propostas: 0, contratos: 0, contratado: 0, decisoes: [], origens: {} };
+  for (const m of t.meses) {
+    const x = comercial[m];
+    if (!x) continue;
+    soma.leads += x.leads; soma.propostas += x.propostas; soma.contratos += x.contratos; soma.contratado += x.contratado;
+    soma.decisoes.push(...x.decisoes);
+  }
+  const v = valoresComerciais(soma);
+  return { ...t, valores: { ief: v.ief, decisao: v.decisao, seguidores: valoresMes.seguidores ?? null } };
+}
+
 export async function montarMes(env, mes, { comercial, hoje, publicacoes } = {}) {
   comercial ||= await comercialPorMes(env);
   const canais = somarCanais(await lerJson(env, chaveDias(mes)), mes);
   const pub = publicacoes ? publicacoes[mes] || { instagram: 0, pinterest: 0 } : null;
+  const valores = { ...valoresComerciais(comercial[mes]), ...canais.valores, publicacoes: pub ? pub.instagram : null, pins: pub ? pub.pinterest : null };
   return {
     mes,
     parcial: !!hoje && mesDe(hoje) <= mes,
-    valores: { ...valoresComerciais(comercial[mes]), ...canais.valores, publicacoes: pub ? pub.instagram : null, pins: pub ? pub.pinterest : null },
+    valores,
+    trimestre: valoresDoTrimestre(comercial, mes, valores),
     origens: comercial[mes]?.origens || {},
     cobertura: canais.cobertura,
   };
@@ -312,10 +344,10 @@ export async function fecharMes(env, mes, agora = new Date()) {
   const hist = await historico(env, mes, 12, comercial, hoje);
   const atual = hist.at(-1);
   const metas = await lerJson(env, 'kpis/metas.json');
-  const frases = INDICADORES.map((i) => frase(i.id, mes, atual.valores, hist, metas)).filter(Boolean);
+  const frases = INDICADORES.map((i) => frase(i.id, mes, atual.valores, hist, metas, atual.trimestre)).filter(Boolean);
   const balanco = {
     versao: 1, mes, feito_em: agora.toISOString(),
-    valores: atual.valores, origens: atual.origens, cobertura: atual.cobertura,
+    valores: atual.valores, trimestre: atual.trimestre, origens: atual.origens, cobertura: atual.cobertura,
     historico: hist.map((h) => ({ mes: h.mes, valores: h.valores })),
     metas: metas?.faixas || {}, frases,
     expectativa: await expectativa(env, mes, hist, hoje),
@@ -373,7 +405,7 @@ export async function lerKpis(env, mesPedido, agora = new Date()) {
       meses: [...new Set([corrente, ...fechados])].sort().reverse().map((m) => ({ mes: m, fechado: fechados.includes(m) })),
       mes: atual, historico: hist.map((h) => ({ mes: h.mes, valores: h.valores })),
       // mês corrente: só valor e faixa (comparar um mês pela metade com meses inteiros engana)
-      frases: INDICADORES.map((i) => frase(i.id, mes, atual.valores, atual.parcial ? [] : hist, metas)).filter(Boolean),
+      frases: INDICADORES.map((i) => frase(i.id, mes, atual.valores, atual.parcial ? [] : hist, metas, atual.trimestre)).filter(Boolean),
       expectativa: mes === corrente ? await expectativa(env, mes, hist, hoje) : null,
       balanco: balanco ? { mes, feito_em: balanco.feito_em } : null,
     },

@@ -26,6 +26,10 @@ const GRUPOS = [
   { id: 'instagram', nome: 'Redes sociais', onde: 'Instagram e Pinterest', link: METRICAS, ontem: true },
   { id: 'site', nome: 'Site', onde: 'odisse.com.br', link: SITE_PAINEL, ontem: true },
 ];
+// Metas trimestrais: a faixa compara o acumulado do trimestre até o mês (o servidor manda em mes.trimestre).
+const tri = (ind) => ind.medicao === 'trimestral';
+const nomeTri = (t) => (t ? `${t.numero}º tri · ${t.meses.length > 1 ? `${nomeMes(t.de).slice(0, 3)}–${nomeMes(t.ate).slice(0, 3)}` : nomeMes(t.ate).slice(0, 3)}` : '');
+const etqMedicao = (ind, tambemMensal = false) => (tri(ind) ? '<span class="bol-medicao tri">trimestral</span>' : tambemMensal ? '<span class="bol-medicao">mensal</span>' : '');
 // Redes do tema Redes sociais, na ordem dos subtítulos (indicador.rede)
 const REDES = [['instagram', 'Instagram'], ['pinterest', 'Pinterest']];
 // Indicadores de um tema, com o subtítulo de cada rede antes das suas linhas: [['sub', nome] | ['ind', indicador]]
@@ -101,10 +105,11 @@ export function docDoBalanco(b, indicadores) {
   const POR = Object.fromEntries(indicadores.map((i) => [i.id, i]));
   const ant = b.historico.find((h) => h.mes === somarMeses(b.mes, -1))?.valores || {};
   const linhas = (grupo, rede) => indicadores.filter((i) => i.grupo === grupo && (!rede || i.rede === rede)).map((i) => {
-    const v = b.valores[i.id];
+    const t = tri(i) ? b.trimestre : null;
+    const v = t ? t.valores?.[i.id] ?? null : b.valores[i.id];
     const fx = faixaDe(i, v, { faixas: b.metas });
-    const p = varPct(v, ant[i.id]);
-    return [i.nome, formatar(i.formato, v, true), fx ? FAIXA[fx][0] : '—', p == null ? '—' : `${p > 0 ? '+' : ''}${p}%`];
+    const p = t ? null : varPct(v, ant[i.id]);
+    return [t ? `${i.nome} (${nomeTri(t)})` : i.nome, formatar(i.formato, v, true), fx ? FAIXA[fx][0] : '—', p == null ? '—' : `${p > 0 ? '+' : ''}${p}%`];
   });
   const tabela = (grupo, rede) => ({
     tipo: 'tabela',
@@ -247,18 +252,19 @@ export function criarKpis({ esc, api, toque }) {
   }
 
   function linha(ind, d, g) {
-    const v = d.mes.valores[ind.id];
+    const t = tri(ind) ? d.mes.trimestre : null;
+    const v = t ? t.valores?.[ind.id] ?? null : d.mes.valores[ind.id];
     const mesAnt = somarMeses(d.mes.mes, -1);
     const ant = d.historico.find((h) => h.mes === mesAnt)?.valores?.[ind.id];
     const fr = fracaoDoMes(d);
-    const ritmo = d.mes.parcial && SOMA.has(ind.id) && v != null && fr < 1 ? v / fr : null;
-    const p = d.mes.parcial ? null : varPct(v, ant);
+    const ritmo = !t && d.mes.parcial && SOMA.has(ind.id) && v != null && fr < 1 ? v / fr : null;
+    const p = d.mes.parcial || t ? null : varPct(v, ant);
     const bom = p != null && (p > 0) === (ind.sentido !== -1);
     const on = g.ontem ? ontemDe(ind.id, d.ontem) : null;
     const pOn = on ? varPct(on[0], on[1]) : null;
     return `<div class="bol-linha" role="row">
-        <span class="bol-nome" role="cell"><b>${esc(ind.nome)}</b>${ind.sentido === -1 ? '<small>menos é melhor</small>' : ''}</span>
-        <span class="bol-valor" role="cell">${esc(formatar(ind.formato, v, true))}${ritmo != null ? `<small>projeção ${esc(formatar(ind.formato, ritmo))}</small>` : ''}</span>
+        <span class="bol-nome" role="cell"><b>${esc(ind.nome)}${etqMedicao(ind)}</b>${ind.sentido === -1 ? '<small>menos é melhor</small>' : ''}</span>
+        <span class="bol-valor" role="cell">${esc(formatar(ind.formato, v, true))}${ritmo != null ? `<small>projeção ${esc(formatar(ind.formato, ritmo))}</small>` : t ? `<small>${esc(nomeTri(t))}</small>` : ''}</span>
         <span role="cell">${regua(ind, v, d.metas, ritmo)}</span>
         <span class="bol-var" role="cell">${delta(p, bom, ant != null ? `${Maius(nomeMes(mesAnt))}: ${formatar(ind.formato, ant, true)}` : '')}</span>
         <span role="cell">${barras(d.historico, ind)}</span>
@@ -329,7 +335,8 @@ export function criarKpis({ esc, api, toque }) {
       <section class="pas-notas">
         <div><h3 class="u-rotulo">Como ler</h3>
           <p><b>Faixa</b>: a régua tem as quatro faixas da meta (abaixo do mínimo, mínimo, adequado, excelente) e o traço marca onde o valor caiu. No mês corrente, as somas são lidas pela <b>projeção</b>: o que já entrou, no mesmo passo, levado ao mês inteiro.</p>
-          <p><b>Sobre o mês anterior</b> aparece só nos meses fechados: comparar meio mês com um mês inteiro engana. <b>12 meses</b>: o mês escolhido é a barra escura.</p></div>
+          <p><b>Sobre o mês anterior</b> aparece só nos meses fechados: comparar meio mês com um mês inteiro engana. <b>12 meses</b>: o mês escolhido é a barra escura.</p>
+          <p><b>Trimestral</b>: a meta vale para o trimestre (jan–mar, abr–jun, jul–set, out–dez). O valor e a faixa são do acumulado do trimestre até o mês escolhido; as barras dos 12 meses seguem mês a mês.</p></div>
         <div><h3 class="u-rotulo">Ainda sem dados</h3><ul>${d.em_breve.map((b) => `<li><b>${esc(NOME_BREVE[b.grupo] || b.grupo)}</b>: ${esc(b.nomes.join(', '))}. Falta ${esc(b.falta)}.</li>`).join('')}</ul></div>
         <div><h3 class="u-rotulo">Fechamento</h3>
           <p>Todo dia, às 06h47, o Universo guarda os números de ontem do Instagram e do site. No dia 1º fecha o mês anterior: congela os números, as faixas das metas e as frases, e avisa na Início. O PDF é desenhado desse retrato, então sai sempre igual.</p></div>
@@ -360,7 +367,7 @@ export function criarKpis({ esc, api, toque }) {
           ${ab ? `<div class="met-tabela" role="table">
             <div class="bol-regua-cab met-cols" role="row"><span role="columnheader">Indicador</span><span role="columnheader">Mínimo</span><span role="columnheader">Adequado</span><span role="columnheader">Excelente</span></div>
             ${porRede(inds).map(([t, i]) => t === 'sub' ? `<div class="bol-sub" role="row"><span role="cell">${esc(i)}</span></div>` : `<div class="met-linha met-cols" role="row">
-              <span class="bol-nome" role="cell"><b>${esc(i.nome)}</b><small>${esc(i.nota)}${i.sentido === -1 ? ' · menos é melhor' : ''}</small></span>
+              <span class="bol-nome" role="cell"><b>${esc(i.nome)}${etqMedicao(i, true)}</b><small>${esc(i.nota)}${i.sentido === -1 ? ' · menos é melhor' : ''}</small></span>
               ${['minimo', 'adequado', 'excelente'].map((k) => `<span role="cell">${campo(i, k)}</span>`).join('')}
             </div>`).join('')}
           </div>` : ''}
@@ -370,7 +377,8 @@ export function criarKpis({ esc, api, toque }) {
     return cabecalho('Metas', esc(lado)) + `<div class="blocos-fluxo" style="--bloco-larg:700px">${blocos}</div>` + `
       <section class="pas-notas">
         <div><h3 class="u-rotulo">Como preencher</h3>
-          <p>Três números por indicador: o <b>mínimo</b> aceitável, o <b>adequado</b> e o <b>excelente</b>. Porcentagens como número cheio (28 = 28%); reais sem o R$. Em tempo de decisão, menos é melhor: o mínimo é o maior número. Linha em branco fica sem faixa.</p></div>
+          <p>Três números por indicador: o <b>mínimo</b> aceitável, o <b>adequado</b> e o <b>excelente</b>. Porcentagens como número cheio (28 = 28%); reais sem o R$. Em tempo de decisão, menos é melhor: o mínimo é o maior número. Linha em branco fica sem faixa.</p>
+          <p><b>Mensal</b> ou <b>trimestral</b>: as mensais valem para cada mês; as trimestrais, para o trimestre inteiro (jan–mar, abr–jun, jul–set, out–dez), como na planilha.</p></div>
         <div><h3 class="u-rotulo">Onde valem</h3>
           <p>As faixas aparecem no Painel na hora em que forem salvas. Cada balanço congela as faixas do dia do fechamento: mudar uma meta não muda um mês já fechado.</p></div>
       </section>
@@ -425,7 +433,7 @@ export function criarKpis({ esc, api, toque }) {
     try {
       let b;
       if (modo === 'previa') {
-        b = { mes: dados.mes.mes, feito_em: null, valores: dados.mes.valores, origens: dados.mes.origens, cobertura: dados.mes.cobertura,
+        b = { mes: dados.mes.mes, feito_em: null, valores: dados.mes.valores, trimestre: dados.mes.trimestre, origens: dados.mes.origens, cobertura: dados.mes.cobertura,
           historico: dados.historico, metas: dados.metas.faixas, frases: dados.frases, expectativa: dados.expectativa };
       } else {
         const r = await api(`/api/kpis/balanco?mes=${dados.mes.mes}`);

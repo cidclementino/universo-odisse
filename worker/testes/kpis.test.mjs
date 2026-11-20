@@ -3,7 +3,7 @@
 import { criarD1 } from './d1.mjs';
 import {
   comercialPorMes, completarDias, montarMes, faixaDe, frase, fecharMes, rotina, lerKpis, lerBalanco,
-  gravarMetas, avisoBalanco, somarMeses, historico,
+  gravarMetas, avisoBalanco, somarMeses, historico, trimestreDe,
 } from '../kpis.js';
 
 const ok = (c, msg) => { if (!c) throw new Error('FALHOU: ' + msg); console.log('ok -', msg); };
@@ -133,3 +133,14 @@ ok(h2.at(-1).valores.publicacoes === 9 && h2.at(-1).valores.pins === 4 && h2.at(
 comPeriodo = false;
 const h3 = await historico(env, '2026-10', 3, undefined, hoje);
 ok(h3.at(-1).valores.publicacoes === null, 'marketing sem periodo: publicações ficam sem número, o resto segue');
+
+// ---- metas trimestrais
+ok(trimestreDe('2026-11').de === '2026-10' && trimestreDe('2026-11').meses.length === 2 && trimestreDe('2026-01').meses.length === 1, 'trimestre do calendário até o mês');
+const mt = await montarMes(env, '2026-11');
+ok(mt.trimestre.numero === 4 && 'ief' in mt.trimestre.valores && 'decisao' in mt.trimestre.valores, 'valores do trimestre no mês');
+if (arqOk) {
+  const out2 = await montarMes(env, '2026-10');
+  ok(out2.trimestre.valores.decisao === 10, 'tempo de decisão pelo trimestre');
+  const ft = frase('decisao', '2026-10', out2.valores, [], m.dados, out2.trimestre);
+  ok(ft.startsWith('Tempo de decisão no 4º trimestre (outubro): 10 dias') && ft.includes('faixa adequada'), 'frase trimestral: ' + ft);
+}
