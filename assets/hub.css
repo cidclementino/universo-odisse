@@ -946,6 +946,10 @@ span.bol-fonte + .bol-caixa, .bol-titulo + .bol-caixa { margin-left: auto; }
 .bol-regua-cab, .bol-linha { display: grid; grid-template-columns: minmax(170px, 1.3fr) minmax(120px, .8fr) minmax(220px, 1.5fr) 110px 140px 120px; gap: 16px; align-items: center; }
 .bol-regua-cab { padding: 8px 12px; border-radius: 6px; background: rgba(63,75,87,.05);
   font-size: var(--u-t-rotulo); font-weight: 650; letter-spacing: .06em; text-transform: uppercase; color: var(--u-tinta-2); }
+/* subtítulo de rede dentro do tema (Redes sociais › Instagram, Pinterest): linha de grupo, sem barra à esquerda */
+.bol-sub { margin-top: 10px; padding: 6px 12px; border-radius: 6px; background: rgba(63,75,87,.035);
+  font-size: 12px; font-weight: 650; color: var(--u-tinta); }
+.bol-regua-cab + .bol-sub { margin-top: 4px; }
 .bol-linha { padding: 10px 12px; min-height: 52px; box-sizing: border-box; border-bottom: 1px solid var(--u-linha); }
 .bol-linha:last-child { border-bottom: 0; }
 .bol-linha:hover { background: rgba(63,75,87,.03); }

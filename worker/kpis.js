@@ -23,6 +23,7 @@
 import { diaBR, somarDias } from './inicio.js';
 
 // ---- catálogo de indicadores (definição, não dado) -----------------------------------------------
+// rede: no tema Redes sociais, a rede de cada indicador (subtítulo no Painel, nas Metas e no PDF).
 // sentido: 1 = quanto mais, melhor · -1 = quanto menos, melhor. formato: num · reais · pct · dias
 export const INDICADORES = [
   { id: 'leads', grupo: 'comercial', nome: 'Leads', formato: 'num', sentido: 1, nota: 'Oportunidades criadas no Funil no mês' },
@@ -32,15 +33,15 @@ export const INDICADORES = [
   { id: 'ticket', grupo: 'comercial', nome: 'Ticket médio', formato: 'reais', sentido: 1, nota: 'Valor contratado ÷ contratos fechados' },
   { id: 'decisao', grupo: 'comercial', nome: 'Tempo de decisão', formato: 'dias', sentido: -1, nota: 'Média de dias entre a data da proposta e a assinatura do contrato' },
   { id: 'ief', grupo: 'comercial', nome: 'Eficiência do funil', formato: 'pct', sentido: 1, nota: 'IEF = 0,4 × propostas ÷ leads + 0,6 × contratos ÷ propostas' },
-  { id: 'alcance', grupo: 'instagram', nome: 'Alcance', formato: 'num', sentido: 1, nota: 'Soma do alcance diário' },
-  { id: 'interacoes', grupo: 'instagram', nome: 'Interações', formato: 'num', sentido: 1, nota: 'Soma das interações diárias' },
-  { id: 'engajamento', grupo: 'instagram', nome: 'Taxa de resposta', formato: 'pct', sentido: 1, nota: 'Interações ÷ alcance' },
-  { id: 'visitas_perfil', grupo: 'instagram', nome: 'Visitas ao perfil', formato: 'num', sentido: 1, nota: 'Soma das visitas diárias ao perfil' },
-  { id: 'toques_link', grupo: 'instagram', nome: 'Toques no link', formato: 'num', sentido: 1, nota: 'Soma dos toques diários no link do perfil' },
-  { id: 'seguidores', grupo: 'instagram', nome: 'Seguidores', formato: 'num', sentido: 1, nota: 'Total no fim do mês' },
-  { id: 'novos_seguidores', grupo: 'instagram', nome: 'Novos seguidores', formato: 'num', sentido: 1, nota: 'Soma dos ganhos diários' },
-  { id: 'publicacoes', grupo: 'instagram', nome: 'Publicações', formato: 'num', sentido: 1, nota: 'Posts e reels publicados no mês (sem stories), contados na conta do Instagram' },
-  { id: 'pins', grupo: 'instagram', nome: 'Pins no Pinterest', formato: 'num', sentido: 1, nota: 'Pins confirmados como publicados no calendário editorial' },
+  { id: 'alcance', grupo: 'instagram', rede: 'instagram', nome: 'Alcance', formato: 'num', sentido: 1, nota: 'Soma do alcance diário' },
+  { id: 'interacoes', grupo: 'instagram', rede: 'instagram', nome: 'Interações', formato: 'num', sentido: 1, nota: 'Soma das interações diárias' },
+  { id: 'engajamento', grupo: 'instagram', rede: 'instagram', nome: 'Taxa de resposta', formato: 'pct', sentido: 1, nota: 'Interações ÷ alcance' },
+  { id: 'visitas_perfil', grupo: 'instagram', rede: 'instagram', nome: 'Visitas ao perfil', formato: 'num', sentido: 1, nota: 'Soma das visitas diárias ao perfil' },
+  { id: 'toques_link', grupo: 'instagram', rede: 'instagram', nome: 'Toques no link', formato: 'num', sentido: 1, nota: 'Soma dos toques diários no link do perfil' },
+  { id: 'seguidores', grupo: 'instagram', rede: 'instagram', nome: 'Seguidores', formato: 'num', sentido: 1, nota: 'Total no fim do mês' },
+  { id: 'novos_seguidores', grupo: 'instagram', rede: 'instagram', nome: 'Novos seguidores', formato: 'num', sentido: 1, nota: 'Soma dos ganhos diários' },
+  { id: 'publicacoes', grupo: 'instagram', rede: 'instagram', nome: 'Publicações', formato: 'num', sentido: 1, nota: 'Posts e reels publicados no mês (sem stories), contados na conta do Instagram' },
+  { id: 'pins', grupo: 'instagram', rede: 'pinterest', nome: 'Pins publicados', formato: 'num', sentido: 1, nota: 'Pins confirmados como publicados no calendário editorial' },
   { id: 'visitas_site', grupo: 'site', nome: 'Visitas', formato: 'num', sentido: 1, nota: 'Soma dos visitantes diários de odisse.com.br' },
   { id: 'projetos_site', grupo: 'site', nome: 'Projetos abertos', formato: 'num', sentido: 1, nota: 'Páginas de projeto abertas no site' },
   { id: 'contatos_site', grupo: 'site', nome: 'Contatos', formato: 'num', sentido: 1, nota: 'Toques em WhatsApp, e-mail e telefone no site' },

@@ -26,6 +26,13 @@ const GRUPOS = [
   { id: 'instagram', nome: 'Redes sociais', onde: 'Instagram e Pinterest', link: METRICAS, ontem: true },
   { id: 'site', nome: 'Site', onde: 'odisse.com.br', link: SITE_PAINEL, ontem: true },
 ];
+// Redes do tema Redes sociais, na ordem dos subtítulos (indicador.rede)
+const REDES = [['instagram', 'Instagram'], ['pinterest', 'Pinterest']];
+// Indicadores de um tema, com o subtítulo de cada rede antes das suas linhas: [['sub', nome] | ['ind', indicador]]
+function porRede(inds) {
+  if (!inds.some((i) => i.rede)) return inds.map((i) => ['ind', i]);
+  return REDES.flatMap(([id, nome]) => { const l = inds.filter((i) => i.rede === id); return l.length ? [['sub', nome], ...l.map((i) => ['ind', i])] : []; });
+}
 // Somas no mês (dá para projetar pelo ritmo); as outras são médias, razões ou retratos.
 const SOMA = new Set(['leads', 'propostas', 'contratos', 'contratado', 'alcance', 'interacoes', 'visitas_perfil', 'toques_link',
   'novos_seguidores', 'publicacoes', 'pins', 'visitas_site', 'projetos_site', 'contatos_site']);
@@ -93,16 +100,16 @@ async function prepararPdf() {
 export function docDoBalanco(b, indicadores) {
   const POR = Object.fromEntries(indicadores.map((i) => [i.id, i]));
   const ant = b.historico.find((h) => h.mes === somarMeses(b.mes, -1))?.valores || {};
-  const linhas = (grupo) => indicadores.filter((i) => i.grupo === grupo).map((i) => {
+  const linhas = (grupo, rede) => indicadores.filter((i) => i.grupo === grupo && (!rede || i.rede === rede)).map((i) => {
     const v = b.valores[i.id];
     const fx = faixaDe(i, v, { faixas: b.metas });
     const p = varPct(v, ant[i.id]);
     return [i.nome, formatar(i.formato, v, true), fx ? FAIXA[fx][0] : '—', p == null ? '—' : `${p > 0 ? '+' : ''}${p}%`];
   });
-  const tabela = (grupo) => ({
+  const tabela = (grupo, rede) => ({
     tipo: 'tabela',
     colunas: [{ titulo: 'Indicador', largura: '40%' }, { titulo: 'Valor', alinhar: 'direita' }, { titulo: 'Faixa' }, { titulo: `Sobre ${nomeMes(somarMeses(b.mes, -1))}`, alinhar: 'direita' }],
-    linhas: linhas(grupo),
+    linhas: linhas(grupo, rede),
   });
   const seis = b.historico.slice(-6);
   const chaves = ['leads', 'propostas', 'contratos', 'contratado', 'alcance', 'seguidores', 'publicacoes', 'visitas_site', 'contatos_site'];
@@ -124,7 +131,8 @@ export function docDoBalanco(b, indicadores) {
       { tipo: 'secao', texto: 'Resultado do mês' },
       { tipo: 'paragrafo', texto: 'Comercial', negrito: true }, tabela('comercial'),
       ...(origens.length ? [{ tipo: 'nota', texto: 'Origem dos leads: ' + origens.map(([o, n]) => `${(ORIGENS[o] || o).toLowerCase()} ${n}`).join(' · ') + '.' }] : []),
-      { tipo: 'paragrafo', texto: 'Instagram', negrito: true }, tabela('instagram'),
+      { tipo: 'paragrafo', texto: 'Instagram', negrito: true }, tabela('instagram', 'instagram'),
+      { tipo: 'paragrafo', texto: 'Pinterest', negrito: true }, tabela('instagram', 'pinterest'),
       { tipo: 'paragrafo', texto: 'Site', negrito: true }, tabela('site'),
       { tipo: 'secao', texto: 'Retrospecto' },
       { tipo: 'lista', itens: b.frases || [] },
@@ -290,7 +298,7 @@ export function criarKpis({ esc, api, toque }) {
           <div class="bol-regua-cab" role="row"><span role="columnheader">Indicador</span><span role="columnheader">${esc(nomeCol)}${d.mes.parcial ? ' até agora' : ''}</span>
             <span role="columnheader">Faixa${d.mes.parcial ? ' no ritmo do mês' : ''}</span><span role="columnheader">Sobre ${esc(nomeMes(somarMeses(d.mes.mes, -1)))}</span>
             <span role="columnheader">12 meses</span><span role="columnheader">${g.ontem ? 'Ontem' : ''}</span></div>
-          ${inds.map((i) => linha(i, d, g)).join('')}${origem}
+          ${porRede(inds).map(([t, x]) => (t === 'sub' ? `<div class="bol-sub" role="row"><span role="cell">${esc(x)}</span></div>` : linha(x, d, g))).join('')}${origem}
         </div>` : ''}
       </section>`;
   }
@@ -351,7 +359,7 @@ export function criarKpis({ esc, api, toque }) {
           ${cabBloco(g.id, g.nome, '', '', `<span class="bol-conta">${comMeta}/${inds.length} com meta</span>`)}
           ${ab ? `<div class="met-tabela" role="table">
             <div class="bol-regua-cab met-cols" role="row"><span role="columnheader">Indicador</span><span role="columnheader">Mínimo</span><span role="columnheader">Adequado</span><span role="columnheader">Excelente</span></div>
-            ${inds.map((i) => `<div class="met-linha met-cols" role="row">
+            ${porRede(inds).map(([t, i]) => t === 'sub' ? `<div class="bol-sub" role="row"><span role="cell">${esc(i)}</span></div>` : `<div class="met-linha met-cols" role="row">
               <span class="bol-nome" role="cell"><b>${esc(i.nome)}</b><small>${esc(i.nota)}${i.sentido === -1 ? ' · menos é melhor' : ''}</small></span>
               ${['minimo', 'adequado', 'excelente'].map((k) => `<span role="cell">${campo(i, k)}</span>`).join('')}
             </div>`).join('')}
