@@ -39,6 +39,8 @@ export const INDICADORES = [
   { id: 'toques_link', grupo: 'instagram', nome: 'Toques no link', formato: 'num', sentido: 1, nota: 'Soma dos toques diários no link do perfil' },
   { id: 'seguidores', grupo: 'instagram', nome: 'Seguidores', formato: 'num', sentido: 1, nota: 'Total no fim do mês' },
   { id: 'novos_seguidores', grupo: 'instagram', nome: 'Novos seguidores', formato: 'num', sentido: 1, nota: 'Soma dos ganhos diários' },
+  { id: 'publicacoes', grupo: 'instagram', nome: 'Publicações', formato: 'num', sentido: 1, nota: 'Posts e reels publicados no mês (sem stories), contados na conta do Instagram' },
+  { id: 'pins', grupo: 'instagram', nome: 'Pins no Pinterest', formato: 'num', sentido: 1, nota: 'Pins confirmados como publicados no calendário editorial' },
   { id: 'visitas_site', grupo: 'site', nome: 'Visitas', formato: 'num', sentido: 1, nota: 'Soma dos visitantes diários de odisse.com.br' },
   { id: 'projetos_site', grupo: 'site', nome: 'Projetos abertos', formato: 'num', sentido: 1, nota: 'Páginas de projeto abertas no site' },
   { id: 'contatos_site', grupo: 'site', nome: 'Contatos', formato: 'num', sentido: 1, nota: 'Toques em WhatsApp, e-mail e telefone no site' },
@@ -48,7 +50,6 @@ export const EM_BREVE = [
   { grupo: 'financeiro', nomes: ['Faturamento', 'Receita recorrente', 'Margem líquida', 'Dependência de um cliente', 'Previsibilidade de receita'], falta: 'Financeiro' },
   { grupo: 'operacional', nomes: ['Horas sobre o previsto', 'Retrabalho', 'Prazo médio de entrega'], falta: 'horas lançadas nos projetos e o Escopo do Projeto' },
   { grupo: 'cliente', nomes: ['NPS', 'Clientes recorrentes', 'Upsell', 'Cross-sell', 'LTV'], falta: 'pesquisa com o cliente e vínculo entre projetos' },
-  { grupo: 'marketing', nomes: ['Publicações no mês'], falta: 'contagem mensal do calendário editorial no marketing' },
 ];
 const POR_ID = Object.fromEntries(INDICADORES.map((i) => [i.id, i]));
 export const ORIGENS = { indicacao: 'Indicação', instagram: 'Instagram', site: 'Site', landing_page: 'Landing page', herma: 'Herma', radar: 'Radar', outro: 'Outro', sem: 'Sem origem' };
@@ -86,9 +87,9 @@ const n0 = (v) => (Number.isFinite(v) ? v : null);
 
 // Números de um dia fechado. Instagram: o resumo do dia seguinte traz "ontem" (= o dia pedido) e o total de
 // seguidores tirado na coleta da manhã seguinte. Cada parte falha sozinha (fica sem gravar).
-export async function numerosDoDia(env, dia) {
+export async function numerosDoDia(env, dia, { semInstagram = false } = {}) {
   const [ig, site] = await Promise.all([
-    env.MARKETING ? comPrazo(env.MARKETING.resumo(somarDias(dia, 1))).then((r) => r?.instagram).catch(() => null) : null,
+    env.MARKETING && !semInstagram ? comPrazo(env.MARKETING.resumo(somarDias(dia, 1))).then((r) => r?.instagram).catch(() => null) : null,
     env.SITE_ODISSE ? comPrazo(env.SITE_ODISSE.metricasDoDia(dia)).then((r) => r?.total).catch(() => null) : null,
   ]);
   const out = {};
@@ -100,18 +101,45 @@ export async function numerosDoDia(env, dia) {
   return out;
 }
 
-// Completa os dias que faltam de um mês (até `limite` dias por vez, para não estourar a cota de chamadas).
+// Período no marketing (uma chamada para muitos dias): Instagram dia a dia e publicações por mês.
+// Sem o ponto de entrada novo (marketing antigo), devolve null e o Instagram vai dia a dia pelo resumo.
+async function periodoMarketing(env, de, ate) {
+  if (!env.MARKETING?.periodo) return null;
+  try {
+    const r = await comPrazo(env.MARKETING.periodo(de, ate));
+    return r && !r.erro ? r : null;
+  } catch { return null; }
+}
+const igDoPeriodo = (x) => ({ alcance: n0(x.alcance), interacoes: n0(x.interacoes), visitas: n0(x.visitas), toques: n0(x.toques), novos: n0(x.novos), seguidores: n0(x.seguidores) });
+
+// Completa os dias que faltam de um mês. Instagram: o mês inteiro numa chamada (periodo); site: dia a dia,
+// até `limite` dias por vez, para não estourar a cota de chamadas.
 export async function completarDias(env, mes, hoje, limite = 8) {
   const guardados = (await lerJson(env, chaveDias(mes))) || {};
-  const faltam = diasDoMes(mes).filter((d) => d < hoje && !(guardados[d]?.ig && guardados[d]?.site)).slice(0, limite);
-  if (!faltam.length) return { mes, novos: 0 };
+  const passados = diasDoMes(mes).filter((d) => d < hoje);
   let novos = 0;
+  if (passados.some((d) => !guardados[d]?.ig)) {
+    const p = await periodoMarketing(env, passados[0], passados.at(-1));
+    for (const d of passados) {
+      const x = p?.dias?.[d];
+      if (x && !guardados[d]?.ig) { guardados[d] = { ...(guardados[d] || {}), ig: igDoPeriodo(x) }; novos++; }
+    }
+  }
+  const faltam = passados.filter((d) => !(guardados[d]?.ig && guardados[d]?.site)).slice(0, limite);
   for (const d of faltam) {
-    const n = await numerosDoDia(env, d);
+    const n = await numerosDoDia(env, d, { semInstagram: !!guardados[d]?.ig });
     if (n.ig || n.site) { guardados[d] = { ...(guardados[d] || {}), ...n }; novos++; }
   }
   if (novos) await gravarJson(env, chaveDias(mes), guardados);
   return { mes, novos };
+}
+
+// Publicações por mês, de um período de meses (uma chamada só).
+async function publicacoesPorMes(env, primeiro, ultimo, hoje) {
+  const fim = diasDoMes(ultimo).at(-1);
+  // até hoje no mês corrente (o que já saiu hoje conta), até o fim do mês nos fechados
+  const p = await periodoMarketing(env, `${primeiro}-01`, hoje && fim > hoje ? hoje : fim);
+  return p?.publicacoes || null;
 }
 
 function somarCanais(dias, mes) {
@@ -232,22 +260,24 @@ export function frase(id, mes, valores, historico, metas) {
 }
 
 // ---- montar um mês -------------------------------------------------------------------------------------
-export async function montarMes(env, mes, { comercial, hoje } = {}) {
+export async function montarMes(env, mes, { comercial, hoje, publicacoes } = {}) {
   comercial ||= await comercialPorMes(env);
   const canais = somarCanais(await lerJson(env, chaveDias(mes)), mes);
+  const pub = publicacoes ? publicacoes[mes] || { instagram: 0, pinterest: 0 } : null;
   return {
     mes,
     parcial: !!hoje && mesDe(hoje) <= mes,
-    valores: { ...valoresComerciais(comercial[mes]), ...canais.valores },
+    valores: { ...valoresComerciais(comercial[mes]), ...canais.valores, publicacoes: pub ? pub.instagram : null, pins: pub ? pub.pinterest : null },
     origens: comercial[mes]?.origens || {},
     cobertura: canais.cobertura,
   };
 }
 
-export async function historico(env, ate, n = 12, comercial) {
+export async function historico(env, ate, n = 12, comercial, hoje) {
   comercial ||= await comercialPorMes(env);
   const meses = Array.from({ length: n }, (_, i) => somarMeses(ate, -(n - 1 - i)));
-  return Promise.all(meses.map((m) => montarMes(env, m, { comercial })));
+  const publicacoes = await publicacoesPorMes(env, meses[0], ate, hoje);
+  return Promise.all(meses.map((m) => montarMes(env, m, { comercial, publicacoes })));
 }
 
 // Expectativa para o mês seguinte: só contas com o que já se sabe.
@@ -278,7 +308,7 @@ export async function fecharMes(env, mes, agora = new Date()) {
   const hoje = diaBR(agora);
   if (!MES_OK.test(mes) || mes >= mesDe(hoje)) throw new Error('só fecha um mês que já terminou');
   const comercial = await comercialPorMes(env);
-  const hist = await historico(env, mes, 12, comercial);
+  const hist = await historico(env, mes, 12, comercial, hoje);
   const atual = hist.at(-1);
   const metas = await lerJson(env, 'kpis/metas.json');
   const frases = INDICADORES.map((i) => frase(i.id, mes, atual.valores, hist, metas)).filter(Boolean);
@@ -331,7 +361,7 @@ export async function lerKpis(env, mesPedido, agora = new Date()) {
     ontem(env, hoje), lerJson(env, 'kpis/metas.json'), mesesFechados(env), lerJson(env, chaveBalanco(mes)),
   ]);
   const comercial = await comercialPorMes(env);
-  const hist = await historico(env, mes, 12, comercial);
+  const hist = await historico(env, mes, 12, comercial, hoje);
   const atual = { ...hist.at(-1), parcial: mes === corrente };
   return {
     status: 200,

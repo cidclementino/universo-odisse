@@ -103,7 +103,7 @@ export function docDoBalanco(b, indicadores) {
     linhas: linhas(grupo),
   });
   const seis = b.historico.slice(-6);
-  const chaves = ['leads', 'propostas', 'contratos', 'contratado', 'alcance', 'seguidores', 'visitas_site', 'contatos_site'];
+  const chaves = ['leads', 'propostas', 'contratos', 'contratado', 'alcance', 'seguidores', 'publicacoes', 'visitas_site', 'contatos_site'];
   const retro = {
     tipo: 'tabela',
     colunas: [{ titulo: 'Indicador', largura: '28%' }, ...seis.map((h) => ({ titulo: Maius(nomeMes(h.mes)).slice(0, 3), alinhar: 'direita' }))],

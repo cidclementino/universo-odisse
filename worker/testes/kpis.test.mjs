@@ -47,6 +47,11 @@ if (arqOk) {
 const chamadas = { mkt: 0, site: 0 };
 const MARKETING = { resumo: async (hoje) => { chamadas.mkt++; const d = new Date(Date.parse(hoje + 'T12:00:00Z') - 864e5).toISOString().slice(0, 10);
   return { instagram: { dia: d, atual: { alcance: 100, interacoes: 10, visitas: 5, toques: 1, novos: 2 }, seguidores: 1000 + +d.slice(8) } }; } };
+// periodo: o ponto de entrada novo do marketing (Instagram de um período e publicações por mês)
+let comPeriodo = false;
+MARKETING.periodo = async (de, ate) => { if (!comPeriodo) throw new Error('marketing antigo'); chamadas.periodo = (chamadas.periodo || 0) + 1;
+  const dias = {}; for (let d = de; d <= ate; d = new Date(Date.parse(d + 'T12:00:00Z') + 864e5).toISOString().slice(0, 10)) dias[d] = { alcance: 50, interacoes: 5, visitas: 2, toques: 0, novos: 1, seguidores: 2000 };
+  return { de, ate, dias, publicacoes: { '2026-10': { instagram: 9, feed: 6, reels: 3, pinterest: 4 } } }; };
 const SITE_ODISSE = { metricasDoDia: async () => { chamadas.site++; return { total: { visitantes: 20, projetos: 3, contatos: 1 } }; } };
 const env = { DB, ARQUIVOS, MARKETING, SITE_ODISSE };
 
@@ -114,3 +119,17 @@ ok(k.dados.expectativa && k.dados.historico.length === 12, 'expectativa e 12 mes
 const k2 = await lerKpis(env, '2026-10', new Date('2026-11-20T12:00:00Z'));
 ok(k2.dados.balanco?.mes === '2026-10' && !k2.dados.mes.parcial, 'mês fechado traz o balanço');
 ok(somarMeses('2026-01', -1) === '2025-12' && somarMeses('2026-12', 1) === '2027-01', 'virada de ano');
+
+// ---- marketing com periodo: Instagram do mês numa chamada só, e publicações por mês
+comPeriodo = true;
+const antesMkt = chamadas.mkt;
+const r9 = await completarDias(env, '2026-09', hoje, 8);
+ok(chamadas.periodo === 1 && chamadas.mkt === antesMkt, 'Instagram de setembro inteiro numa chamada só, sem o resumo dia a dia');
+ok(r9.novos >= 30, 'setembro: 30 dias de Instagram + 8 do site');
+const set = await montarMes(env, '2026-09');
+ok(set.valores.alcance === 1500 && set.cobertura.instagram === 30, 'setembro somado pelo periodo');
+const h2 = await historico(env, '2026-10', 3, undefined, hoje);
+ok(h2.at(-1).valores.publicacoes === 9 && h2.at(-1).valores.pins === 4 && h2.at(-2).valores.publicacoes === 0, 'publicações e pins por mês');
+comPeriodo = false;
+const h3 = await historico(env, '2026-10', 3, undefined, hoje);
+ok(h3.at(-1).valores.publicacoes === null, 'marketing sem periodo: publicações ficam sem número, o resto segue');
