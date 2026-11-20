@@ -1,4 +1,4 @@
-// Páginas do hub. Rotas por hash: #/ (Início, em assets/inicio.js), #/ferramentas, #/canais, #/equipe, #/marca, #/biblioteca, #/padroes, #/precos (Mapa de preços, em assets/precos.js),
+// Páginas do hub. Rotas por hash: #/ (Início, em assets/inicio.js), #/credenciais (assets/credenciais.js), #/ferramentas, #/canais, #/equipe, #/marca, #/biblioteca, #/padroes, #/precos (Mapa de preços, em assets/precos.js),
 // #/pastas (Estrutura de pastas, em assets/pastas.js), #/acervo (Acervo de imagens, em assets/acervo.js).
 // Tudo vem de dois arquivos: ferramentas.json (aqui) e odisse.json (marca.odisse.com.br).
 // A página Marca mora em assets/marca.js; a página Documentos (#/documentos, aberta pela Biblioteca), em assets/documentos.js;
@@ -15,6 +15,7 @@ import { criarPrecos } from './precos.js';
 import { criarPastas } from './pastas.js';
 import { criarAcervo } from './acervo.js';
 import { criarKpis } from './kpis.js';
+import { criarCredenciais } from './credenciais.js';
 
 const MARCA = 'https://marca.odisse.com.br/';
 const API = 'https://universo-hub.reservaprojectbasework.workers.dev';
@@ -105,8 +106,9 @@ const marca = criarMarca({
   gravarOdisse: (d) => { ODISSE = d; },
 });
 
+const cred = criarCredenciais({ esc, api, apiBinario, toque });
 const documentos = criarDocumentos({ esc, api, apiBinario, toque, lerOdisse: () => ODISSE });
-const equipe = criarEquipe({ esc, api, apiBinario, toque });
+const equipe = criarEquipe({ esc, api, apiBinario, toque, cred });
 const ferramentas = criarFerramentas({ esc, api, toque, lerMapa: () => MAPA });
 const canais = criarFerramentas({ esc, api, toque, lerMapa: () => MAPA, config: configCanais(() => ODISSE) });
 const padroes = criarPadroes({ esc });
@@ -115,10 +117,10 @@ const precos = criarPrecos({ esc, api });
 const pastas = criarPastas({ esc, api, toque });
 const kpis = criarKpis({ esc, api, toque });
 const acervo = criarAcervo({ esc, api, apiBinario, toque });
-const empresa = criarEmpresa({ esc, api, toque, lerOdisse: () => ODISSE, gravarOdisse: (d) => { ODISSE = d; } });
+const empresa = criarEmpresa({ esc, api, toque, cred, lerOdisse: () => ODISSE, gravarOdisse: (d) => { ODISSE = d; } });
 
-// O Estúdio (Cid, 19/11): Empresa · Equipe · Marca · Canais são subpáginas, com abas no alto
-const ESTUDIO = ['empresa', 'equipe', 'marca', 'canais'];
+// O Estúdio (Cid, 19/11): Empresa · Equipe · Marca · Canais · Credenciais são subpáginas, com abas no alto
+const ESTUDIO = ['empresa', 'equipe', 'marca', 'canais', 'credenciais'];
 function abasEstudio(atual) {
   const subs = MAPA.secoes.filter((s) => s.pai === 'estudio');
   return `<nav class="abas-estudio" aria-label="O Estúdio"><span class="u-rotulo">O Estúdio</span>
@@ -149,6 +151,11 @@ const PAGINAS = {
 
   empresa() {
     return '<div id="pagina-empresa" class="pagina-empresa"></div>';
+  },
+
+  // O Estúdio › Credenciais (Cid, 19/11): documentos para editais e concursos (assets/credenciais.js)
+  credenciais() {
+    return '<div id="pagina-credenciais" class="pagina-credenciais"></div>';
   },
 
   biblioteca() {
@@ -200,6 +207,7 @@ function depois(rota) {
   if (rota === 'equipe') equipe.ligar(vista.querySelector('#pagina-equipe'));
   if (rota === 'ferramentas') ferramentas.ligar(vista.querySelector('#pagina-ferramentas'));
   if (rota === 'empresa') empresa.ligar(vista.querySelector('#pagina-empresa'));
+  if (rota === 'credenciais') cred.ligar(vista.querySelector('#pagina-credenciais'));
   if (rota === 'canais') canais.ligar(vista.querySelector('#pagina-canais'));
   if (rota === 'padroes') padroes.ligar(vista.querySelector('#pagina-padroes'));
   if (rota === 'precos') precos.ligar(vista.querySelector('#pagina-precos'));

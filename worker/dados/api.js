@@ -21,6 +21,7 @@
 //   PUT    arquivos/:id/conteudo?variante=g|m|s  (corpo binário; cada variante sobe uma vez só)
 //   GET    arquivos/:id/conteudo?variante=g|m|s
 //   GET    acervo | acervo/alvos | acervo/site/…  -> banco único de imagens (ver acervo.js)
+//   GET    credenciais/quadro | credenciais/vencidas    -> documentos para editais (ver credenciais.js)
 //   POST   revisoes/:id/resolver { versao, situacao: 'mesmo'|'diferentes', manter }  -> junta dois contatos
 //   GET    comercial/propostas?de=0&limite=10&q=…&simulacoes=0|so -> propostas leves com oportunidade e cliente, e o total
 //   GET    comercial/painel                   -> oportunidades abertas com cliente, co-clientes, última proposta e próxima ação
@@ -47,6 +48,7 @@ import { painelProducao, fichaProjeto, horasPeriodo } from './producao.js';
 import { rotasPgt } from './pgt.js';
 import { rotasEquipe } from './equipe.js';
 import { rotasAcervo } from './acervo.js';
+import { rotasCredenciais, regraCredenciais } from './credenciais.js';
 import { ErroApi, REGRAS, proximoNumero, ajustarSequencia, valorSequencia, painelComercial, listaContatos, fichaContato, listaPropostas } from './regras.js';
 
 export { proximoNumero };
@@ -124,7 +126,9 @@ function traduzirErro(e) {
 }
 
 // Ferramentas das regras (regras.js) que precisam validar e gravar registros filhos no mesmo lote.
-const AUX = { validar: (...a) => validar(...a), novoId, sqlBusca };
+const AUX = { validar: (...a) => validar(...a), novoId, sqlBusca, sqlHistorico: (...a) => sqlHistorico(...a) };
+// regras que moram fora de regras.js (evita importação circular)
+REGRAS.credenciais = regraCredenciais;
 
 async function buscarLinha(env, tabela, id) {
   return env.DB.prepare(`SELECT * FROM ${tabela} WHERE id = ?`).bind(id).first();
@@ -814,6 +818,9 @@ export async function api(env, ferramenta, request, url, cors) {
       { exigir, criar, alterar, enviarConteudo, lerConteudo, visivel });
     if (ra instanceof Response) return ra;
     if (ra !== undefined) return json(ra, ra?.criado ? 201 : 200);
+    // Credenciais: quadro juntado e vencidas (credenciais.js); o resto pelas rotas comuns
+    const rc = await rotasCredenciais(env, ferramenta, m, partes, { exigir });
+    if (rc !== undefined) return json(rc);
     // o site só enxerga as rotas públicas da equipe e as do acervo
     if (ferramenta === 'site') throw new ErroApi(403, 'esta ferramenta não pode ver isto');
 

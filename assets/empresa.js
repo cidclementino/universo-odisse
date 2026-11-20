@@ -5,6 +5,9 @@
 // Ao salvar, a parte pública (nome, contato, endereço, textos) é copiada para o odisse.json da Marca, que o site
 // e as ferramentas continuam lendo; razão social, CNPJ e demais dados jurídicos ficam só no banco.
 // Desenho: o sistema de caixas da ficha da Equipe (eq-ficha, eq-sec, eq-tres) e a barra de salvar presa ao pé.
+// Constituição e registros (0021; Cid, 19/11): os dados jurídicos e, embaixo, os documentos de constituição e do CAU
+// da PJ; a caixa Contato e sede leva os documentos da sede. Os documentos gravam sozinhos (Gaveta, assets/credenciais.js);
+// os campos, pela Barra de salvar.
 
 import { lerCopia, gravarCopia } from './memoria.js';
 
@@ -17,13 +20,24 @@ const TAMANHOS = [
   ['longo', 'Longo', 4000, 'Três a quatro parágrafos (linha em branco entre eles). Página Sobre do site, portfólio.'],
 ];
 const CAMPOS = ['nome', 'nome_completo', 'nome_completo_en', 'razao_social', 'cnpj', 'inscricao_municipal', 'registro_cau', 'fundacao',
+  'inscricao_estadual', 'capital_social', 'responsavel_tecnico_id',
   'email', 'telefone', 'logradouro', 'bairro', 'cidade', 'uf', 'cep', 'caixa_postal',
   ...TAMANHOS.flatMap(([k]) => ['texto_' + k, 'texto_' + k + '_en'])];
 // o que vai para a cópia pública (odisse.json)
 const PUBLICOS = new Set(['nome', 'nome_completo', 'nome_completo_en', 'email', 'telefone', 'logradouro', 'bairro', 'cidade', 'uf', 'cep',
   'caixa_postal', ...TAMANHOS.flatMap(([k]) => ['texto_' + k, 'texto_' + k + '_en'])]);
 
-export function criarEmpresa({ esc, api, toque, lerOdisse, gravarOdisse }) {
+// capital social: digitado em reais, guardado em centavos
+const reais = (c) => (c == null ? '' : (c / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+const centavos = (t) => {
+  const s = String(t || '').replace(/[^\d,.-]/g, '').replace(/\./g, '').replace(',', '.');
+  if (!s) return null;
+  const n = Math.round(Number(s) * 100);
+  return Number.isFinite(n) ? n : null;
+};
+const valorDe = (k, bruto) => (k === 'capital_social' ? centavos(bruto) : (String(bruto ?? '').trim() || null));
+
+export function criarEmpresa({ esc, api, toque, lerOdisse, gravarOdisse, cred }) {
   let reg = null;          // registro como está no servidor
   let sujo = new Set();    // campos mudados e ainda não salvos
   window.addEventListener('beforeunload', (ev) => { if (sujo.size && location.hash.startsWith('#/empresa')) { ev.preventDefault(); ev.returnValue = ''; } });
@@ -52,10 +66,18 @@ export function criarEmpresa({ esc, api, toque, lerOdisse, gravarOdisse }) {
       + `${d.cep ? `, CEP ${d.cep}` : ''}, neste ato representada por seu sócio [quem assina o contrato].`;
   }
 
+  // responsável técnico: quem tem registro no conselho (lido do quadro das Credenciais)
+  function opcoesRT() {
+    const eq = (cred?.lerQuadro()?.equipe || []).filter((e) => e.registro || e.id === reg?.responsavel_tecnico_id);
+    const atual = reg?.responsavel_tecnico_id;
+    const lista = eq.length || !atual ? eq : [{ id: atual, nome: 'pessoa da equipe' }];
+    return '<option value="">—</option>' + lista.map((e) => `<option value="${esc(e.id)}"${e.id === atual ? ' selected' : ''}>${esc(e.nome)}</option>`).join('');
+  }
+
   function ler(raiz) {
     const f = raiz.querySelector('form');
     const d = { ...reg };
-    for (const k of CAMPOS) if (f.elements[k]) d[k] = f.elements[k].value.trim() || null;
+    for (const k of CAMPOS) if (f.elements[k]) d[k] = valorDe(k, f.elements[k].value);
     return d;
   }
 
@@ -65,11 +87,21 @@ export function criarEmpresa({ esc, api, toque, lerOdisse, gravarOdisse }) {
       <form class="eq-ficha" autocomplete="off" novalidate>
         <section class="u-cartao eq-sec"><h2 class="u-subtitulo">Identidade</h2>
           <div class="eq-tres">
-            <div class="eq-col">${campo('nome', 'Nome curto')}${campo('nome_completo', 'Nome completo')}${campo('nome_completo_en', 'Nome completo (inglês)')}</div>
-            <div class="eq-col">${campo('razao_social', 'Razão social')}${campo('cnpj', 'CNPJ', { ph: '00.000.000/0000-00' })}${campo('inscricao_municipal', 'Inscrição municipal')}</div>
-            <div class="eq-col">${campo('registro_cau', 'Registro no CAU (pessoa jurídica)')}${campo('fundacao', 'Fundação', { ph: 'AAAA' })}
-              <small class="u-apoio">Razão social, CNPJ, inscrição e registro ficam só no Universo (contratos e documentos); não vão para o site.</small></div>
+            ${campo('nome', 'Nome curto')}${campo('nome_completo', 'Nome completo')}${campo('nome_completo_en', 'Nome completo (inglês)')}
           </div></section>
+
+        <section class="u-cartao eq-sec"><h2 class="u-subtitulo">Constituição e registros</h2>
+          <div class="eq-tres">
+            <div class="eq-col">${campo('razao_social', 'Razão social')}${campo('cnpj', 'CNPJ', { ph: '00.000.000/0000-00' })}${campo('fundacao', 'Fundação', { ph: 'AAAA' })}</div>
+            <div class="eq-col">${campo('inscricao_municipal', 'Inscrição municipal')}${campo('inscricao_estadual', 'Inscrição estadual', { dica: 'Só se o Odisse Objetos vender com o mesmo CNPJ.' })}
+              ${campo('registro_cau', 'Registro no CAU (pessoa jurídica)')}</div>
+            <div class="eq-col"><label class="u-campo"><span>Capital social (R$)</span><input name="capital_social" inputmode="decimal" value="${esc(reais(reg.capital_social))}" placeholder="0,00">
+                <small>Alguns editais pedem um mínimo.</small></label>
+              <label class="u-campo"><span>Responsável técnico no CAU</span><select name="responsavel_tecnico_id" data-rt>${opcoesRT()}</select>
+                <small>Quem responde pela PJ no CAU. Só aparece quem tem registro na Equipe.</small></label>
+              <small class="u-apoio">Estes dados ficam só no Universo (contratos, documentos e editais); não vão para o site.</small></div>
+          </div>
+          <div class="cre-docs"><span class="u-rotulo">Documentos</span><div data-docs="constituicao"></div></div></section>
 
         <section class="u-cartao eq-sec"><h2 class="u-subtitulo">Contato e sede</h2>
           <div class="eq-tres">
@@ -80,7 +112,8 @@ export function criarEmpresa({ esc, api, toque, lerOdisse, gravarOdisse }) {
             <div><span class="u-rotulo">Como sai no contrato</span>
               <div class="eq-folha"><p class="emp-qualif" data-qualif></p></div>
               <small class="u-apoio">Qualificação da contratada. O sócio que assina vem da Equipe.</small></div>
-          </div></section>
+          </div>
+          <div class="cre-docs"><span class="u-rotulo">Documentos da sede</span><div data-docs="sede"></div></div></section>
 
         <section class="u-cartao eq-sec"><h2 class="u-subtitulo">Textos de apresentação</h2>
           ${TAMANHOS.map(([k, nome, max, uso]) => `<div class="eq-tres emp-texto">
@@ -99,13 +132,18 @@ export function criarEmpresa({ esc, api, toque, lerOdisse, gravarOdisse }) {
       barra.hidden = !sujo.size;
       raiz.querySelector('[data-conta-mud]').textContent = `${sujo.size} ${sujo.size === 1 ? 'mudança' : 'mudanças'} não salvas`;
     };
-    f.addEventListener('input', (ev) => {
-      const k = ev.target.name; if (!k) return;
-      if ((ev.target.value.trim() || null) === (reg[k] ?? null)) sujo.delete(k); else sujo.add(k);
+    const mudou = (ev) => {
+      const k = ev.target.name; if (!k || !CAMPOS.includes(k)) return;
+      if (valorDe(k, ev.target.value) === (reg[k] ?? null)) sujo.delete(k); else sujo.add(k);
       const conta = raiz.querySelector(`[data-conta="${k}"]`);
       if (conta) conta.textContent = `${ev.target.value.length} / ${ev.target.maxLength}`;
       atualizar();
-    });
+    };
+    f.addEventListener('input', mudou);
+    f.addEventListener('change', mudou);
+    // documentos: gravam sozinhos pela Gaveta (fora da Barra de salvar)
+    cred?.montar(raiz.querySelector('[data-docs="constituicao"]'), 'constituicao', ID);
+    cred?.montar(raiz.querySelector('[data-docs="sede"]'), 'sede', ID);
     f.addEventListener('keydown', (ev) => { if ((ev.ctrlKey || ev.metaKey) && ev.key === 's') { ev.preventDefault(); f.requestSubmit(); } });
     raiz.querySelector('[data-acao="descartar"]').addEventListener('click', () => { sujo = new Set(); desenhar(raiz); });
     f.addEventListener('submit', async (ev) => { ev.preventDefault(); await salvar(raiz); });
@@ -156,6 +194,10 @@ export function criarEmpresa({ esc, api, toque, lerOdisse, gravarOdisse }) {
   return {
     async ligar(raiz) {
       sujo = new Set();
+      cred?.carregar().then(() => {
+        const sel = raiz.isConnected && raiz.querySelector('[data-rt]');
+        if (sel && !sujo.has('responsavel_tecnico_id')) sel.innerHTML = opcoesRT();
+      });
       const copia = lerCopia(COPIA);
       if (copia) { reg = copia; desenhar(raiz); } else raiz.innerHTML = '<p class="u-apoio">Carregando…</p>';
       const r = await api(`/api/v1/empresa/${ID}`);

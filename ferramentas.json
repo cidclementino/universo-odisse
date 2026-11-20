@@ -13,6 +13,7 @@
     {"id": "equipe", "nome": "Equipe", "descricao": "Quem faz", "pai": "estudio"},
     {"id": "marca", "nome": "Marca", "descricao": "Núcleos, cores, tipografia e logos", "pai": "estudio"},
     {"id": "canais", "nome": "Canais", "descricao": "O que o público vê", "pai": "estudio"},
+    {"id": "credenciais", "nome": "Credenciais", "descricao": "Documentos para editais e concursos", "pai": "estudio"},
     {"id": "biblioteca", "nome": "Biblioteca", "descricao": "O que se reutiliza"},
     {"id": "emissao", "nome": "Emissão de documentos avulsos", "descricao": "Cartas, ofícios, declarações e memorandos", "rota": "documentos", "separada": true}
   ],

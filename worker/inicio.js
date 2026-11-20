@@ -1,6 +1,6 @@
 // Início do Universo — o panorama do dia numa leitura só (Cid, 19/11).
 //
-//   GET  /api/inicio            -> { hoje, em, radar, publicacoes, balanco }
+//   GET  /api/inicio            -> { hoje, em, credenciais, radar, publicacoes, balanco }
 // Desde 19/11 (Cid) a Início traz só ações: as métricas de canal (Instagram e site de ontem) foram para a
 // seção KPIs (worker/kpis.js); aqui fica só o aviso de que o balanço do mês foi feito.
 //   POST /api/inicio/publicar   <- { tipo: 'item' | 'pauta', id }  -> confirma a publicação no marketing
@@ -11,9 +11,12 @@
 //                                              que entraram hoje (primeira coleta, Brasília)
 //   marketing   (MARKETING → universo-odisse)  resumo(hoje): publicações de hoje e atrasadas
 //   balanco     (R2, kpis/ultimo.json)         último balanço mensal, nos 10 dias seguintes ao fechamento
+//   credenciais (D1)                           documentos vencidos e não substituídos (Cid, 19/11): o aviso
+//                                              fica até a substituição
 // Dias sempre de Brasília: "do dia" = hoje, 00:00 até agora; "último dia" = ontem, 00:00–23:59.
 
 import { avisoBalanco } from './kpis.js';
+import { vencidas } from './dados/credenciais.js';
 
 const TZ = 'America/Sao_Paulo';
 export const diaBR = (d = new Date()) =>
@@ -38,7 +41,8 @@ async function parte(nome, ligacao, chamar) {
 export async function inicio(env, agora = new Date()) {
   const hoje = diaBR(agora);
   const ontem = somarDias(hoje, -1);
-  const [radar, marketing, balanco] = await Promise.all([
+  const [credenciais, radar, marketing, balanco] = await Promise.all([
+    env.DB ? vencidas(env, hoje).then((itens) => ({ itens })).catch((e) => ({ erro: `credenciais: ${e?.message || 'falhou'}` })) : null,
     parte('Radar', env.RADAR, (r) => r.novidades(hoje)),
     parte('marketing', env.MARKETING, (m) => m.resumo(hoje)),
     env.ARQUIVOS ? avisoBalanco(env, agora).catch(() => null) : null,
@@ -48,6 +52,7 @@ export async function inicio(env, agora = new Date()) {
     hoje,
     ontem,
     em: agora.toISOString(),
+    credenciais,
     radar,
     publicacoes: mErro || { linhas: marketing.linhas || [], publicadas: marketing.publicadas || 0, atrasadas: marketing.atrasadas || 0 },
     balanco,

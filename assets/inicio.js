@@ -2,6 +2,8 @@
 //
 // Uma leitura só (GET /api/inicio, worker/inicio.js). Desde 19/11 (Cid) só ações; as métricas de ontem
 // (Instagram e site) foram para a seção KPIs (assets/kpis.js). Nesta ordem:
+//   0. Credenciais vencidas (Cid, 19/11): um alerta por documento vencido e não substituído, com Substituir, que leva à
+//      página onde ele mora e abre a Gaveta de substituição. O aviso só sai quando o documento é substituído.
 //   1. Balanço do mês: nos 10 dias seguintes ao fechamento (dia 1º), aviso de que o balanço foi feito, com
 //      Ver e Baixar o PDF. Sem balanço recente, não aparece.
 //   2. Radar: uma faixa por tipo, só quando entrou algo hoje ("3 novos terrenos no Radar"); sem nada novo,
@@ -13,6 +15,7 @@
 
 import { lerCopia, gravarCopia, igual } from './memoria.js';
 import { abrirBalanco } from './kpis.js';
+import { pedirSubstituicao } from './credenciais.js';
 
 const COPIA = 'inicio';
 const INTERVALO = 2 * 3600 * 1000;
@@ -35,6 +38,29 @@ export function criarInicio({ esc, api, toque }) {
   let dados = lerCopia(COPIA);
   let timer = null;
   let buscando = null;
+
+  // ---- 0. Credenciais vencidas -----------------------------------------------------
+
+  const dataBr = (d) => (d ? d.split('-').reverse().join('/') : '');
+  function onde(i) {
+    if (i.pagina === 'empresa') return `Empresa › ${i.lugar_nome}`;
+    if (i.pagina === 'equipe') return `Equipe › ${i.dono_nome || 'ficha da pessoa'}`;
+    return `Credenciais › ${i.lugar === 'projeto' && i.dono_nome ? i.dono_nome : i.lugar_nome}`;
+  }
+  const destino = (i) => (i.pagina === 'empresa' ? '#/empresa' : i.pagina === 'equipe' ? `#/equipe/${i.dono_id}` : '#/credenciais');
+  function credenciais(d) {
+    const itens = d.credenciais?.itens || [];
+    if (!itens.length) return '';
+    return `<section class="ini-sec ini-cre">
+        <h2 class="ini-sec__titulo">Credenciais vencidas<span>${itens.length}</span></h2>
+        ${itens.map((i) => `<div class="ini-alerta">
+            <span class="ini-etq problema">vencido</span>
+            <span class="ini-linha__txt"><b>${esc(i.nome)}${i.titulo ? ` · ${esc(i.titulo)}` : ''}</b>
+              <small>${esc(onde(i))} · venceu em ${esc(dataBr(i.vence_em))}. O aviso sai quando ele for substituído.</small></span>
+            <a class="u-botao" href="${esc(destino(i))}" data-substituir="${esc(i.id)}">Substituir</a>
+          </div>`).join('')}
+      </section>`;
+  }
 
   // ---- 1. Balanço do mês ----------------------------------------------------------
 
@@ -153,7 +179,7 @@ export function criarInicio({ esc, api, toque }) {
     const lado = dados?.em ? `${hoje} · atualizado às ${hora(dados.em)}` : hoje;
     const cab = `<div class="cab"><h1 class="u-titulo">Início</h1><div class="lado u-apoio">${esc(lado)}</div></div>`;
     if (!dados) { raiz.innerHTML = cab + '<p class="u-apoio ini-carregando">Carregando o panorama do dia…</p>'; return; }
-    raiz.innerHTML = cab + balanco(dados) + radar(dados) + publicacoes(dados);
+    raiz.innerHTML = cab + credenciais(dados) + balanco(dados) + radar(dados) + publicacoes(dados);
   }
 
   async function buscar() {
@@ -199,6 +225,9 @@ export function criarInicio({ esc, api, toque }) {
   }
 
   function aoClicar(ev) {
+    // credencial vencida: guarda o pedido e deixa o link levar à página onde ela mora
+    const sub = ev.target.closest('[data-substituir]');
+    if (sub) { pedirSubstituicao(sub.dataset.substituir); return; }
     const bal = ev.target.closest('[data-balanco]');
     if (bal) {
       bal.disabled = true;
