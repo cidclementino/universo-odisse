@@ -34,6 +34,7 @@ export const PREFIXOS = {
   pen: 'pgt_entregaveis',
   pev: 'pgt_eventos',
   pma: 'pgt_materiais',
+  pmo: 'pgt_modelos',   // padrões de material (0024)
   doc: 'documentos',
   crg: 'cargos',
   tit: 'titulos',
@@ -805,10 +806,31 @@ export const TABELAS = {
       link: T('url', { rotulo: 'Link' }),
       arquivo_id: T('ref', { prefixos: ['arq'], rotulo: 'Arquivo' }),
       ordem: T('inteiro', { min: 0, max: 999, rotulo: 'Ordem' }),
+      modelo_id: T('ref', { prefixos: ['pmo'], rotulo: 'Padrão' }),   // 0024: ligação a um padrão
     },
     permissoes: PGT,
-    filtros: ['alvo_id', 'tipo'],
+    filtros: ['alvo_id', 'tipo', 'modelo_id'],
     ordem: 'alvo_id, ordem',
+  },
+
+  // ---------------------------------------------------------------- padrões de material (0024)
+  pgt_modelos: {
+    prefixo: 'pmo',
+    campos: {
+      nome: T('texto', { obrig: true, max: 160, rotulo: 'Nome' }),
+      tipo: T('lista', { valores: ['formulario', 'checklist', 'modelo'], rotulo: 'Tipo' }),
+      descricao: T('textoLongo', { max: 2000, rotulo: 'Descrição' }),
+      folha: T('lista', { valores: ['coluna', 'ficha'], rotulo: 'Folha' }),
+      miolo: T('lista', { valores: ['texto', 'vazio', 'pontos'], rotulo: 'Miolo' }),
+      preenche: T('lista', { valores: ['estudio', 'cliente', 'ambos'], rotulo: 'Quem preenche' }),
+      prova: T('sn', { rotulo: 'Vira prova do cartão' }),
+      campos: T('json', { max: 60000, rotulo: 'Campos' }),
+      ordem: T('inteiro', { min: 0, max: 9999, rotulo: 'Ordem' }),
+    },
+    padroes: { tipo: 'formulario', folha: 'ficha', miolo: 'texto', preenche: 'estudio', prova: 1, ordem: 0 },
+    permissoes: PGT,
+    filtros: ['tipo'],
+    ordem: 'ordem, nome',
   },
 
   // ---------------------------------------------------------------- cláusulas do vendas (0019)
@@ -894,6 +916,7 @@ export const ROTAS = {
   'pgt-entregaveis': 'pgt_entregaveis',
   'pgt-eventos': 'pgt_eventos',
   'pgt-materiais': 'pgt_materiais',
+  'pgt-modelos': 'pgt_modelos',
   documentos: 'documentos',
   'vendas-clausulas': 'vendas_clausulas',
   colecoes: 'colecoes',

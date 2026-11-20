@@ -47,7 +47,7 @@ const PARAMETROS = {
 const PRECO_SERVICO = ['modificador', 'com_preco', 'preco_por_etapa'];
 // quem edita os honorários (o Projetos só lê)
 const HONORARIOS = { hub: 'E', vendas: 'E', maquina: 'E', projetos: 'L' };
-const ORDENAVEIS = ['bases_servicos', 'bases_categorias', 'bases_usos', 'pgt_fases', 'pgt_etapas', 'pgt_entregaveis', 'pgt_eventos', 'pgt_materiais'];
+const ORDENAVEIS = ['bases_servicos', 'bases_categorias', 'bases_usos', 'pgt_fases', 'pgt_etapas', 'pgt_entregaveis', 'pgt_eventos', 'pgt_materiais', 'pgt_modelos'];
 
 async function sha256(texto) {
   const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(texto));
@@ -158,7 +158,7 @@ export const ordemDaSequencia = (a, b) => (a.ordem - b.ordem) || ((a.tipo_passo 
   || String(a.criado_em || '').localeCompare(String(b.criado_em || '')) || a.id.localeCompare(b.id);
 
 export async function retratoPgt(env) {
-  const [fas, eta, es, ent, ens, enc, mat, evt, evs, srvs] = await env.DB.batch([
+  const [fas, eta, es, ent, ens, enc, mat, evt, evs, srvs, mod] = await env.DB.batch([
     env.DB.prepare('SELECT * FROM pgt_fases WHERE arquivado_em IS NULL ORDER BY ordem'),
     env.DB.prepare(`SELECT e.* FROM pgt_etapas e JOIN pgt_fases f ON f.id = e.fase_id
       WHERE e.arquivado_em IS NULL AND f.arquivado_em IS NULL ORDER BY f.ordem, e.ordem`),
@@ -168,11 +168,14 @@ export async function retratoPgt(env) {
       WHERE s.arquivado_em IS NULL ORDER BY x.entregavel_id, s.ordem`),
     env.DB.prepare(`SELECT x.* FROM pgt_entregaveis_categorias x JOIN bases_categorias c ON c.id = x.categoria_id
       WHERE c.arquivado_em IS NULL ORDER BY x.entregavel_id, c.ordem`),
-    env.DB.prepare('SELECT * FROM pgt_materiais WHERE arquivado_em IS NULL ORDER BY alvo_id, ordem'),
+    // 0024: a ligação a um padrão arquivado sai junto com ele
+    env.DB.prepare(`SELECT m.* FROM pgt_materiais m LEFT JOIN pgt_modelos o ON o.id = m.modelo_id
+      WHERE m.arquivado_em IS NULL AND (m.modelo_id IS NULL OR o.arquivado_em IS NULL) ORDER BY m.alvo_id, m.ordem`),
     env.DB.prepare('SELECT * FROM pgt_eventos WHERE arquivado_em IS NULL ORDER BY etapa_id, ordem, criado_em'),
     env.DB.prepare(`SELECT x.* FROM pgt_eventos_servicos x JOIN bases_servicos s ON s.id = x.servico_id
       WHERE s.arquivado_em IS NULL ORDER BY x.evento_id, s.ordem`),
     env.DB.prepare('SELECT id, dinamica FROM bases_servicos WHERE arquivado_em IS NULL ORDER BY ordem'),
+    env.DB.prepare('SELECT * FROM pgt_modelos WHERE arquivado_em IS NULL ORDER BY ordem, nome'),
   ]);
   const derivada = mapaDerivado(es.results);
   const din = Object.fromEntries(srvs.results.map((x) => [x.id, x.dinamica]));
@@ -214,7 +217,9 @@ export async function retratoPgt(env) {
       ...eventos.filter((x) => x.etapa_id === e.id && !x.encerramento).map((x) => ({ ...x, tipo_passo: 'evento' }))].sort(ordemDaSequencia);
     e.prazos = prazosDaEtapa(passos, servicos).prazos;
   }
-  return { fases: fas.results.map((r) => sem(r, 'parcela', 'acrescimo', ...SO_TELA)), etapas, entregaveis, eventos, materiais: mat.results.map((r) => sem(r)) };
+  return { fases: fas.results.map((r) => sem(r, 'parcela', 'acrescimo', ...SO_TELA)), etapas, entregaveis, eventos, materiais: mat.results.map((r) => sem(r)),
+    // 0024: padrões de material (os campos vão no retrato: o projeto preenche o padrão da versão publicada)
+    modelos: mod.results.map((r) => ({ ...sem(r), campos: lerJson(r.campos) || [] })) };
 }
 
 // Honorários: o custo sobre a estrutura (0015):
@@ -312,17 +317,18 @@ async function paginaBases(env) {
 async function paginaPgt(env) {
   const r = await retratoPgt(env);
   const b = await retratoBases(env);
-  const tabelas = ['pgt_fases', 'pgt_etapas', 'pgt_entregaveis', 'pgt_eventos', 'pgt_materiais'];
-  const res = await env.DB.batch(tabelas.map((t) => env.DB.prepare(`SELECT id, versao${t === 'pgt_materiais' ? '' : ', travado'} FROM ${t}`)));
+  const tabelas = ['pgt_fases', 'pgt_etapas', 'pgt_entregaveis', 'pgt_eventos', 'pgt_materiais', 'pgt_modelos'];
+  const res = await env.DB.batch(tabelas.map((t) => env.DB.prepare(`SELECT id, versao${['pgt_materiais', 'pgt_modelos'].includes(t) ? '' : ', travado'} FROM ${t}`)));
   const vers = Object.fromEntries(res.flatMap((x) => x.results).map((x) => [x.id, x]));
   const marcar = (l) => l.map((x) => ({ ...x, versao: vers[x.id].versao, ...('travado' in vers[x.id] ? { travado: vers[x.id].travado } : {}) }));
   const { results: arq } = await env.DB.prepare(`SELECT id, 'etapa' AS tipo, sigla || ' · ' || nome AS nome, versao, arquivado_em FROM pgt_etapas WHERE arquivado_em IS NOT NULL
     UNION ALL SELECT id, 'entregavel', texto, versao, arquivado_em FROM pgt_entregaveis WHERE arquivado_em IS NOT NULL
     UNION ALL SELECT id, 'evento', nome, versao, arquivado_em FROM pgt_eventos WHERE arquivado_em IS NOT NULL
-    UNION ALL SELECT id, 'material', nome, versao, arquivado_em FROM pgt_materiais WHERE arquivado_em IS NOT NULL
+    UNION ALL SELECT id, 'material', nome, versao, arquivado_em FROM pgt_materiais WHERE arquivado_em IS NOT NULL AND modelo_id IS NULL
+    UNION ALL SELECT id, 'padrao', nome, versao, arquivado_em FROM pgt_modelos WHERE arquivado_em IS NOT NULL
     ORDER BY arquivado_em DESC LIMIT 200`).all();
   return {
-    fases: marcar(r.fases), etapas: marcar(r.etapas), entregaveis: marcar(r.entregaveis), eventos: marcar(r.eventos), materiais: marcar(r.materiais),
+    fases: marcar(r.fases), etapas: marcar(r.etapas), entregaveis: marcar(r.entregaveis), eventos: marcar(r.eventos), materiais: marcar(r.materiais), modelos: marcar(r.modelos),
     servicos: b.servicos.map((s) => ({ id: s.id, sigla: s.sigla, nome: s.nome, ordem: s.ordem, dinamica: s.dinamica })),
     categorias: b.categorias.map((c) => ({ id: c.id, nome: c.nome, grupo: c.grupo })),
     arquivados: arq, ...(await situacao(env, 'pgt', r)),

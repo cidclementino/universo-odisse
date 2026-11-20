@@ -610,6 +610,24 @@ const bases_usos = simples('bases_usos', (o) => {
 const pgt_fases = simples('pgt_fases', (o) => conferirFaixa(o, 'parcela', 'Parcela', 0, 1));
 const pgt_etapas = simples('pgt_etapas', (o) => { conferirSigla(o); conferirFaixa(o, 'semanas_base', 'Semanas', 0, 520); });
 const pgt_materiais = simples('pgt_materiais', () => {}, 'alvo_id');
+// 0024: padrões de material — os campos são uma lista em ordem; cada um com id, tipo e rótulo
+const TIPOS_CAMPO = ['secao', 'texto', 'texto_longo', 'data', 'numero', 'escolha', 'marcar', 'tabela', 'pessoas', 'assinatura', 'automatico'];
+const AUTOMATICOS = ['projeto', 'cliente', 'endereco', 'etapa', 'cartao', 'data', 'responsavel'];
+const conferirCamposModelo = (o) => {
+  if (o.campos == null) return;
+  let l = o.campos;
+  if (typeof l === 'string') { try { l = JSON.parse(l); } catch (_) { throw new ErroApi(422, 'Campos: JSON inválido'); } }
+  if (!Array.isArray(l) || l.length > 200) throw new ErroApi(422, 'Campos: lista de até 200');
+  const ids = new Set();
+  for (const [i, c] of l.entries()) {
+    if (!c || typeof c !== 'object' || !TIPOS_CAMPO.includes(c.tipo)) throw new ErroApi(422, `Campo ${i + 1}: tipo desconhecido`);
+    if (!c.id || ids.has(c.id)) throw new ErroApi(422, `Campo ${i + 1}: id único`);
+    ids.add(c.id);
+    if (c.tipo === 'automatico' && !AUTOMATICOS.includes(c.fonte)) throw new ErroApi(422, `Campo ${i + 1}: dado automático desconhecido`);
+  }
+  o.campos = JSON.stringify(l);
+};
+const pgt_modelos = simples('pgt_modelos', conferirCamposModelo);
 
 // Sequência da etapa (0008): entregas e eventos dividem a mesma ordem. Novo item (ou item que muda de
 // etapa sem dizer a ordem) vai para o fim da sequência, antes do Encerramento.
@@ -826,7 +844,7 @@ export const REGRAS = {
   arquivos, galeria,
   documentos, equipe,
   oportunidades, propostas, contratos, projetos, horas,
-  bases_servicos, bases_categorias, bases_usos, pgt_fases, pgt_etapas, pgt_entregaveis, pgt_eventos, pgt_materiais,
+  bases_servicos, bases_categorias, bases_usos, pgt_fases, pgt_etapas, pgt_entregaveis, pgt_eventos, pgt_materiais, pgt_modelos,
 };
 
 // ---------------------------------------------------------------- painel do comercial
