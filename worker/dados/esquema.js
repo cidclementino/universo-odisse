@@ -52,7 +52,8 @@ export const PREFIXOS = {
 // 'maquina' = rotinas do GitHub Actions (token próprio); 'site' = odisse.com.br (0011: só o que é público
 // da equipe, pelas rotas equipe/publica e equipe/:id/foto); 'radar' = radar.odisse (0014: cria contatos —
 // pessoa, imobiliária e atuação de corretor — e oportunidades de terreno; não vê dados sensíveis nem propostas).
-export const FERRAMENTAS = ['hub', 'vendas', 'projetos', 'fornecedores', 'marketing', 'site', 'maquina', 'radar'];
+// 'servicos' = servicos.odisse (0022: só a lista dos serviços do PGT, pela rota bases/lista).
+export const FERRAMENTAS = ['hub', 'vendas', 'projetos', 'fornecedores', 'marketing', 'site', 'maquina', 'radar', 'servicos'];
 
 const NUCLEOS = ['estudio', 'arquitetos', 'objetos', 'elaia'];
 export const ETAPAS_FUNIL = ['lead', 'contato', 'briefing', 'proposta', 'negociacao', 'ganha', 'perdida'];
@@ -626,13 +627,16 @@ export const TABELAS = {
       descricao: T('textoLongo', { max: 2000, rotulo: 'Descrição' }),
       ordem: T('inteiro', { min: 0, max: 999, rotulo: 'Ordem' }),
       modificador: T('real', { rotulo: 'Modificador' }),
+      // 0022: serviço em fluxo (plano comum, pede tipologia) ou em ilha (plano próprio); pede_tipologia acompanha
+      dinamica: T('lista', { valores: ['fluxo', 'ilha'], rotulo: 'Dinâmica' }),
       pede_tipologia: T('sn', { rotulo: 'Pede tipologia' }),
       com_preco: T('sn', { rotulo: 'Tem preço' }),
       preco_por_etapa: T('sn', { rotulo: 'Preço repartido por etapa' }),
       ic_ajustes: T('json', { max: 4000, rotulo: 'Ajustes do índice de complexidade' }),
+      ic_padrao: T('json', { max: 4000, rotulo: 'Índice de complexidade do serviço' }),
       observacoes: T('textoLongo', { max: 4000, rotulo: 'Observações' }),
     },
-    padroes: { pede_tipologia: 1, com_preco: 1, preco_por_etapa: 0 },
+    padroes: { dinamica: 'fluxo', pede_tipologia: 1, com_preco: 1, preco_por_etapa: 0 },
     permissoes: PGT,
     editaveis_por: { vendas: ['modificador', 'com_preco', 'preco_por_etapa'] },
     filtros: [],
@@ -704,6 +708,7 @@ export const TABELAS = {
       descricao: T('textoLongo', { max: 4000, rotulo: 'Descrição (contrato)' }),
       semanas_base: T('real', { rotulo: 'Semanas' }),
       travado: T('sn', { rotulo: 'Travada' }),
+      servico_id: T('ref', { prefixos: ['srv'], rotulo: 'Serviço (etapa de ilha)' }),
     },
     padroes: { travado: 0 },
     permissoes: PGT,

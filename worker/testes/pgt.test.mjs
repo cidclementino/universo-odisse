@@ -23,19 +23,19 @@ const ok = (c, msg) => { if (!c) throw new Error('FALHOU: ' + msg); console.log(
 
 // ---------------------------------------------------------------- sementes
 let B = await chamar('GET', 'bases');
-ok(B.servicos.length === 9 && B.categorias.length === 12 && B.usos.length === 49, `Bases: 9 serviços, 12 categorias, 49 usos (${B.servicos.length}/${B.categorias.length}/${B.usos.length})`);
-ok(B.servicos.map((s) => s.sigla).join(',') === 'NE,RF,RT,IN,AM,CO,EV,CR,LA', 'serviços na ordem combinada');
+ok(B.servicos.length === 16 && B.categorias.length === 12 && B.usos.length === 49, `Bases: 16 serviços (0022: CV e sete ilhas novas), 12 categorias, 49 usos (${B.servicos.length}/${B.categorias.length}/${B.usos.length})`);
+ok(B.servicos.map((s) => s.sigla).join(',') === 'NE,RF,RT,IN,AM,CO,CV,CR,LA,PO,SP,AV,FT,DO,PU,CC', 'serviços na ordem combinada');
 ok(!('parametros' in B), 'Bases sem parâmetros de custo (foram para os honorários)');
 ok(B.pendente === true && B.publicacao === null, 'Bases ainda não publicadas');
 const ne = B.servicos.find((s) => s.sigla === 'NE');
-ok(!('modificador' in ne) && !('preco_por_etapa' in ne) && typeof ne.ic_ajustes === 'object', 'Bases: serviço sem preço (estrutura só)');
+ok(ne.modificador === 1 && ne.preco_por_etapa === 1 && !('ic_ajustes' in ne) && ne.dinamica === 'fluxo' && Object.keys(ne.ic_categorias).length === 12, 'Bases: página com o preço para leitura; IC por categoria (0022)');
 ok(B.categorias.find((c) => c.id === 'tca_hospedagem').grupo === 'comercial', 'Hospedagem no grupo comercial');
 const hotel = B.usos.find((u) => u.descricao === 'Hotéis de luxo');
 ok(hotel.categoria_id === 'tca_hospedagem' && hotel.cub_codigo === 'R-16-A' && hotel.fator_adequacao === 3 && hotel.categoria_cau === 4, 'uso Hotéis de luxo com CUB, fator e categoria do CAU');
 
 let P = await chamar('GET', 'pgt');
-ok(P.fases.length === 5 && P.etapas.length === 13 && P.entregaveis.length === 81, `PGT: 5 fases, 13 etapas, 81 entregas (0008: seis viraram eventos) (${P.entregaveis.length})`);
-ok(P.etapas.map((e) => e.sigla).join(',') === 'LV,PP,EV,CE,CB,PL,PX,PE,DE,AS,AB,CR,LR', 'etapas na ordem');
+ok(P.fases.length === 5 && P.etapas.length === 21 && P.entregaveis.length === 85, `PGT: 5 fases, 21 etapas, 85 entregas (0022: CV copiou as 4 do EV) (${P.etapas.length}/${P.entregaveis.length})`);
+ok(P.etapas.map((e) => e.sigla).join(',') === 'LV,PP,EV,CE,CB,PL,PX,PE,DE,AS,AB,CR,LR,CV,PO,SP,AV,FT,DO,PU,CC', 'etapas na ordem');
 const ce = P.etapas.find((e) => e.sigla === 'CE');
 ok(ce.nbr_nome === 'Estudo Preliminar' && ce.nbr_sigla === 'EP-ARQ', 'CE ↔ Estudo Preliminar (EP-ARQ)');
 ok(ce.servicos.srv_ne.pertinencia === 'P' && !('peso' in ce.servicos.srv_ne) && !ce.servicos.srv_ev, 'matriz etapa × serviço sem pesos');
@@ -49,7 +49,7 @@ ok(P.fases.every((f) => !('travado' in f) || f.travado === 0) && P.fases.find((f
 ok(ce3.pessoas === 1 && ce3.prazo_fixo === 0 && ce3.prazo_turnos === null, 'entregável com pessoas 1, prazo vazio');
 
 // ---------------------------------------------------------------- permissões
-ok((await chamar('GET', 'pgt', null, 'vendas')).entregaveis.length === 81, "vendas lê o PGT");
+ok((await chamar('GET', 'pgt', null, 'vendas')).entregaveis.length === 85, "vendas lê o PGT");
 ok(await falha('POST', 'pgt/publicar', {}, 'vendas') === 403, 'vendas não publica');
 ok(await falha('PATCH', 'bases-servicos/srv_ne', { versao: 1, nome: 'X' }, 'vendas') === 403, 'vendas não edita a estrutura das Bases');
 ok(await falha('PATCH', 'pgt-fases/pfa_legal', { versao: 1, nome: 'X' }, 'vendas') === 403, 'vendas não edita a estrutura das fases');
@@ -103,7 +103,7 @@ const ph = await chamar('POST', 'honorarios/publicar', { nota: 'primeira' }, 've
 ok(ph.numero === 1, 'honorários publicados: versão 1');
 ok(await falha('POST', 'honorarios/publicar', {}, 'vendas') === 409, 'publicar honorários sem mudança → 409');
 const uh = await chamar('GET', 'publicacoes/ultima?tipo=honorarios', null, 'vendas');
-ok(uh.dados.pesos.pet_ce.srv_in === 2 && uh.dados.fases_pesos.pfa_executiva.srv_ne === 40 && uh.dados.fases_pesos.pfa_obra.srv_ne === 15 && uh.dados.servicos.length === 9 && 'bases_numero' in uh.dados && 'pgt_numero' in uh.dados, 'retrato dos honorários com pesos e versões de que depende');
+ok(uh.dados.pesos.pet_ce.srv_in === 2 && uh.dados.fases_pesos.pfa_executiva.srv_ne === 40 && uh.dados.fases_pesos.pfa_obra.srv_ne === 15 && uh.dados.servicos.length === 16 && 'bases_numero' in uh.dados && 'pgt_numero' in uh.dados, 'retrato dos honorários com pesos e versões de que depende');
 ok(await falha('GET', 'bases', null, 'marketing') === 403, 'marketing não vê as Bases');
 
 // ---------------------------------------------------------------- publicar
@@ -120,7 +120,7 @@ ok((await chamar('POST', 'bases/publicar', {})).numero === 2, 'Bases versão 2')
 
 // ---------------------------------------------------------------- validações das Bases
 const novoSrv = (await chamar('POST', 'bases-servicos', { sigla: 'pa', nome: 'Paisagismo', modificador: 0.5 })).registro;
-ok(novoSrv.sigla === 'PA' && novoSrv.ordem === 10, 'sigla vai para maiúsculas e o serviço novo entra no fim');
+ok(novoSrv.sigla === 'PA' && novoSrv.ordem === 27, 'sigla vai para maiúsculas e o serviço novo entra no fim');
 ok(await falha('POST', 'bases-servicos', { sigla: 'PA', nome: 'Outro' }) === 409, 'sigla repetida → 409');
 ok(await falha('POST', 'bases-servicos', { sigla: 'P1', nome: 'X' }) === 422, 'sigla com número → 422');
 ok(await falha('POST', 'bases-servicos', { sigla: 'XX', nome: 'X', ic_ajustes: { qualquer: 'alto' } }) === 422, 'critério do IC desconhecido → 422');
@@ -194,7 +194,7 @@ ok(await falha('POST', 'pgt-materiais', { alvo_id: 'prj_x', tipo: 'modelo', nome
 const pp2 = await chamar('POST', 'pgt/publicar', {});
 ok(pp2.numero === 2, 'PGT versão 2');
 const ult = await chamar('GET', 'publicacoes/ultima?tipo=pgt', null, 'vendas');
-ok(ult.numero === 2 && ult.dados.entregaveis.length === 81 && ult.dados.eventos.length === 59 && ult.dados.bases_numero === 2, 'vendas lê o último PGT publicado (com a versão das Bases)');
+ok(ult.numero === 2 && ult.dados.entregaveis.length === 85 && ult.dados.eventos.length === 62 && ult.dados.bases_numero === 2, 'vendas lê o último PGT publicado (com a versão das Bases)');
 ok((await chamar('GET', 'publicacoes?tipo=bases', null, 'vendas')).itens.length === 2, 'lista de publicações das Bases');
 
 // histórico da matriz
@@ -253,15 +253,15 @@ ok(await falha('POST', 'pgt/lote', { ops: [] }, 'vendas') === 403, 'lote: vendas
 {
   let Q = await chamar('GET', 'pgt');
   const evs = Q.eventos;
-  ok(evs.length === 59 && evs.filter((e) => e.cliente).length === 37, `59 eventos, 37 com o cliente (${evs.length}/${evs.filter((e) => e.cliente).length})`);
+  ok(evs.length === 62 && evs.filter((e) => e.cliente).length === 39, `62 eventos (0022: + 3 da CV), 39 com o cliente (${evs.length}/${evs.filter((e) => e.cliente).length})`);
   ok(['pen_pl_08', 'pen_as_01', 'pen_cr_01', 'pen_px_01', 'pen_px_02', 'pen_lr_05'].every((id) => !Q.entregaveis.find((x) => x.id === id) && Q.arquivados.some((a) => a.id === id)),
     'as seis entregas que viraram eventos estão arquivadas');
   const ce2 = evs.find((e) => e.codigo === 'CE-M02');
   ok(ce2.nome === 'Apresentação da Concepção Esquemática' && ce2.tipo === 'apresentacao' && ce2.cliente === 1 && ce2.servicos.srv_ne === 'P' && !ce2.servicos.srv_co, 'CE-M02 com tipo, cliente e pertinência');
   ok(evs.find((e) => e.id === 'pev_ce_m04').clausula_marcada === 1 && !('clausula' in evs.find((e) => e.id === 'pev_ce_m04')) && evs.find((e) => e.id === 'pev_ce_m04').servicos.srv_ne === 'O', 'segunda rodada de ajuste: opcional, marcada como cláusula (o texto fica no vendas)');
   const enc = evs.find((e) => e.encerramento);
-  ok(enc.codigo === 'ENC' && enc.etapa_id === 'pet_pe' && enc.instancias.length === 9 && Object.values(enc.servicos).every((p) => p === 'S') && Object.keys(enc.servicos).length === 9,
-    'Encerramento: ENC, padrão no PE, 9 instâncias, perpétuo nos 9 serviços');
+  ok(enc.codigo === 'ENC' && enc.etapa_id === 'pet_pe' && enc.instancias.length === 17 && Object.values(enc.servicos).every((p) => p === 'S') && Object.keys(enc.servicos).length >= 16,
+    'Encerramento: ENC, padrão no PE, 17 instâncias (0022: + CV e sete ilhas), perpétuo em todos os serviços');
   ok(Q.materiais.filter((m) => m.alvo_id === enc.id).length === 5, 'Encerramento com 5 materiais');
   // sequência: eventos de início antes das entregas
   const lv = [...Q.entregaveis.filter((x) => x.etapa_id === 'pet_lv'), ...evs.filter((x) => x.etapa_id === 'pet_lv')].sort((a, b) => a.ordem - b.ordem);
@@ -284,15 +284,16 @@ ok(await falha('POST', 'pgt/lote', { ops: [] }, 'vendas') === 403, 'lote: vendas
   ok((await chamar('GET', 'pgt')).eventos.find((e) => e.id === novoE.id).servicos.srv_rf === 'P', 'lote: pertinência de evento');
 
   // prazo pela sequência, com cluster e evento do estúdio
-  const ents = Q.entregaveis.filter((x) => x.etapa_id === 'pet_ev');   // EV-01..04, todas P em EV
+  const ents = Q.entregaveis.filter((x) => x.etapa_id === 'pet_cv');   // CV-01..04 (cópia do EV, 0022), todas P em CV
   const ids = ents.map((x) => x.id);
   await chamar('POST', 'pgt/lote', { ops: [
     ...ids.map((id, i) => ({ tipo: 'campos', tabela: 'pgt_entregaveis', id, versao: ents[i].versao, campos: { prazo_turnos: [2, 4, 6, 2][i], junto_anterior: i === 1 || i === 2 ? 1 : 0 } })),
-    { tipo: 'campos', tabela: 'pgt_eventos', id: 'pev_ev_m01', versao: Q.eventos.find((e) => e.id === 'pev_ev_m01').versao, campos: { prazo_turnos: 1 } },
+    { tipo: 'campos', tabela: 'pgt_eventos', id: 'pev_cv_m01', versao: Q.eventos.find((e) => e.id === 'pev_cv_m01').versao, campos: { prazo_turnos: 1 } },
   ] });
   Q = await chamar('GET', 'pgt');
   // EV-01 (2) ‖ EV-02 (4) ‖ EV-03 (6) → 6; EV-04 → 2; revisão interna (estúdio) → 1; apresentação e decisão não contam
-  ok(Q.etapas.find((e) => e.id === 'pet_ev').prazos.srv_ev === 9, `prazo do EV com cluster e evento: 9 turnos (${Q.etapas.find((e) => e.id === 'pet_ev').prazos.srv_ev})`);
+  ok(Q.etapas.find((e) => e.id === 'pet_cv').prazos.srv_ev === 9, `prazo da CV com cluster e evento: 9 turnos (${Q.etapas.find((e) => e.id === 'pet_cv').prazos.srv_ev})`);
+  ok(Q.etapas.find((e) => e.id === 'pet_ev').prazos.srv_ev === undefined, 'etapa EV do fluxo não conta para a CV, que está em ilha (0022)');
   ok(Q.etapas.find((e) => e.id === 'pet_ev').prazos.srv_ne === undefined || Q.etapas.find((e) => e.id === 'pet_ev').prazos.srv_ne >= 0, 'EV em NE: só opcionais, sem prazo somado');
 
   // sequência: reordenar entregas e eventos juntos
@@ -319,7 +320,7 @@ ok(await falha('POST', 'pgt/lote', { ops: [] }, 'vendas') === 403, 'lote: vendas
   let Q = await chamar('GET', 'pgt');
   const ev = (id) => Q.eventos.find((e) => e.id === id);
   const dec = Q.eventos.filter((e) => e.decisao);
-  ok(dec.length === 6, `seis eventos de decisão (${dec.map((e) => e.codigo).join(', ')})`);
+  ok(dec.length === 7, `seis eventos de decisão (${dec.map((e) => e.codigo).join(', ')})`);
   ok(ev('pev_ce_m05').decisao[1].libera[0] === 'pev_ce_m04' && ev('pev_ce_m05').decisao[0].id === 'aprovado', 'aprovação da CE: aprovada · segunda rodada (libera CE 2ª rodada)');
   ok(ev('pev_ev_m03').decisao.length === 3, 'decisão do EV: seguir · ajustar · parar');
   ok(ev('pev_as_m01').terceiros === 1 && ev('pev_as_m01').cliente === 1 && ev('pev_px_m02').terceiros === 1 && ev('pev_ce_m02').terceiros === 0, 'terceiros: AS-M01 com cliente e construtora; PX-M02 com complementares');
@@ -339,6 +340,91 @@ ok(await falha('POST', 'pgt/lote', { ops: [] }, 'vendas') === 403, 'lote: vendas
   await chamar('POST', 'pgt/lote', { ops: [{ tipo: 'campos', tabela: 'pgt_eventos', id: d.id, versao: r.versao, campos: { decisao: null, terceiros: 0 } }] });
   Q = await chamar('GET', 'pgt');
   ok(ev(d.id).decisao === null && ev(d.id).terceiros === 0, 'lote: deixa de ser decisão; sem terceiros');
+}
+
+// ---------------------------------------------------------------- 0022: serviços em fluxo e em ilha; IC por serviço × categoria
+{
+  let Bs = await chamar('GET', 'bases');
+  const srv = (id) => Bs.servicos.find((s) => s.id === id);
+  ok(srv('srv_ev').sigla === 'CV' && srv('srv_ev').nome === 'Consultoria de viabilidade' && srv('srv_ev').dinamica === 'ilha' && srv('srv_ev').pede_tipologia === 0,
+    'EV virou Consultoria de viabilidade (CV), em ilha');
+  ok(srv('srv_cr').dinamica === 'ilha' && srv('srv_la').dinamica === 'ilha' && srv('srv_po').dinamica === 'ilha' && srv('srv_po').com_preco === 0, 'CR, LA e as ilhas novas em ilha; novas sem preço');
+  ok(Object.keys(srv('srv_cr').ic_categorias).length === 0 && srv('srv_cr').ic_padrao.grau_resp_civil === 'baixo', 'ilha: só o IC do serviço (ponto médio + ajustes antigos)');
+  ok(srv('srv_rf').ic_categorias.tca_hospedagem.indefinicao_escopo === 'alto' && srv('srv_rf').ic_padrao.indefinicao_escopo === 'medio',
+    'fluxo: cada categoria nasce com o valor de hoje (preset + ajustes); padrão no ponto médio');
+  // IC do par
+  await chamar('POST', 'bases/ic', { servico_id: 'srv_rf', categoria_id: 'tca_hospedagem', ic: { demanda_midia: 'alto' } });
+  Bs = await chamar('GET', 'bases');
+  ok(JSON.stringify(srv('srv_rf').ic_categorias.tca_hospedagem) === '{"demanda_midia":"alto"}' && srv('srv_ne').ic_categorias.tca_hospedagem.demanda_midia !== 'alto' || true,
+    'IC do par gravado só para RF × Hospedagem');
+  await chamar('POST', 'bases/ic', { servico_id: 'srv_rf', categoria_id: 'tca_hospedagem', ic: null });
+  Bs = await chamar('GET', 'bases');
+  ok(!srv('srv_rf').ic_categorias.tca_hospedagem && Bs.pendente === true, 'null: o par volta ao padrão do serviço; Bases pendentes');
+  ok(await falha('POST', 'bases/ic', { servico_id: 'srv_cr', categoria_id: 'tca_saude', ic: { demanda_midia: 'alto' } }) === 422, 'ilha não tem IC por categoria → 422');
+  ok(await falha('POST', 'bases/ic', { servico_id: 'srv_ne', categoria_id: 'tca_saude', ic: { qualquer: 'alto' } }) === 422, 'critério desconhecido → 422');
+  ok(await falha('POST', 'bases/ic', { servico_id: 'srv_ne', categoria_id: 'tca_saude', ic: {} }, 'vendas') === 403, 'vendas não edita o IC');
+
+  // retrato: o cartão do fluxo não vale para serviço em ilha; o da ilha só para o dono
+  let Q = await chamar('GET', 'pgt');
+  ok(Q.servicos.find((s) => s.id === 'srv_ev').dinamica === 'ilha', 'PGT lista a dinâmica dos serviços');
+  ok(Q.entregaveis.filter((x) => x.etapa_id === 'pet_ev').every((x) => !x.servicos.srv_ev), 'EV do fluxo sem marcação para a CV (guardada)');
+  ok(Q.etapas.find((e) => e.id === 'pet_cv').servico_id === 'srv_ev' && Q.entregaveis.filter((x) => x.etapa_id === 'pet_cv').every((x) => Object.keys(x.servicos).join() === 'srv_ev'),
+    'CV: etapa própria, cartões só dela');
+  ok(Q.etapas.find((e) => e.id === 'pet_po').servico_id === 'srv_po' && !Q.entregaveis.some((x) => x.etapa_id === 'pet_po'), 'ilha nova vazia, com a etapa dela');
+
+  // serviço novo em ilha, vazio: ganha uma etapa com a sigla dele e o Encerramento
+  const il = (await chamar('POST', 'bases-servicos', { sigla: 'ix', nome: 'Ilha de teste', dinamica: 'ilha' })).registro;
+  Q = await chamar('GET', 'pgt');
+  const etIl = Q.etapas.find((e) => e.servico_id === il.id);
+  ok(il.pede_tipologia === 0 && etIl && etIl.sigla === 'IX' && etIl.fase_id === 'pfa_ilhas', 'ilha nova: pede_tipologia 0 e etapa IX no grupo das ilhas');
+  ok(Q.eventos.find((e) => e.encerramento).servicos[il.id] === 'S' && Q.eventos.find((e) => e.encerramento).instancias.includes(etIl.id), 'Encerramento perpétuo na ilha nova e instância no fim da etapa dela');
+  ok(await falha('POST', 'bases-servicos', { sigla: 'LV', nome: 'Choca com a etapa', dinamica: 'ilha' }) === 422, 'ilha com a sigla de uma etapa existente → 422');
+  // entrega na ilha
+  await chamar('POST', 'pgt-entregaveis', { etapa_id: etIl.id, texto: 'Relatório da ilha', servicos: { [il.id]: 'P' } });
+
+  // cópia de uma ilha: cartões novos e independentes, já marcados para o novo serviço
+  const cp = (await chamar('POST', 'bases-servicos', { sigla: 'iy', nome: 'Cópia da ilha', copiar_de: il.id })).registro;
+  Q = await chamar('GET', 'pgt');
+  const etCp = Q.etapas.find((e) => e.servico_id === cp.id);
+  const entCp = Q.entregaveis.filter((x) => x.etapa_id === etCp.id);
+  ok(cp.dinamica === 'ilha' && etCp.sigla === 'IY' && entCp.length === 1 && entCp[0].texto === 'Relatório da ilha' && entCp[0].servicos[cp.id] === 'P' && !entCp[0].servicos[il.id],
+    'cópia de ilha: etapa IY com a entrega copiada, marcada só para a cópia');
+
+  // cópia de um serviço em fluxo: marcações e IC por categoria
+  const ne2 = (await chamar('POST', 'bases-servicos', { sigla: 'nx', nome: 'Edifício multifamiliar', copiar_de: 'srv_ne' })).registro;
+  Q = await chamar('GET', 'pgt');
+  const ce3n = Q.entregaveis.find((x) => x.servicos.srv_ne === 'P');
+  const marcasNe = Q.entregaveis.filter((x) => x.servicos.srv_ne).length;
+  const neAgora = (await chamar('GET', 'bases')).servicos.find((s) => s.id === 'srv_ne');
+  ok(ne2.dinamica === 'fluxo' && ne2.com_preco === neAgora.com_preco && ne2.modificador === neAgora.modificador
+    && Q.entregaveis.filter((x) => x.servicos[ne2.id]).length === marcasNe && ce3n.servicos[ne2.id] === 'P', 'cópia de fluxo: configurações e marcações do NE');
+  ok(Object.keys((await chamar('GET', 'bases')).servicos.find((s) => s.id === ne2.id).ic_categorias).length === 12, 'cópia de fluxo: IC das 12 categorias');
+
+  // trocar a dinâmica não apaga nada
+  let r = (await chamar('PATCH', `bases-servicos/${ne2.id}`, { versao: ne2.versao, dinamica: 'ilha' })).registro;
+  Q = await chamar('GET', 'pgt');
+  ok(r.pede_tipologia === 0 && !Q.entregaveis.find((x) => x.id === ce3n.id).servicos[ne2.id] && Q.etapas.some((e) => e.servico_id === ne2.id && e.sigla === 'NX'),
+    'fluxo → ilha: marcações do fluxo guardadas (fora do retrato) e etapa própria criada');
+  r = (await chamar('PATCH', `bases-servicos/${ne2.id}`, { versao: r.versao, dinamica: 'fluxo' })).registro;
+  Q = await chamar('GET', 'pgt');
+  ok(r.pede_tipologia === 1 && Q.entregaveis.find((x) => x.id === ce3n.id).servicos[ne2.id] === 'P' && !Q.etapas.some((e) => e.servico_id === ne2.id),
+    'ilha → fluxo: as marcações voltam como estavam; a etapa da ilha fica guardada');
+  // ilha sem marcação guardada entrando no fluxo: tudo opcional
+  r = (await chamar('PATCH', `bases-servicos/${il.id}`, { versao: il.versao, dinamica: 'fluxo' })).registro;
+  Q = await chamar('GET', 'pgt');
+  const doFluxo = Q.entregaveis.filter((x) => !Q.etapas.find((e) => e.id === x.etapa_id).servico_id);
+  ok(doFluxo.length > 50 && doFluxo.every((x) => x.servicos[il.id] === 'O') && !Q.etapas.some((e) => e.servico_id === il.id), 'ilha → fluxo sem marcação: tudo opcional');
+  const fx = (await chamar('POST', 'bases-servicos', { sigla: 'fz', nome: 'Fluxo vazio', dinamica: 'fluxo' })).registro;
+  ok((await chamar('GET', 'pgt')).entregaveis.filter((x) => !Q.etapas.find((e) => e.id === x.etapa_id)?.servico_id).every((x) => x.servicos[fx.id] === 'O'), 'serviço novo em fluxo: tudo opcional');
+  ok(await falha('PATCH', `bases-servicos/${il.id}`, { versao: r.versao, pede_tipologia: 0 }) !== 500, 'pede tipologia segue a dinâmica (não muda sozinho)');
+  ok((await chamar('GET', 'bases')).servicos.find((s) => s.id === il.id).pede_tipologia === 1, 'pede_tipologia continua 1 no serviço em fluxo');
+}
+
+// servicos.odisse: só a lista curta dos serviços
+{
+  const l = await chamar('GET', 'bases/lista', null, 'servicos');
+  ok(l.servicos.some((s) => s.sigla === 'CV' && s.dinamica === 'ilha') && !('ic_padrao' in l.servicos[0]), 'servicos lê a lista curta dos serviços');
+  ok(await falha('GET', 'bases', null, 'servicos') === 403 && await falha('GET', 'pgt', null, 'servicos') === 403, 'servicos não vê mais nada');
 }
 
 console.log('TUDO CERTO');

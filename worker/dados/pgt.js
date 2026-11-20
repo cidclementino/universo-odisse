@@ -17,6 +17,11 @@
 //   POST pgt/sequencia             { etapa_id, ids: [pen_…/pev_…] }  (entregas e eventos na mesma ordem; 0008)
 //   POST pgt/lote                  { ops: [{ tipo: 'campos'|'entregaveis-servicos'|'eventos-servicos'|'entregaveis-categorias'|'ordem'|'sequencia', … }] }  (até 500)
 //   POST bases/faixas-prazo        { faixas: [{ ate: 150, mult: 1 }, …, { ate: null, mult: 2.4 }] }  (0008)
+//   POST bases/ic                  { servico_id, categoria_id, ic: { critério: nível } | null }  (0022: IC próprio do par; null = volta ao padrão)
+//
+// 0022 — serviços em fluxo e em ilha: nos retratos (e nas páginas), a marcação de um cartão só vale para o serviço
+// se ele estiver na dinâmica do cartão: cartão do fluxo (etapa sem dono) → serviço em fluxo; cartão de ilha
+// (etapa com dono) → o próprio dono, se estiver em ilha. Etapa de ilha cujo dono saiu da ilha fica fora (guardada).
 //   POST bases/publicar | pgt/publicar  { nota }  -> retrato numerado (409 nada_mudou se igual ao último)
 //   GET  honorarios                          -> preço dos serviços, fases com parcela, etapas com pesos, parâmetros
 //   POST honorarios/pesos       { etapa_id, servico_id, peso }   fator 1 ou 2 da etapa na fase (só onde a etapa vale)
@@ -74,24 +79,39 @@ function conferirFaixas(l) {
 }
 
 export async function retratoBases(env) {
-  const [srv, cat, uso] = await env.DB.batch([
+  const [srv, cat, uso, ic] = await env.DB.batch([
     env.DB.prepare('SELECT * FROM bases_servicos WHERE arquivado_em IS NULL ORDER BY ordem, nome'),
     env.DB.prepare('SELECT * FROM bases_categorias WHERE arquivado_em IS NULL ORDER BY ordem, nome'),
     env.DB.prepare(`SELECT u.* FROM bases_usos u JOIN bases_categorias c ON c.id = u.categoria_id
       WHERE u.arquivado_em IS NULL AND c.arquivado_em IS NULL ORDER BY c.ordem, u.ordem`),
+    env.DB.prepare(`SELECT x.servico_id, x.categoria_id, x.ic FROM bases_ic x JOIN bases_categorias c ON c.id = x.categoria_id
+      WHERE c.arquivado_em IS NULL ORDER BY x.servico_id, c.ordem`),
   ]);
+  // 0022: IC = padrão do serviço; em fluxo, o da categoria passa por cima (ic_preset e ic_ajustes ficam sem uso)
+  const icCat = {};
+  for (const x of ic.results) (icCat[x.servico_id] ||= {})[x.categoria_id] = lerJson(x.ic) || {};
   return {
-    servicos: srv.results.map((r) => ({ ...sem(r, ...PRECO_SERVICO), ic_ajustes: lerJson(r.ic_ajustes) || {} })),
-    categorias: cat.results.map((r) => ({ ...sem(r), ic_preset: lerJson(r.ic_preset) || {} })),
+    servicos: srv.results.map((r) => ({ ...sem(r, ...PRECO_SERVICO, 'ic_ajustes'), ic_padrao: lerJson(r.ic_padrao) || {},
+      ic_categorias: r.dinamica === 'fluxo' ? icCat[r.id] || {} : {} })),
+    categorias: cat.results.map((r) => sem(r, 'ic_preset')),
     usos: uso.results.map((r) => sem(r)),
     faixas_prazo: lerJson((await env.DB.prepare("SELECT valor FROM bases_parametros WHERE chave = 'faixas_prazo'").first())?.valor) || [],
   };
 }
 
 // Pertinência da etapa × serviço, calculada dos entregáveis (0007): P se algum entregável é P; O se só há O.
+// 0022: só conta a marcação do serviço na dinâmica do cartão (ver vale(), abaixo).
 const SQL_PERT_DERIVADA = `SELECT e.etapa_id, x.servico_id, MAX(CASE x.pertinencia WHEN 'P' THEN 2 ELSE 1 END) AS n
   FROM pgt_entregaveis e JOIN pgt_entregaveis_servicos x ON x.entregavel_id = e.id JOIN bases_servicos s ON s.id = x.servico_id
-  WHERE e.arquivado_em IS NULL AND s.arquivado_em IS NULL GROUP BY e.etapa_id, x.servico_id`;
+  JOIN pgt_etapas t ON t.id = e.etapa_id
+  WHERE e.arquivado_em IS NULL AND s.arquivado_em IS NULL
+    AND ((t.servico_id IS NULL AND s.dinamica = 'fluxo') OR (t.servico_id = s.id AND s.dinamica = 'ilha'))
+  GROUP BY e.etapa_id, x.servico_id`;
+// A marcação do cartão (de uma etapa com dono ou sem) vale para este serviço?
+//   din = { srv: 'fluxo'|'ilha' } dos serviços ativos; dono = servico_id da etapa (ou nulo).
+const vale = (din, dono, srv) => (dono ? srv === dono && din[srv] === 'ilha' : din[srv] === 'fluxo');
+// etapa de ilha cujo dono saiu da ilha (ou foi arquivado): fica guardada, fora dos retratos e das telas
+const etapaVisivel = (din, e) => !e.servico_id || din[e.servico_id] === 'ilha';
 const mapaDerivado = (rows) => {
   const m = {};
   for (const r of rows) (m[r.etapa_id] ||= {})[r.servico_id] = r.n === 2 ? 'P' : 'O';
@@ -152,14 +172,20 @@ export async function retratoPgt(env) {
     env.DB.prepare('SELECT * FROM pgt_eventos WHERE arquivado_em IS NULL ORDER BY etapa_id, ordem, criado_em'),
     env.DB.prepare(`SELECT x.* FROM pgt_eventos_servicos x JOIN bases_servicos s ON s.id = x.servico_id
       WHERE s.arquivado_em IS NULL ORDER BY x.evento_id, s.ordem`),
-    env.DB.prepare('SELECT id FROM bases_servicos WHERE arquivado_em IS NULL ORDER BY ordem'),
+    env.DB.prepare('SELECT id, dinamica FROM bases_servicos WHERE arquivado_em IS NULL ORDER BY ordem'),
   ]);
   const derivada = mapaDerivado(es.results);
+  const din = Object.fromEntries(srvs.results.map((x) => [x.id, x.dinamica]));
+  const etapasVivas = eta.results.filter((e) => etapaVisivel(din, e));
+  const donoDe = Object.fromEntries(etapasVivas.map((e) => [e.id, e.servico_id || null]));
   const porEnt = {};
   for (const x of ens.results) (porEnt[x.entregavel_id] ||= {})[x.servico_id] = x.pertinencia;
   const catEnt = {};
   for (const x of enc.results) (catEnt[x.entregavel_id] ||= []).push(x.categoria_id);
-  const etapas = eta.results.map((e) => ({ ...sem(e, ...SO_TELA, 'semanas_base'),
+  // só as marcações que valem (serviço na dinâmica do cartão); o Encerramento vale para todos
+  const filtrar = (etapaId, m, perpetuo = false) => Object.fromEntries(Object.entries(m || {})
+    .filter(([srv]) => (perpetuo ? din[srv] : vale(din, donoDe[etapaId], srv))));
+  const etapas = etapasVivas.map((e) => ({ ...sem(e, ...SO_TELA, 'semanas_base'),
     servicos: Object.fromEntries(Object.entries(derivada[e.id] || {}).map(([k, p]) => [k, { pertinencia: p }])) }));
   const sigla = Object.fromEntries(etapas.map((e) => [e.id, e.sigla]));
   // código = sigla da etapa + posição (CE-03); entregáveis de etapa arquivada ficam fora do retrato
@@ -167,7 +193,7 @@ export async function retratoPgt(env) {
   const entregaveis = ent.results.filter((r) => sigla[r.etapa_id]).map((r) => {
     pos[r.etapa_id] = (pos[r.etapa_id] || 0) + 1;
     return { ...sem(r, ...SO_TELA), codigo: `${sigla[r.etapa_id]}-${String(pos[r.etapa_id]).padStart(2, '0')}`,
-      servicos: porEnt[r.id] || {}, categorias: catEnt[r.id] || [] };
+      servicos: filtrar(r.etapa_id, porEnt[r.id]), categorias: catEnt[r.id] || [] };
   });
   // eventos: código = sigla da etapa + M + posição (CE-M02); o Encerramento é ENC
   const porEvt = {};
@@ -177,7 +203,9 @@ export async function retratoPgt(env) {
     let codigo = 'ENC';
     if (!r.encerramento) { posM[r.etapa_id] = (posM[r.etapa_id] || 0) + 1; codigo = `${sigla[r.etapa_id]}-M${String(posM[r.etapa_id]).padStart(2, '0')}`; }
     // 0019: o texto da cláusula é do vendas (vai no retrato dos Honorários); aqui fica só a marca
-    return { ...sem(r, ...SO_TELA, 'clausula'), codigo, instancias: lerJson(r.instancias), decisao: lerJson(r.decisao), servicos: porEvt[r.id] || {} };
+    const instancias = lerJson(r.instancias);
+    return { ...sem(r, ...SO_TELA, 'clausula'), codigo, instancias: Array.isArray(instancias) ? instancias.filter((x) => sigla[x]) : instancias,
+      decisao: lerJson(r.decisao), servicos: filtrar(r.etapa_id, porEvt[r.id], !!r.encerramento) };
   });
   // prazo da etapa por serviço, em turnos, pela sequência (ver prazosDaEtapa)
   const servicos = srvs.results.map((x) => x.id);
@@ -264,17 +292,19 @@ async function paginaBases(env) {
   const r = await retratoBases(env);
   // a página mostra também os arquivados (para restaurar) e as versões dos registros (para editar)
   const [srv, cat, uso] = await env.DB.batch([
-    env.DB.prepare('SELECT id, versao, arquivado_em FROM bases_servicos'),
+    env.DB.prepare(`SELECT id, versao, arquivado_em, ${PRECO_SERVICO.join(', ')} FROM bases_servicos`),
     env.DB.prepare('SELECT id, versao, arquivado_em FROM bases_categorias'),
     env.DB.prepare('SELECT id, versao, arquivado_em FROM bases_usos'),
   ]);
   const vers = Object.fromEntries([...srv.results, ...cat.results, ...uso.results].map((x) => [x.id, x.versao]));
   const marcar = (l) => l.map((x) => ({ ...x, versao: vers[x.id] }));
+  // o preço é do vendas: aqui só para mostrar (e o "com preço", que o Projetos também muda)
+  const preco = Object.fromEntries(srv.results.map((x) => [x.id, Object.fromEntries(PRECO_SERVICO.map((k) => [k, x[k]]))]));
   const { results: arq } = await env.DB.prepare(`SELECT id, 'servico' AS tipo, nome AS nome, versao, arquivado_em FROM bases_servicos WHERE arquivado_em IS NOT NULL
     UNION ALL SELECT id, 'categoria', nome, versao, arquivado_em FROM bases_categorias WHERE arquivado_em IS NOT NULL
     UNION ALL SELECT id, 'uso', descricao, versao, arquivado_em FROM bases_usos WHERE arquivado_em IS NOT NULL`).all();
   return {
-    servicos: marcar(r.servicos), categorias: marcar(r.categorias), usos: marcar(r.usos), faixas_prazo: r.faixas_prazo,
+    servicos: marcar(r.servicos).map((x) => ({ ...x, ...preco[x.id] })), categorias: marcar(r.categorias), usos: marcar(r.usos), faixas_prazo: r.faixas_prazo,
     arquivados: arq, ...(await situacao(env, 'bases', r)),
   };
 }
@@ -293,7 +323,7 @@ async function paginaPgt(env) {
     ORDER BY arquivado_em DESC LIMIT 200`).all();
   return {
     fases: marcar(r.fases), etapas: marcar(r.etapas), entregaveis: marcar(r.entregaveis), eventos: marcar(r.eventos), materiais: marcar(r.materiais),
-    servicos: b.servicos.map((s) => ({ id: s.id, sigla: s.sigla, nome: s.nome, ordem: s.ordem })),
+    servicos: b.servicos.map((s) => ({ id: s.id, sigla: s.sigla, nome: s.nome, ordem: s.ordem, dinamica: s.dinamica })),
     categorias: b.categorias.map((c) => ({ id: c.id, nome: c.nome, grupo: c.grupo })),
     arquivados: arq, ...(await situacao(env, 'pgt', r)),
   };
@@ -361,6 +391,46 @@ async function pesoFase(env, ferramenta, c) {
     hist(env, c.fase_id, 'pgt_fases', ferramenta, { [`peso:${c.servico_id}`]: [antes.peso ?? null, peso] }),
   ]);
   return { ok: true, fase_id: c.fase_id, servico_id: c.servico_id, peso };
+}
+
+// Lista curta dos serviços (0022): para o servicos.odisse ligar cada produto do catálogo a um serviço do PGT.
+export async function listaDeServicos(env) {
+  const { results } = await env.DB.prepare(`SELECT id, sigla, nome, dinamica, com_preco FROM bases_servicos
+    WHERE arquivado_em IS NULL ORDER BY ordem, nome`).all();
+  return { servicos: results };
+}
+
+// ---------------------------------------------------------------- IC por serviço × categoria (0022)
+// Só para serviço em fluxo. ic = { critério: nível } (parcial: o que faltar vem do padrão do serviço); null = sem valor próprio.
+const CRITERIOS = ['qtd_especialistas', 'qtd_aprovacoes', 'grau_resp_civil', 'grau_intervencao_cliente', 'expectativa_plastica',
+  'grau_controle_custo', 'indefinicao_escopo', 'indefinicao_prazo', 'demanda_midia'];
+async function icDoPar(env, ferramenta, c) {
+  const s = await env.DB.prepare('SELECT id, dinamica FROM bases_servicos WHERE id = ? AND arquivado_em IS NULL').bind(String(c.servico_id || '')).first();
+  if (!s) throw new ErroApi(422, 'Serviço: não encontrado');
+  if (s.dinamica !== 'fluxo') throw new ErroApi(422, 'serviço em ilha não tem índice por categoria (vale o do serviço)');
+  await ativo(env, 'bases_categorias', c.categoria_id, 'Categoria');
+  let ic = null;
+  if (c.ic !== null && c.ic !== undefined) {
+    if (typeof c.ic !== 'object' || Array.isArray(c.ic)) throw new ErroApi(422, 'Índice: objeto { critério: nível }');
+    ic = {};
+    for (const [k, n] of Object.entries(c.ic)) {
+      if (!CRITERIOS.includes(k)) throw new ErroApi(422, `Índice: critério desconhecido (${k})`);
+      if (!['baixo', 'medio', 'alto'].includes(n)) throw new ErroApi(422, `Índice: nível de ${k} precisa ser baixo, medio ou alto`);
+      ic[k] = n;
+    }
+    if (!Object.keys(ic).length) ic = null;
+  }
+  const antes = await env.DB.prepare('SELECT ic FROM bases_ic WHERE servico_id = ? AND categoria_id = ?').bind(s.id, c.categoria_id).first();
+  if ((antes?.ic ?? null) === (ic ? JSON.stringify(ic) : null)) return { ok: true, semMudanca: true };
+  await env.DB.batch([
+    ic
+      ? env.DB.prepare(`INSERT INTO bases_ic (servico_id, categoria_id, ic, atualizado_em, atualizado_por) VALUES (?, ?, ?, ?, ?)
+          ON CONFLICT (servico_id, categoria_id) DO UPDATE SET ic = excluded.ic, atualizado_em = excluded.atualizado_em, atualizado_por = excluded.atualizado_por`)
+        .bind(s.id, c.categoria_id, JSON.stringify(ic), agoraISO(), ferramenta)
+      : env.DB.prepare('DELETE FROM bases_ic WHERE servico_id = ? AND categoria_id = ?').bind(s.id, c.categoria_id),
+    hist(env, s.id, 'bases_servicos', ferramenta, { [`ic:${c.categoria_id}`]: [lerJson(antes?.ic), ic] }),
+  ]);
+  return { ok: true, servico_id: s.id, categoria_id: c.categoria_id, ic };
 }
 
 // ---------------------------------------------------------------- matrizes de pertinência
@@ -558,6 +628,8 @@ export async function rotasPgt(env, ferramenta, m, [rota, id, acao], corpo, url,
     if (!id && m === 'GET') { exigir('bases_servicos', ferramenta, 'L'); return paginaBases(env); }
     if (id === 'publicar' && m === 'POST') { exigir('bases_servicos', ferramenta, 'E'); return publicar(env, ferramenta, 'bases', corpo); }
     if (id === 'faixas-prazo' && m === 'POST') { exigir('bases_servicos', ferramenta, 'E'); return faixasPrazo(env, ferramenta, corpo || {}); }
+    if (id === 'lista' && m === 'GET') { exigir('bases_servicos', ferramenta, 'L'); return listaDeServicos(env); }
+    if (id === 'ic' && m === 'POST') { exigir('bases_servicos', ferramenta, 'E'); return icDoPar(env, ferramenta, corpo || {}); }
     throw new ErroApi(404, 'rota não encontrada');
   }
   if (rota === 'pgt') {

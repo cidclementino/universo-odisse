@@ -45,7 +45,7 @@
 import { TABELAS, ROTAS, PREFIXOS, COMUNS } from './esquema.js';
 import { novoId, prefixoDe, agoraISO, normalizar, limpar } from './util.js';
 import { painelProducao, fichaProjeto, horasPeriodo } from './producao.js';
-import { rotasPgt } from './pgt.js';
+import { rotasPgt, listaDeServicos } from './pgt.js';
 import { rotasEquipe } from './equipe.js';
 import { rotasAcervo } from './acervo.js';
 import { rotasCredenciais, regraCredenciais } from './credenciais.js';
@@ -823,6 +823,11 @@ export async function api(env, ferramenta, request, url, cors) {
     if (rc !== undefined) return json(rc);
     // o site só enxerga as rotas públicas da equipe e as do acervo
     if (ferramenta === 'site') throw new ErroApi(403, 'esta ferramenta não pode ver isto');
+    // servicos.odisse (0022): só a lista dos serviços do PGT, para ligar cada produto do catálogo a um serviço
+    if (ferramenta === 'servicos') {
+      if (rota === 'bases' && id === 'lista' && m === 'GET') return json(await listaDeServicos(env));
+      throw new ErroApi(403, 'esta ferramenta não pode ver isto');
+    }
 
     // Bases e PGT: leituras juntadas, matrizes de pertinência e publicação (pgt.js)
     const rp = await rotasPgt(env, ferramenta, m, [rota, id, acao], corpo, url, exigir, alterar);

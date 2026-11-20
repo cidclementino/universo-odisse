@@ -292,3 +292,5 @@ export const Marketing = entrada('marketing');
 export const Site = entrada('site');
 // radar.odisse (0014): contatos de corretores e oportunidades de terreno
 export const Radar = entrada('radar');
+// servicos.odisse (0022): só a lista dos serviços do PGT (bases/lista), para ligar os produtos do catálogo
+export const Servicos = entrada('servicos');

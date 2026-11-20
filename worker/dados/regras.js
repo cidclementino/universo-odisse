@@ -5,7 +5,7 @@
 //   criar(env, ferramenta, valores, corpo)   -> pode completar `valores`; devolve comandos extras do lote
 //   alterar(env, ferramenta, atual, mudancas) -> pode completar `mudancas` ou recusar (ErroApi)
 
-import { hojeBrasilia, agoraISO } from './util.js';
+import { hojeBrasilia, agoraISO, novoId } from './util.js';
 import { TABELAS, SIGLAS_DOCUMENTO } from './esquema.js';
 
 export class ErroApi extends Error {
@@ -438,9 +438,170 @@ const simples = (tabela, conferir, filtroOrdem) => ({
   async alterar(env, ferramenta, atual, mudancas) { conferir(mudancas); return []; },
 });
 
-const bases_servicos = simples('bases_servicos', (o) => {
-  conferirSigla(o); conferirIC(o, 'ic_ajustes', 'Ajustes do índice'); conferirFaixa(o, 'modificador', 'Modificador', 0);
-});
+// ---------------------------------------------------------------- serviços em fluxo e em ilha (0022)
+// Em fluxo: o serviço marca P/O/— nos cartões do plano comum (etapas sem dono, fases não soltas) e pede tipologia.
+// Em ilha: o serviço tem etapas próprias (pgt_etapas.servico_id), na fase solta, com cartões só dele.
+// Trocar não apaga nada: o que era da outra dinâmica fica guardado e volta se ela voltar.
+//   * serviço novo nasce vazio: em ilha, com uma etapa vazia com a sigla dele; em fluxo, com tudo opcional (O);
+//   * entrar no fluxo sem marcação guardada = tudo opcional (O);
+//   * copiar_de (só na criação): nasce com as configurações do outro (dinâmica, preço, IC, marcações,
+//     pesos dos honorários e os cartões da ilha, copiados como cartões novos e independentes).
+const IC_MEDIO = () => JSON.stringify(Object.fromEntries(CRITERIOS_IC.map((k) => [k, 'medio'])));
+const conferirServico = (o) => {
+  conferirSigla(o); conferirIC(o, 'ic_ajustes', 'Ajustes do índice'); conferirIC(o, 'ic_padrao', 'Índice de complexidade do serviço');
+  conferirFaixa(o, 'modificador', 'Modificador', 0);
+  if (o.dinamica) o.pede_tipologia = o.dinamica === 'fluxo' ? 1 : 0;
+};
+const histSql = (env, registro, tabela, ferramenta, acao, mudancas) => env.DB.prepare(
+  'INSERT INTO historico (registro_id, tabela, acao, por, em, mudancas) VALUES (?, ?, ?, ?, ?, ?)',
+).bind(registro, tabela, acao, ferramenta, agoraISO(), JSON.stringify(mudancas));
+const etiqueta = () => Math.random().toString(36).slice(2, 8).padEnd(6, '0');   // marca dos ids copiados
+
+async function faseSolta(env) {
+  const f = await env.DB.prepare('SELECT id FROM pgt_fases WHERE solta = 1 AND arquivado_em IS NULL ORDER BY ordem LIMIT 1').first();
+  if (!f) throw new ErroApi(422, 'não há o grupo das ilhas no Plano Geral de Trabalho (fase solta)');
+  return f.id;
+}
+async function siglaDeEtapaLivre(env, sigla, ocupadas = new Set()) {
+  const r = await env.DB.prepare('SELECT 1 FROM pgt_etapas WHERE sigla = ? AND arquivado_em IS NULL').bind(sigla).first();
+  return !r && !ocupadas.has(sigla);
+}
+// etapa nova de uma ilha (+ instância do Encerramento no fim dela)
+function sqlEtapaDaIlha(env, ferramenta, { id, fase, sigla, nome, servico, copiaDe = null }) {
+  const agora = agoraISO();
+  return [
+    copiaDe
+      ? env.DB.prepare(`INSERT INTO pgt_etapas (id, criado_em, atualizado_em, criado_por, atualizado_por, versao, fase_id, sigla, nome, ordem,
+          nbr_nome, nbr_sigla, nbr_nota, descricao, servico_id)
+          SELECT ?, ?, ?, ?, ?, 1, ?, ?, nome, (SELECT COALESCE(MAX(ordem), 0) + 1 FROM pgt_etapas), nbr_nome, nbr_sigla, nbr_nota, descricao, ?
+          FROM pgt_etapas WHERE id = ?`).bind(id, agora, agora, ferramenta, ferramenta, fase, sigla, servico, copiaDe)
+      : env.DB.prepare(`INSERT INTO pgt_etapas (id, criado_em, atualizado_em, criado_por, atualizado_por, versao, fase_id, sigla, nome, ordem, servico_id)
+          VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, (SELECT COALESCE(MAX(ordem), 0) + 1 FROM pgt_etapas), ?)`)
+        .bind(id, agora, agora, ferramenta, ferramenta, fase, sigla, nome, servico),
+    env.DB.prepare(`UPDATE pgt_eventos SET instancias = json_insert(COALESCE(instancias, '[]'), '$[#]', ?)
+      WHERE encerramento = 1 AND arquivado_em IS NULL`).bind(id),
+    histSql(env, id, 'pgt_etapas', ferramenta, 'criar', { servico_id: [null, servico], sigla: [null, sigla] }),
+  ];
+}
+async function etapaVaziaDaIlha(env, ferramenta, servico, sigla, nome) {
+  if (!(await siglaDeEtapaLivre(env, sigla))) throw new ErroApi(422, `Sigla: já há uma etapa ${sigla} no Plano Geral de Trabalho`);
+  return sqlEtapaDaIlha(env, ferramenta, { id: novoId('pet'), fase: await faseSolta(env), sigla, nome, servico });
+}
+// cartões do fluxo (etapas sem dono, fora da fase solta)
+const DO_FLUXO = `t.servico_id IS NULL AND t.arquivado_em IS NULL AND f.solta = 0 AND f.arquivado_em IS NULL`;
+async function temMarcasNoFluxo(env, servico) {
+  const r = await env.DB.prepare(`SELECT (SELECT COUNT(*) FROM pgt_entregaveis_servicos x JOIN pgt_entregaveis e ON e.id = x.entregavel_id
+      JOIN pgt_etapas t ON t.id = e.etapa_id JOIN pgt_fases f ON f.id = t.fase_id WHERE x.servico_id = ? AND ${DO_FLUXO})
+    + (SELECT COUNT(*) FROM pgt_eventos_servicos x JOIN pgt_eventos v ON v.id = x.evento_id
+      JOIN pgt_etapas t ON t.id = v.etapa_id JOIN pgt_fases f ON f.id = t.fase_id WHERE x.servico_id = ? AND v.encerramento = 0 AND ${DO_FLUXO}) AS n`)
+    .bind(servico, servico).first();
+  return (r?.n || 0) > 0;
+}
+const sqlFluxoOpcional = (env, servico) => [
+  env.DB.prepare(`INSERT OR IGNORE INTO pgt_entregaveis_servicos (entregavel_id, servico_id, pertinencia)
+    SELECT e.id, ?, 'O' FROM pgt_entregaveis e JOIN pgt_etapas t ON t.id = e.etapa_id JOIN pgt_fases f ON f.id = t.fase_id
+    WHERE e.arquivado_em IS NULL AND ${DO_FLUXO}`).bind(servico),
+  env.DB.prepare(`INSERT OR IGNORE INTO pgt_eventos_servicos (evento_id, servico_id, pertinencia)
+    SELECT v.id, ?, 'O' FROM pgt_eventos v JOIN pgt_etapas t ON t.id = v.etapa_id JOIN pgt_fases f ON f.id = t.fase_id
+    WHERE v.arquivado_em IS NULL AND v.encerramento = 0 AND ${DO_FLUXO}`).bind(servico),
+];
+async function etapasDaIlha(env, servico) {
+  return (await env.DB.prepare('SELECT * FROM pgt_etapas WHERE servico_id = ? AND arquivado_em IS NULL ORDER BY ordem').bind(servico).all()).results;
+}
+// Cópia de um serviço para o novo (id): marcações do fluxo, pesos, IC por categoria e, em ilha, os cartões.
+async function sqlCopiaDoServico(env, ferramenta, origem, id, valores) {
+  const agora = agoraISO();
+  const s = [
+    env.DB.prepare(`INSERT OR IGNORE INTO pgt_entregaveis_servicos (entregavel_id, servico_id, pertinencia)
+      SELECT x.entregavel_id, ?, x.pertinencia FROM pgt_entregaveis_servicos x JOIN pgt_entregaveis e ON e.id = x.entregavel_id
+      JOIN pgt_etapas t ON t.id = e.etapa_id JOIN pgt_fases f ON f.id = t.fase_id WHERE x.servico_id = ? AND e.arquivado_em IS NULL AND ${DO_FLUXO}`).bind(id, origem.id),
+    env.DB.prepare(`INSERT OR IGNORE INTO pgt_eventos_servicos (evento_id, servico_id, pertinencia)
+      SELECT x.evento_id, ?, x.pertinencia FROM pgt_eventos_servicos x JOIN pgt_eventos v ON v.id = x.evento_id
+      JOIN pgt_etapas t ON t.id = v.etapa_id JOIN pgt_fases f ON f.id = t.fase_id WHERE x.servico_id = ? AND v.arquivado_em IS NULL AND v.encerramento = 0 AND ${DO_FLUXO}`).bind(id, origem.id),
+    env.DB.prepare(`INSERT OR IGNORE INTO pgt_etapas_servicos (etapa_id, servico_id, pertinencia, peso, semanas)
+      SELECT etapa_id, ?, pertinencia, peso, semanas FROM pgt_etapas_servicos WHERE servico_id = ?`).bind(id, origem.id),
+    env.DB.prepare(`INSERT OR IGNORE INTO pgt_fases_servicos (fase_id, servico_id, peso) SELECT fase_id, ?, peso FROM pgt_fases_servicos WHERE servico_id = ?`).bind(id, origem.id),
+    env.DB.prepare(`INSERT OR IGNORE INTO bases_ic (servico_id, categoria_id, ic, atualizado_em, atualizado_por)
+      SELECT ?, categoria_id, ic, ?, ? FROM bases_ic WHERE servico_id = ?`).bind(id, agora, ferramenta, origem.id),
+  ];
+  if (valores.dinamica !== 'ilha') return s;
+  const fontes = await etapasDaIlha(env, origem.id);
+  if (!fontes.length) return [...s, ...(await etapaVaziaDaIlha(env, ferramenta, id, valores.sigla, valores.nome))];
+  const fase = await faseSolta(env);
+  const ocupadas = new Set();
+  for (const [i, src] of fontes.entries()) {
+    // a primeira etapa leva a sigla do serviço; as outras, a sigla + uma letra (CVA, CVB…)
+    let sigla = i === 0 ? valores.sigla : null;
+    for (let k = 0; !sigla || !(await siglaDeEtapaLivre(env, sigla, ocupadas)); k++) {
+      if (k > 25) throw new ErroApi(422, 'não achei uma sigla livre para as etapas copiadas');
+      sigla = `${valores.sigla.slice(0, 3)}${String.fromCharCode(65 + k)}`;
+    }
+    ocupadas.add(sigla);
+    const nova = novoId('pet');
+    const tag = etiqueta();
+    const novoDe = (col) => `CASE WHEN ${col} = '${src.id}' THEN '${nova}' ELSE substr(${col}, 1, 4) || '${tag}_' || substr(${col}, 5) END`;
+    s.push(...sqlEtapaDaIlha(env, ferramenta, { id: nova, fase, sigla, nome: src.nome, servico: id, copiaDe: src.id }));
+    s.push(
+      env.DB.prepare(`INSERT INTO pgt_entregaveis (id, criado_em, atualizado_em, criado_por, atualizado_por, versao, etapa_id, texto, ordem, observacoes,
+          prazo_turnos, pessoas, prazo_fixo, travado, junto_anterior)
+        SELECT ${novoDe('id')}, ?, ?, ?, ?, 1, ?, texto, ordem, observacoes, prazo_turnos, pessoas, prazo_fixo, 0, junto_anterior
+        FROM pgt_entregaveis WHERE etapa_id = ? AND arquivado_em IS NULL`).bind(agora, agora, ferramenta, ferramenta, nova, src.id),
+      env.DB.prepare(`INSERT INTO pgt_entregaveis_servicos (entregavel_id, servico_id, pertinencia)
+        SELECT ${novoDe('e.id')}, ?, COALESCE((SELECT x.pertinencia FROM pgt_entregaveis_servicos x WHERE x.entregavel_id = e.id AND x.servico_id = ?), 'O')
+        FROM pgt_entregaveis e WHERE e.etapa_id = ? AND e.arquivado_em IS NULL`).bind(id, origem.id, src.id),
+      env.DB.prepare(`INSERT INTO pgt_entregaveis_categorias (entregavel_id, categoria_id)
+        SELECT ${novoDe('e.id')}, x.categoria_id FROM pgt_entregaveis e JOIN pgt_entregaveis_categorias x ON x.entregavel_id = e.id
+        WHERE e.etapa_id = ? AND e.arquivado_em IS NULL`).bind(src.id),
+      env.DB.prepare(`INSERT INTO pgt_eventos (id, criado_em, atualizado_em, criado_por, atualizado_por, versao, etapa_id, nome, tipo, cliente, tempo,
+          prazo_turnos, quantidade, clausula, observacoes, ordem, travado, encerramento, decisao, terceiros, clausula_marcada)
+        SELECT ${novoDe('id')}, ?, ?, ?, ?, 1, ?, nome, tipo, cliente, tempo, prazo_turnos, quantidade, clausula, observacoes, ordem, 0, 0,
+          CASE WHEN decisao IS NULL THEN NULL ELSE replace(replace(decisao, '"pen_', '"pen_${tag}_'), '"pev_', '"pev_${tag}_') END, terceiros, clausula_marcada
+        FROM pgt_eventos WHERE etapa_id = ? AND arquivado_em IS NULL AND encerramento = 0`).bind(agora, agora, ferramenta, ferramenta, nova, src.id),
+      env.DB.prepare(`INSERT INTO pgt_eventos_servicos (evento_id, servico_id, pertinencia)
+        SELECT ${novoDe('v.id')}, ?, COALESCE((SELECT x.pertinencia FROM pgt_eventos_servicos x WHERE x.evento_id = v.id AND x.servico_id = ?), 'O')
+        FROM pgt_eventos v WHERE v.etapa_id = ? AND v.arquivado_em IS NULL AND v.encerramento = 0`).bind(id, origem.id, src.id),
+      env.DB.prepare(`INSERT INTO pgt_materiais (id, criado_em, atualizado_em, criado_por, atualizado_por, versao, alvo_id, tipo, nome, descricao, link, arquivo_id, ordem)
+        SELECT 'pma_${tag}_' || substr(m.id, 5), ?, ?, ?, ?, 1, ${novoDe('m.alvo_id')}, m.tipo, m.nome, m.descricao, m.link, m.arquivo_id, m.ordem
+        FROM pgt_materiais m WHERE m.arquivado_em IS NULL AND (m.alvo_id = ?
+          OR m.alvo_id IN (SELECT id FROM pgt_entregaveis WHERE etapa_id = ? AND arquivado_em IS NULL)
+          OR m.alvo_id IN (SELECT id FROM pgt_eventos WHERE etapa_id = ? AND arquivado_em IS NULL AND encerramento = 0))`)
+        .bind(agora, agora, ferramenta, ferramenta, src.id, src.id, src.id),
+    );
+  }
+  return s;
+}
+const bases_servicos = {
+  async criar(env, ferramenta, valores, corpo, id) {
+    let origem = null;
+    if (corpo.copiar_de) {
+      origem = await env.DB.prepare('SELECT * FROM bases_servicos WHERE id = ? AND arquivado_em IS NULL').bind(String(corpo.copiar_de)).first();
+      if (!origem) throw new ErroApi(422, 'Copiar de: serviço não encontrado');
+      // nasce com as configurações do outro, menos o que o pedido disser
+      for (const k of ['dinamica', 'com_preco', 'preco_por_etapa', 'modificador', 'ic_padrao', 'ic_ajustes', 'descricao']) {
+        if (!(k in corpo) || corpo[k] === undefined) valores[k] = origem[k];
+      }
+    }
+    conferirServico(valores);
+    if (!valores.ic_padrao) valores.ic_padrao = IC_MEDIO();
+    await ordemNoFim(env, 'bases_servicos', valores);
+    // o Encerramento vale sempre (perpétuo) em todo serviço
+    const extras = [env.DB.prepare(`INSERT OR IGNORE INTO pgt_eventos_servicos (evento_id, servico_id, pertinencia)
+      SELECT id, ?, 'S' FROM pgt_eventos WHERE encerramento = 1`).bind(id)];
+    if (origem) extras.push(...(await sqlCopiaDoServico(env, ferramenta, origem, id, valores)));
+    else if (valores.dinamica === 'ilha') extras.push(...(await etapaVaziaDaIlha(env, ferramenta, id, valores.sigla, valores.nome)));
+    else extras.push(...sqlFluxoOpcional(env, id));   // em fluxo, vazio: tudo opcional, para marcar o que é pertinente
+    return extras;
+  },
+  async alterar(env, ferramenta, atual, mudancas) {
+    conferirServico(mudancas);
+    // "pede tipologia" segue a dinâmica: não se muda sozinho
+    if (!mudancas.dinamica || mudancas.dinamica === atual.dinamica) { delete mudancas.dinamica; delete mudancas.pede_tipologia; return []; }
+    if (mudancas.dinamica === 'ilha') {
+      return (await etapasDaIlha(env, atual.id)).length ? [] : etapaVaziaDaIlha(env, ferramenta, atual.id, mudancas.sigla || atual.sigla, mudancas.nome || atual.nome);
+    }
+    return (await temMarcasNoFluxo(env, atual.id)) ? [] : sqlFluxoOpcional(env, atual.id);
+  },
+};
 const bases_categorias = simples('bases_categorias', (o) => conferirIC(o, 'ic_preset', 'Índice de complexidade'));
 const bases_usos = simples('bases_usos', (o) => {
   conferirFaixa(o, 'fator_adequacao', 'Fator de adequação', 0); conferirFaixa(o, 'cub_referencia', 'CUB de referência', 0);
