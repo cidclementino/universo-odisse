@@ -359,7 +359,7 @@ export function criarKpis({ esc, api, toque }) {
         </section>`;
     }).join('');
     const lado = n ? `${n} de ${d.indicadores.length} indicadores com faixas` : 'nenhuma faixa definida ainda';
-    return cabecalho('Metas', esc(lado)) + blocos + `
+    return cabecalho('Metas', esc(lado)) + `<div class="blocos-fluxo" style="--bloco-larg:700px">${blocos}</div>` + `
       <section class="pas-notas">
         <div><h3 class="u-rotulo">Como preencher</h3>
           <p>Três números por indicador: o <b>mínimo</b> aceitável, o <b>adequado</b> e o <b>excelente</b>. Porcentagens como número cheio (28 = 28%); reais sem o R$. Em tempo de decisão, menos é melhor: o mínimo é o maior número. Linha em branco fica sem faixa.</p></div>

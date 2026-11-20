@@ -986,8 +986,16 @@ span.bol-fonte + .bol-caixa, .bol-titulo + .bol-caixa { margin-left: auto; }
 .bol-texto h2 { margin: 0 0 10px; font-size: var(--u-t-subtitulo); font-weight: 650; }
 .bol-texto ul { margin: 0; padding-left: 18px; } .bol-texto li + li { margin-top: 6px; }
 
+/* Bloco fluido (Cid, 19/11): os Blocos correm em colunas. Cada página diz a largura em que o conteúdo do Bloco
+   cabe (--bloco-larg); havendo espaço para duas ou mais, o Bloco ocupa só parte da página e o seguinte sobe ao
+   lado, sem buracos (colunas de jornal: cada Bloco inteiro numa coluna). Abaixo disso, um embaixo do outro. */
+.blocos-fluxo { columns: var(--bloco-larg, 640px); column-gap: var(--u-esp-4); }
+.blocos-fluxo > * { break-inside: avoid; margin: 0 0 var(--u-esp-4); }
+.blocos-fluxo > .bol-bloco + .bol-bloco { margin-top: 0; }
+.pagina-kpis .cab + .blocos-fluxo { margin-top: var(--u-esp-4); }
+
 /* Metas: Ficha com Blocos por tema, três colunas */
-.met-cols { display: grid; grid-template-columns: minmax(220px, 1.6fr) repeat(3, minmax(130px, 1fr)); gap: 16px; align-items: center; }
+.met-cols { display: grid; grid-template-columns: minmax(190px, 1fr) repeat(3, minmax(110px, 140px)); gap: 12px; align-items: center; }
 .met-linha { padding: 10px 12px; border-bottom: 1px solid var(--u-linha); }
 .met-linha:last-child { border-bottom: 0; }
 .met-campo { display: flex; align-items: center; gap: 6px; height: 36px; padding: 0 10px; box-sizing: border-box; border: 1px solid var(--u-linha-forte); border-radius: 6px; background: #fff; font-size: 13px; color: var(--u-tinta-2); }
