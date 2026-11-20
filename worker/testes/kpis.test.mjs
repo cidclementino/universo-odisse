@@ -3,7 +3,7 @@
 import { criarD1 } from './d1.mjs';
 import {
   comercialPorMes, completarDias, montarMes, faixaDe, frase, fecharMes, rotina, lerKpis, lerBalanco,
-  gravarMetas, avisoBalanco, somarMeses, historico, trimestreDe,
+  gravarMetas, avisoBalanco, somarMeses, historico, trimestreDe, trimestresAte, comercialPorMes as cpm,
 } from '../kpis.js';
 
 const ok = (c, msg) => { if (!c) throw new Error('FALHOU: ' + msg); console.log('ok -', msg); };
@@ -144,3 +144,7 @@ if (arqOk) {
   const ft = frase('decisao', '2026-10', out2.valores, [], m.dados, out2.trimestre);
   ok(ft.startsWith('Tempo de decisão no 4º trimestre (outubro): 10 dias') && ft.includes('faixa adequada'), 'frase trimestral: ' + ft);
 }
+
+const hT = await historico(env, '2026-11', 12);
+const tr = trimestresAte(await cpm(env), hT, '2026-11');
+ok(tr.length === 4 && tr[3].numero === 4 && tr[3].parcial && tr[2].numero === 3 && tr[2].ate === '2026-09' && !tr[2].parcial && tr[0].ano === '2026', 'quatro trimestres, o último até o mês');

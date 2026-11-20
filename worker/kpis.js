@@ -291,6 +291,21 @@ function valoresDoTrimestre(comercial, mes, valoresMes) {
   return { ...t, valores: { ief: v.ief, decisao: v.decisao, seguidores: valoresMes.seguidores ?? null } };
 }
 
+// Últimos `n` trimestres até o do mês (o do mês, acumulado até ele; os anteriores, inteiros), para o Bloco
+// Trimestrais: valores das metas trimestrais. Seguidores = o total no último mês do trimestre (do histórico).
+export function trimestresAte(comercial, hist, mes, n = 4) {
+  const out = [];
+  let fim = mes;
+  for (let k = 0; k < n; k++) {
+    const t = trimestreDe(fim);
+    const valoresFim = hist.find((h) => h.mes === fim)?.valores || {};
+    const v = valoresDoTrimestre(comercial, fim, valoresFim);
+    out.unshift({ numero: t.numero, ano: fim.slice(0, 4), de: t.de, ate: fim, parcial: k === 0 && t.meses.length < 3, valores: v.valores });
+    fim = somarMeses(t.de, -1);
+  }
+  return out;
+}
+
 export async function montarMes(env, mes, { comercial, hoje, publicacoes } = {}) {
   comercial ||= await comercialPorMes(env);
   const canais = somarCanais(await lerJson(env, chaveDias(mes)), mes);
@@ -347,7 +362,7 @@ export async function fecharMes(env, mes, agora = new Date()) {
   const frases = INDICADORES.map((i) => frase(i.id, mes, atual.valores, hist, metas, atual.trimestre)).filter(Boolean);
   const balanco = {
     versao: 1, mes, feito_em: agora.toISOString(),
-    valores: atual.valores, trimestre: atual.trimestre, origens: atual.origens, cobertura: atual.cobertura,
+    valores: atual.valores, trimestre: atual.trimestre, trimestres: trimestresAte(comercial, hist, mes), origens: atual.origens, cobertura: atual.cobertura,
     historico: hist.map((h) => ({ mes: h.mes, valores: h.valores })),
     metas: metas?.faixas || {}, frases,
     expectativa: await expectativa(env, mes, hist, hoje),
@@ -403,7 +418,7 @@ export async function lerKpis(env, mesPedido, agora = new Date()) {
       metas: metas || { versao: 1, faixas: {} },
       indicadores: INDICADORES, em_breve: EM_BREVE, origens: ORIGENS,
       meses: [...new Set([corrente, ...fechados])].sort().reverse().map((m) => ({ mes: m, fechado: fechados.includes(m) })),
-      mes: atual, historico: hist.map((h) => ({ mes: h.mes, valores: h.valores })),
+      mes: atual, historico: hist.map((h) => ({ mes: h.mes, valores: h.valores })), trimestres: trimestresAte(comercial, hist, mes),
       // mês corrente: só valor e faixa (comparar um mês pela metade com meses inteiros engana)
       frases: INDICADORES.map((i) => frase(i.id, mes, atual.valores, atual.parcial ? [] : hist, metas, atual.trimestre)).filter(Boolean),
       expectativa: mes === corrente ? await expectativa(env, mes, hist, hoje) : null,

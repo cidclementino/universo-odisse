@@ -30,6 +30,14 @@ const GRUPOS = [
 const tri = (ind) => ind.medicao === 'trimestral';
 const nomeTri = (t) => (t ? `${t.numero}º tri · ${t.meses.length > 1 ? `${nomeMes(t.de).slice(0, 3)}–${nomeMes(t.ate).slice(0, 3)}` : nomeMes(t.ate).slice(0, 3)}` : '');
 const etqMedicao = (ind, tambemMensal = false) => (tri(ind) ? '<span class="bol-medicao tri">trimestral</span>' : tambemMensal ? '<span class="bol-medicao">mensal</span>' : '');
+const curtoMes = (m) => nomeMes(m).slice(0, 3);
+const periodoTri = (t) => (t.de === t.ate ? curtoMes(t.ate) : `${curtoMes(t.de)}–${curtoMes(t.ate)}`);
+// Trimestrais por tema: [['sub', nome] | ['ind', indicador]]
+function porTema(inds) {
+  return Object.keys(TEMA_TRI).flatMap((g) => { const l = inds.filter((i) => i.grupo === g); return l.length ? [['sub', TEMA_TRI[g]], ...l.map((i) => ['ind', i])] : []; });
+}
+// Bloco Trimestrais: um subtítulo por tema (Comercial, Instagram…) antes das linhas dele
+const TEMA_TRI = { comercial: 'Comercial', instagram: 'Instagram', site: 'Site' };
 // Redes do tema Redes sociais, na ordem dos subtítulos (indicador.rede)
 const REDES = [['instagram', 'Instagram'], ['pinterest', 'Pinterest']];
 // Indicadores de um tema, com o subtítulo de cada rede antes das suas linhas: [['sub', nome] | ['ind', indicador]]
@@ -104,7 +112,7 @@ async function prepararPdf() {
 export function docDoBalanco(b, indicadores) {
   const POR = Object.fromEntries(indicadores.map((i) => [i.id, i]));
   const ant = b.historico.find((h) => h.mes === somarMeses(b.mes, -1))?.valores || {};
-  const linhas = (grupo, rede) => indicadores.filter((i) => i.grupo === grupo && (!rede || i.rede === rede)).map((i) => {
+  const linhas = (grupo, rede) => indicadores.filter((i) => i.grupo === grupo && (!rede || i.rede === rede) && !tri(i)).map((i) => {
     const t = tri(i) ? b.trimestre : null;
     const v = t ? t.valores?.[i.id] ?? null : b.valores[i.id];
     const fx = faixaDe(i, v, { faixas: b.metas });
@@ -139,6 +147,7 @@ export function docDoBalanco(b, indicadores) {
       { tipo: 'paragrafo', texto: 'Instagram', negrito: true }, tabela('instagram', 'instagram'),
       { tipo: 'paragrafo', texto: 'Pinterest', negrito: true }, tabela('instagram', 'pinterest'),
       { tipo: 'paragrafo', texto: 'Site', negrito: true }, tabela('site'),
+      ...tabelaTri(b, indicadores),
       { tipo: 'secao', texto: 'Retrospecto' },
       { tipo: 'lista', itens: b.frases || [] },
       retro,
@@ -147,6 +156,25 @@ export function docDoBalanco(b, indicadores) {
       { tipo: 'nota', texto: `Números do Universo: comercial do vendas (Funil, Propostas e Contratos), Instagram do marketing.odisse e site de odisse.com.br${cob.dias ? `, com ${cob.instagram} de ${cob.dias} dias do Instagram e ${cob.site} do site registrados` : ''}. Faixas pelas metas do Universo no dia do fechamento. Financeiro, operacional e experiência do cliente entram quando houver dados.` },
     ],
   };
+}
+
+// Trimestrais no PDF: o trimestre do mês (acumulado até ele) contra o anterior.
+function tabelaTri(b, indicadores) {
+  const trs = b.trimestres || [];
+  const t = trs.at(-1), ta = trs.at(-2);
+  const inds = indicadores.filter(tri);
+  if (!t || !inds.length) return [];
+  return [
+    { tipo: 'paragrafo', texto: `Trimestrais · ${t.numero}º trimestre (${periodoTri(t)})`, negrito: true },
+    { tipo: 'tabela',
+      colunas: [{ titulo: 'Indicador', largura: '40%' }, { titulo: 'Valor', alinhar: 'direita' }, { titulo: 'Faixa' }, { titulo: ta ? `Sobre o ${ta.numero}º tri` : '', alinhar: 'direita' }],
+      linhas: inds.map((i) => {
+        const v = t.valores?.[i.id] ?? null, va = ta?.valores?.[i.id] ?? null;
+        const fx = faixaDe(i, v, { faixas: b.metas });
+        const p = varPct(v, va);
+        return [i.nome, formatar(i.formato, v, true), fx ? FAIXA[fx][0] : '—', p == null ? '—' : `${p > 0 ? '+' : ''}${p}%`];
+      }) },
+  ];
 }
 
 export async function pdfDoBalanco(b, indicadores, { baixar = false, janela = null } = {}) {
@@ -263,7 +291,7 @@ export function criarKpis({ esc, api, toque }) {
     const on = g.ontem ? ontemDe(ind.id, d.ontem) : null;
     const pOn = on ? varPct(on[0], on[1]) : null;
     return `<div class="bol-linha" role="row">
-        <span class="bol-nome" role="cell"><b>${esc(ind.nome)}${etqMedicao(ind)}</b>${ind.sentido === -1 ? '<small>menos é melhor</small>' : ''}</span>
+        <span class="bol-nome" role="cell"><b>${esc(ind.nome)}</b>${ind.sentido === -1 ? '<small>menos é melhor</small>' : ''}</span>
         <span class="bol-valor" role="cell">${esc(formatar(ind.formato, v, true))}${ritmo != null ? `<small>projeção ${esc(formatar(ind.formato, ritmo))}</small>` : t ? `<small>${esc(nomeTri(t))}</small>` : ''}</span>
         <span role="cell">${regua(ind, v, d.metas, ritmo)}</span>
         <span class="bol-var" role="cell">${delta(p, bom, ant != null ? `${Maius(nomeMes(mesAnt))}: ${formatar(ind.formato, ant, true)}` : '')}</span>
@@ -284,11 +312,11 @@ export function criarKpis({ esc, api, toque }) {
   }
 
   function blocoTema(g, d) {
-    const inds = d.indicadores.filter((i) => i.grupo === g.id);
+    const inds = d.indicadores.filter((i) => i.grupo === g.id && !tri(i));
     const comMeta = inds.filter((i) => d.metas.faixas?.[i.id]).length;
     const cob = d.mes.cobertura || {};
     const dias = g.id === 'instagram' ? cob.instagram : g.id === 'site' ? cob.site : null;
-    const extra = `<span class="bol-conta">${comMeta}/${inds.length} com meta${dias != null && cob.dias && dias < cob.dias && !d.mes.parcial ? ` · ${dias} de ${cob.dias} dias` : ''}</span>`;
+    const extra = `<span class="bol-medicao">mensal</span><span class="bol-conta">${comMeta}/${inds.length} com meta${dias != null && cob.dias && dias < cob.dias && !d.mes.parcial ? ` · ${dias} de ${cob.dias} dias` : ''}</span>`;
     const ab = aberto(g.id);
     let origem = '';
     if (g.id === 'comercial') {
@@ -305,6 +333,51 @@ export function criarKpis({ esc, api, toque }) {
             <span role="columnheader">Faixa${d.mes.parcial ? ' pela projeção' : ''}</span><span role="columnheader">Sobre ${esc(nomeMes(somarMeses(d.mes.mes, -1)))}</span>
             <span role="columnheader">12 meses</span><span role="columnheader">${g.ontem ? 'Ontem' : ''}</span></div>
           ${porRede(inds).map(([t, x]) => (t === 'sub' ? `<div class="bol-sub" role="row"><span role="cell">${esc(x)}</span></div>` : linha(x, d, g))).join('')}${origem}
+        </div>` : ''}
+      </section>`;
+  }
+
+  // Bloco Trimestrais: o trimestre do mês escolhido (acumulado até ele), o anterior e os últimos 4.
+  function barrasTri(trs, ind) {
+    const vals = trs.map((t) => t.valores?.[ind.id] ?? null);
+    const max = Math.max(...vals.map((v) => (v == null ? 0 : Math.abs(v))), 0);
+    const L = 20, G = 6, H = 24;
+    return `<svg class="bol-barras" viewBox="0 0 ${vals.length * (L + G) - G} ${H}" role="img" aria-label="${esc(ind.nome)}, últimos ${vals.length} trimestres">${vals.map((v, i) => {
+      const h = v == null || !max ? 0 : Math.max(2, Math.round((Math.abs(v) / max) * H));
+      const cls = i === vals.length - 1 ? 'atual' : v == null ? 'vazia' : '';
+      return `<rect x="${i * (L + G)}" y="${H - (h || 2)}" width="${L}" height="${h || 2}" rx="2"${cls ? ` class="${cls}"` : ''}><title>${trs[i].numero}º trimestre de ${trs[i].ano} (${esc(periodoTri(trs[i]))}): ${esc(formatar(ind.formato, v, true))}</title></rect>`;
+    }).join('')}</svg>`;
+  }
+  function linhaTri(ind, d) {
+    const trs = d.trimestres || [];
+    const t = trs.at(-1), ta = trs.at(-2);
+    const v = t?.valores?.[ind.id] ?? null, va = ta?.valores?.[ind.id] ?? null;
+    const p = varPct(v, va);
+    const bom = p != null && (p > 0) === (ind.sentido !== -1);
+    return `<div class="bol-linha" role="row">
+        <span class="bol-nome" role="cell"><b>${esc(ind.nome)}</b>${ind.sentido === -1 ? '<small>menos é melhor</small>' : ''}</span>
+        <span class="bol-valor" role="cell">${esc(formatar(ind.formato, v, true))}<small>${esc(t ? periodoTri(t) : '')}</small></span>
+        <span role="cell">${regua(ind, v, d.metas, null)}</span>
+        <span class="bol-var" role="cell">${delta(p, bom, ta ? `${ta.numero}º trimestre (${periodoTri(ta)}): ${formatar(ind.formato, va, true)}` : '')}</span>
+        <span role="cell">${barrasTri(trs, ind)}</span>
+        <span role="cell"></span>
+      </div>`;
+  }
+  function blocoTrimestral(d) {
+    const inds = d.indicadores.filter(tri);
+    const trs = d.trimestres || [];
+    if (!inds.length || !trs.length) return '';
+    const t = trs.at(-1), ta = trs.at(-2);
+    const comMeta = inds.filter((i) => d.metas.faixas?.[i.id]).length;
+    const ab = aberto('trimestrais');
+    const linhas = porTema(inds).map(([t, x]) => (t === 'sub' ? `<div class="bol-sub" role="row"><span role="cell">${esc(x)}</span></div>` : linhaTri(x, d))).join('');
+    return `<section class="bol-bloco${ab ? '' : ' fechado'}">
+        ${cabBloco('trimestrais', 'Trimestrais', '', '', `<span class="bol-medicao tri">trimestral</span><span class="bol-conta">${comMeta}/${inds.length} com meta</span>`)}
+        ${ab ? `<div class="bol-tabela" role="table" aria-label="Trimestrais">
+          <div class="bol-regua-cab" role="row"><span role="columnheader">Indicador</span><span role="columnheader">${t.numero}º trimestre${t.parcial ? ' até agora' : ''}</span>
+            <span role="columnheader">Faixa</span><span role="columnheader">${ta ? `Sobre o ${ta.numero}º trimestre` : ''}</span>
+            <span role="columnheader">4 trimestres</span><span role="columnheader"></span></div>
+          ${linhas}
         </div>` : ''}
       </section>`;
   }
@@ -327,6 +400,7 @@ export function criarKpis({ esc, api, toque }) {
     return cabecalho('Painel', esc(lado)) + `
       <div class="bol-filtros">${meses}${estado}<span class="bol-acoes">${acoes}</span></div>
       ${GRUPOS.map((g) => blocoTema(g, d)).join('')}
+      ${blocoTrimestral(d)}
       <div class="bol-pe">
         ${d.mes.parcial ? '' : `<section class="bol-bloco bol-texto"><h2>Leitura do mês</h2>
           ${d.frases.length ? `<ul>${d.frases.map((f) => `<li>${esc(f)}</li>`).join('')}</ul>` : '<p class="u-apoio">Ainda sem números neste mês.</p>'}</section>`}
@@ -336,7 +410,7 @@ export function criarKpis({ esc, api, toque }) {
         <div><h3 class="u-rotulo">Como ler</h3>
           <p><b>Faixa</b>: a régua tem as quatro faixas da meta (abaixo do mínimo, mínimo, adequado, excelente) e o traço marca onde o valor caiu. No mês corrente, as somas são lidas pela <b>projeção</b>: o que já entrou, no mesmo passo, levado ao mês inteiro.</p>
           <p><b>Sobre o mês anterior</b> aparece só nos meses fechados: comparar meio mês com um mês inteiro engana. <b>12 meses</b>: o mês escolhido é a barra escura.</p>
-          <p><b>Trimestral</b>: a meta vale para o trimestre (jan–mar, abr–jun, jul–set, out–dez). O valor e a faixa são do acumulado do trimestre até o mês escolhido; as barras dos 12 meses seguem mês a mês.</p></div>
+          <p><b>Trimestrais</b>: no Bloco próprio, as metas que valem para o trimestre (jan–mar, abr–jun, jul–set, out–dez). O valor e a faixa são do acumulado do trimestre até o mês escolhido, comparado com o trimestre anterior; as barras são os últimos 4 trimestres.</p></div>
         <div><h3 class="u-rotulo">Ainda sem dados</h3><ul>${d.em_breve.map((b) => `<li><b>${esc(NOME_BREVE[b.grupo] || b.grupo)}</b>: ${esc(b.nomes.join(', '))}. Falta ${esc(b.falta)}.</li>`).join('')}</ul></div>
         <div><h3 class="u-rotulo">Fechamento</h3>
           <p>Todo dia, às 06h47, o Universo guarda os números de ontem do Instagram e do site. No dia 1º fecha o mês anterior: congela os números, as faixas das metas e as frases, e avisa na Início. O PDF é desenhado desse retrato, então sai sempre igual.</p></div>
@@ -358,27 +432,28 @@ export function criarKpis({ esc, api, toque }) {
   function metas(d) {
     comecarEdicao();
     const n = Object.keys(d.metas.faixas || {}).length;
-    const blocos = GRUPOS.map((g) => {
-      const inds = d.indicadores.filter((i) => i.grupo === g.id);
-      const ab = aberto(g.id);
+    const blocoMetas = (id, titulo, inds, medicao) => {
+      const ab = aberto(id);
       const comMeta = inds.filter((i) => ['minimo', 'adequado', 'excelente'].every((k) => String(editando[i.id][k]).trim() !== '')).length;
       return `<section class="bol-bloco met-bloco${ab ? '' : ' fechado'}">
-          ${cabBloco(g.id, g.nome, '', '', `<span class="bol-conta">${comMeta}/${inds.length} com meta</span>`)}
+          ${cabBloco(id, titulo, '', '', `<span class="bol-medicao${medicao === 'trimestral' ? ' tri' : ''}">${medicao}</span><span class="bol-conta">${comMeta}/${inds.length} com meta</span>`)}
           ${ab ? `<div class="met-tabela" role="table">
             <div class="bol-regua-cab met-cols" role="row"><span role="columnheader">Indicador</span><span role="columnheader">Mínimo</span><span role="columnheader">Adequado</span><span role="columnheader">Excelente</span></div>
-            ${porRede(inds).map(([t, i]) => t === 'sub' ? `<div class="bol-sub" role="row"><span role="cell">${esc(i)}</span></div>` : `<div class="met-linha met-cols" role="row">
-              <span class="bol-nome" role="cell"><b>${esc(i.nome)}${etqMedicao(i, true)}</b><small>${esc(i.nota)}${i.sentido === -1 ? ' · menos é melhor' : ''}</small></span>
+            ${(medicao === 'trimestral' ? porTema(inds) : porRede(inds)).map(([t, i]) => t === 'sub' ? `<div class="bol-sub" role="row"><span role="cell">${esc(i)}</span></div>` : `<div class="met-linha met-cols" role="row">
+              <span class="bol-nome" role="cell"><b>${esc(i.nome)}</b><small>${esc(i.nota)}${i.sentido === -1 ? ' · menos é melhor' : ''}</small></span>
               ${['minimo', 'adequado', 'excelente'].map((k) => `<span role="cell">${campo(i, k)}</span>`).join('')}
             </div>`).join('')}
           </div>` : ''}
         </section>`;
-    }).join('');
+    };
+    const blocos = GRUPOS.map((g) => blocoMetas(g.id, g.nome, d.indicadores.filter((i) => i.grupo === g.id && !tri(i)), 'mensal')).join('')
+      + blocoMetas('trimestrais', 'Trimestrais', d.indicadores.filter(tri), 'trimestral');
     const lado = n ? `${n} de ${d.indicadores.length} indicadores com faixas` : 'nenhuma faixa definida ainda';
     return cabecalho('Metas', esc(lado)) + `<div class="blocos-fluxo" style="--bloco-larg:700px">${blocos}</div>` + `
       <section class="pas-notas">
         <div><h3 class="u-rotulo">Como preencher</h3>
           <p>Três números por indicador: o <b>mínimo</b> aceitável, o <b>adequado</b> e o <b>excelente</b>. Porcentagens como número cheio (28 = 28%); reais sem o R$. Em tempo de decisão, menos é melhor: o mínimo é o maior número. Linha em branco fica sem faixa.</p>
-          <p><b>Mensal</b> ou <b>trimestral</b>: as mensais valem para cada mês; as trimestrais, para o trimestre inteiro (jan–mar, abr–jun, jul–set, out–dez), como na planilha.</p></div>
+          <p><b>Mensais</b> nos Blocos de cada tema; <b>trimestrais</b> no Bloco Trimestrais, valendo para o trimestre inteiro (jan–mar, abr–jun, jul–set, out–dez), como na planilha.</p></div>
         <div><h3 class="u-rotulo">Onde valem</h3>
           <p>As faixas aparecem no Painel na hora em que forem salvas. Cada balanço congela as faixas do dia do fechamento: mudar uma meta não muda um mês já fechado.</p></div>
       </section>
@@ -433,7 +508,7 @@ export function criarKpis({ esc, api, toque }) {
     try {
       let b;
       if (modo === 'previa') {
-        b = { mes: dados.mes.mes, feito_em: null, valores: dados.mes.valores, trimestre: dados.mes.trimestre, origens: dados.mes.origens, cobertura: dados.mes.cobertura,
+        b = { mes: dados.mes.mes, feito_em: null, valores: dados.mes.valores, trimestre: dados.mes.trimestre, trimestres: dados.trimestres, origens: dados.mes.origens, cobertura: dados.mes.cobertura,
           historico: dados.historico, metas: dados.metas.faixas, frases: dados.frases, expectativa: dados.expectativa };
       } else {
         const r = await api(`/api/kpis/balanco?mes=${dados.mes.mes}`);
