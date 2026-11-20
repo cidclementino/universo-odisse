@@ -2,6 +2,7 @@
 // assina, banco de horas, responsáveis, site). Dados em /api/v1/equipe/… (worker/dados/equipe.js).
 //
 // Rotas: #/equipe (lista, cargos e títulos) · #/equipe/nova · #/equipe/<eqp_…> (ficha da pessoa)
+// Na ficha, o Bloco Documentos (CAU, CATs, diploma, currículo, vínculo, procuração, identidade) vem de assets/credenciais.js.
 //
 // Rubrica (as iniciais, não uma assinatura formal): guardada à parte (arquivo protegido; na API, "assinatura").
 // Sai abaixo da identificação (nome; cargo · registro), sem mudar o bloco da folha. Aqui aparece só para
@@ -137,7 +138,7 @@ function enquadrar(bmp) {
   });
 }
 
-export function criarEquipe({ esc, api, apiBinario, toque }) {
+export function criarEquipe({ esc, api, apiBinario, toque, cred }) {
   let avisoSaida = () => false;
   window.addEventListener('beforeunload', (ev) => { if (avisoSaida()) { ev.preventDefault(); ev.returnValue = ''; } });
   const rubricas = new Map(); // assinatura_id → objectURL (só nesta sessão: arquivo protegido não vai para o disco)
@@ -387,7 +388,7 @@ export function criarEquipe({ esc, api, apiBinario, toque }) {
     const chk = (nome, v, texto) => `<label class="eq-check"><input type="checkbox" name="${nome}"${v ? ' checked' : ''}> ${texto}</label>`;
     const assina = (reg.assina || '').split(',').filter(Boolean);
 
-    raiz.innerHTML = `<div class="cab"><div>${trilha(['Equipe', '#/equipe'], ['Ficha'])}
+    raiz.innerHTML = `<div class="cab"><div>${trilha(['Equipe', '#/equipe'], [pes.nome])}
         <h1 class="u-titulo">${esc(pes.nome)}</h1><p class="u-apoio" data-resumo></p></div>
         ${ativo ? '' : `<div class="acoes-cab"><span class="chip">desligado${reg.ate ? ' em ' + esc(dataBr(reg.ate)) : ''}</span></div>`}</div>
       <form class="eq-ficha" autocomplete="off">
@@ -419,6 +420,9 @@ export function criarEquipe({ esc, api, apiBinario, toque }) {
               <small class="u-apoio">Cargos e títulos se editam na lista da página Equipe.</small>
             </div>
           </div></section>
+
+        <section class="u-cartao eq-sec"><h2 class="u-subtitulo">Documentos</h2>
+          <div data-docs="equipe"></div></section>
 
         <section class="u-cartao eq-sec" data-contrato><div class="eq-sec-cab"><h2 class="u-subtitulo">Dados para contrato</h2>
             <button type="button" class="u-botao" data-acao="contrato">Mostrar</button></div>
@@ -474,6 +478,8 @@ export function criarEquipe({ esc, api, apiBinario, toque }) {
     const form = raiz.querySelector('form');
     const estado = raiz.querySelector('[data-estado]');
     preencherFotos(raiz, [{ ...(p || {}), id, foto_id: reg.foto_id }]);
+    // documentos da pessoa (Credenciais, 0021): gravam sozinhos pela Gaveta, fora da Barra de salvar
+    cred?.montar(raiz.querySelector('[data-docs="equipe"]'), 'equipe', id);
     const esquecer = () => { apagarCopia(chave); apagarCopia('equipe:quadro'); };
 
     // ---- bloco de assinatura (como sai no documento)

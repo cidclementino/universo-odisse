@@ -452,11 +452,6 @@ li.eq-item.alvo-depois { box-shadow: 0 3px 0 var(--odisse-ocre, #BB8248); }
 @media (prefers-reduced-motion: reduce) { .ramo__faixa .seta, .ferr { transition: none; } .ferr[data-url]:hover { transform: none; } }
 
 /* ---- O Estúdio: abas das subpáginas (Empresa · Equipe · Marca · Canais) — design.md § 3, abas em pílula ---- */
-.abas-estudio { display: flex; align-items: center; gap: 14px; margin-bottom: var(--u-esp-5); }
-.abas { display: inline-flex; gap: 2px; padding: 3px; border-radius: 999px; background: rgba(63,75,87,.07); }
-.abas a { padding: 6px 14px; border-radius: 999px; color: var(--u-tinta-2); text-decoration: none; font-size: 13px; font-weight: 550; }
-.abas a:hover { color: var(--u-tinta); }
-.abas a.ativa { background: var(--u-elevada, #fff); color: var(--u-tinta); font-weight: 650; box-shadow: 0 1px 3px rgba(46,48,54,.12); }
 
 /* ---- Empresa: ficha no sistema de caixas da Equipe ---- */
 .emp-cidade { display: grid; grid-template-columns: 1fr 84px 1fr; gap: 0 10px; }
@@ -1039,3 +1034,98 @@ span.bol-fonte + .bol-caixa, .bol-titulo + .bol-caixa { margin-left: auto; }
 .ini-balanco__acoes { display: inline-flex; flex-wrap: wrap; gap: 8px; margin-left: auto; }
 .ini-etq.problema { background: #F3E1DE; color: var(--u-perigo, #A4473B); }
 .ini-balanco:hover { background: var(--u-elevada, #fff); box-shadow: none; transform: none; }
+
+/* ---- Credenciais (assets/credenciais.js; Cid, 19/11) --------------------------------------------
+   Lista de documentos comum (Empresa, Equipe e a página Credenciais): linha com ✎ em caixa, nome e detalhe,
+   Etiqueta da validade (raio 4), arquivo e Substituir. Exigido e não registrado: linha tracejada com "falta";
+   opcionais e "mais um": etiquetas tracejadas no fim. Nada de barra à esquerda; nada em pílula. */
+.cre-lista { display: flex; flex-direction: column; gap: 6px; }
+.cre-linha { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto auto; align-items: center; gap: 12px; min-height: 52px; box-sizing: border-box;
+  width: 100%; padding: 8px 12px; background: var(--u-elevada, #fff); border: 1px solid var(--u-linha); border-radius: var(--u-raio);
+  font: inherit; font-size: 13px; color: inherit; text-align: left; }
+.cre-linha.is-leitura { grid-template-columns: minmax(0, 1fr) auto auto; }
+.cre-linha.is-falta { background: color-mix(in srgb, var(--u-elevada, #fff) 55%, transparent); border: 1px dashed var(--u-linha-forte); cursor: pointer;
+  transition: border-color .15s, background-color .15s, box-shadow .15s, transform .15s; }
+.cre-linha.is-falta:hover { background: var(--u-elevada, #fff); border-color: var(--u-tinta-2); box-shadow: 0 3px 10px rgba(46,48,54,.09); transform: translateY(-1px); }
+.cre-linha.is-falta:focus-visible { outline: 2px solid var(--u-foco); outline-offset: 2px; }
+.cre-linha.is-falta .cre-txt b { font-weight: 550; }
+.cre-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.cre-txt b { font-weight: 650; }
+.cre-txt small { font-size: 12px; color: var(--u-tinta-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cre-etqs { display: flex; gap: 4px; justify-content: flex-end; }
+.cre-etqs:empty, .cre-acoes:empty { display: none; }
+.cre-acoes { display: flex; gap: 6px; align-items: center; justify-content: flex-end; }
+.ini-etq.cre-etq-nevoa { background: var(--odisse-nevoa, #E6E8EB); color: var(--u-tinta-2); }
+.cre-caixa { display: inline-grid; place-items: center; width: 24px; height: 24px; padding: 0; box-sizing: border-box; flex: none;
+  border: 1px solid var(--u-linha-forte); border-radius: 4px; background: #fff; color: var(--u-tinta-2); cursor: pointer; font: 600 14px/1 var(--odisse-fonte, Inter); }
+.cre-caixa svg { width: 14px; height: 14px; }
+.cre-caixa:hover { color: var(--u-tinta); border-color: var(--u-tinta); }
+.cre-caixa:focus-visible { outline: 2px solid var(--u-foco); outline-offset: 1px; }
+.cre-caixa.is-mais { border-style: dashed; background: transparent; cursor: inherit; }
+.u-botao.cre-mini { display: inline-flex; align-items: center; gap: 5px; min-height: 28px; padding: 4px 9px; font-size: 12px; white-space: nowrap; background: #fff; }
+.u-botao.cre-mini svg { width: 13px; height: 13px; }
+.u-botao.cre-urgente { border-color: var(--u-perigo, #A4473B); color: var(--u-perigo, #A4473B); }
+.u-botao.cre-urgente:hover { background: #F3E1DE; }
+.cre-extras { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.cre-mais { padding: 4px 8px; border: 1px dashed var(--u-linha-forte); border-radius: 4px; background: transparent; color: var(--u-tinta-2);
+  font: inherit; font-size: 12px; cursor: pointer; transition: border-color .15s, color .15s, background-color .15s; }
+.cre-mais:hover { border-color: var(--u-tinta-2); color: var(--u-tinta); background: #fff; }
+.cre-mais:focus-visible { outline: 2px solid var(--u-foco); outline-offset: 1px; }
+.cre-vazio { margin: 0; padding: 14px; border: 1px dashed var(--u-linha-forte); border-radius: var(--u-raio); color: var(--u-tinta-2); font-size: 13px; text-align: center; }
+.cre-emdia { margin: 10px 0 2px; font-size: 12px; color: var(--u-tinta-2); }
+.cre-carregando { margin: 0; }
+
+/* dentro das Fichas (Empresa, Equipe): parte do Bloco separada por filete leve */
+.cre-docs { margin-top: 10px; padding-top: 18px; border-top: 1px solid var(--u-linha); }
+.cre-docs > .u-rotulo { display: block; margin-bottom: 10px; }
+
+/* página Credenciais */
+.cre-placar { margin-top: var(--u-esp-5); }
+.pas-num-cx.is-problema { border-color: var(--u-perigo, #A4473B); }
+.pas-num-cx.is-problema b { color: var(--u-perigo, #A4473B); }
+.cre-sec { margin-top: var(--u-esp-7); padding-top: var(--u-esp-5); border-top: 1px solid var(--u-linha-forte); }
+.cre-sec__titulo { font-size: var(--u-t-subtitulo); font-weight: 650; letter-spacing: -.01em; margin: 0 0 var(--u-esp-4); }
+.cre-fluxo { --bloco-larg: 620px; }
+.cre-fluxo > .bol-bloco + .bol-bloco { margin-top: 0; }
+.cre-corpo { margin: 14px 0 6px; }
+.cre-corpo > .bol-sub:first-child { margin-top: 0; }
+.cre-corpo .bol-sub + .cre-lista { margin-top: 6px; }
+.cre-sub-link { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: inherit; text-decoration: none; }
+.cre-sub-link span { display: inline-flex; align-items: center; gap: 4px; font-weight: 500; color: var(--u-tinta-2); }
+.cre-sub-link svg { width: 12px; height: 12px; }
+.cre-sub-link:hover { background: rgba(63,75,87,.07); }
+.cre-sub-link:hover span { color: var(--u-tinta); }
+
+/* Gaveta */
+.cre-gaveta .acv-bloco > .u-rotulo { display: block; margin-bottom: 2px; }
+.cre-g-nome { margin: 0 0 6px !important; }
+.cre-dica { margin: 0 0 6px; font-size: 12.5px; }
+.cre-aviso { margin: 8px 0 0; padding: 9px 12px; border-radius: 6px; background: rgba(187,130,72,.11); color: #8A5A2B; font-size: 12.5px; line-height: 1.5; }
+.cre-arq-atual { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 13px; }
+.cre-arq-atual > svg { width: 16px; height: 16px; color: var(--u-tinta-2); flex: none; }
+.cre-arq-atual > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cre-enviar { display: inline-flex; align-items: center; min-height: 36px; }
+.cre-arq-nome { display: block; margin-top: 6px; font-size: 12px; }
+.cre-g-msg { font-size: 12.5px; color: var(--u-tinta-2); min-width: 0; }
+.cre-g-msg.erro { color: var(--u-perigo, #A4473B); }
+.cre-g-botoes { display: flex; gap: 8px; flex: none; }
+
+/* Início: documentos vencidos (cartão branco com borda ocre, como os outros alertas) */
+.ini-cre .ini-alerta { cursor: default; }
+.ini-cre .ini-alerta:hover { transform: none; }
+.ini-cre .ini-linha__txt small { white-space: normal; }
+
+@media (max-width: 760px) {
+  .cre-linha { grid-template-columns: 24px minmax(0, 1fr); }
+  .cre-linha.is-leitura { grid-template-columns: minmax(0, 1fr); }
+  .cre-etqs, .cre-acoes { grid-column: 2; justify-content: flex-start; }
+  .cre-linha.is-leitura .cre-etqs, .cre-linha.is-leitura .cre-acoes { grid-column: 1; }
+  .cre-placar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cre-g-botoes { flex-wrap: wrap; justify-content: flex-end; }
+  .acv-gaveta-pe:has(.cre-g-botoes) { flex-direction: column; align-items: stretch; }
+}
+/* Abas em caixa: no celular rolam de lado em vez de alargar a página (O Estúdio tem cinco) */
+.abas-caixa { max-width: 100%; overflow-x: auto; scrollbar-width: none; box-sizing: border-box; }
+.abas-caixa a { flex: none; white-space: nowrap; }
+/* Trilha abaixo das Abas: o caminho dentro da subpágina (Equipe / Nome), colado ao título */
+.abas-caixa-linha + .cab .u-trilha, .abas-caixa-linha + * .cab .u-trilha { margin-bottom: 4px; }

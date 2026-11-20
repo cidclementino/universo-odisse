@@ -44,6 +44,8 @@ export const PREFIXOS = {
   col: 'colecoes',
   obj: 'objetos',
   gal: 'galeria',
+  // Credenciais (0021)
+  cre: 'credenciais',
 };
 
 // Ferramentas que podem chamar a API. 'hub' = o próprio Universo (senha da equipe);
@@ -261,6 +263,10 @@ export const TABELAS = {
       cnpj: T('texto', { max: 20, rotulo: 'CNPJ' }),
       inscricao_municipal: T('texto', { max: 40, rotulo: 'Inscrição municipal' }),
       registro_cau: T('texto', { max: 40, rotulo: 'Registro no CAU (PJ)' }),
+      // 0021: Constituição e registros
+      inscricao_estadual: T('texto', { max: 40, rotulo: 'Inscrição estadual' }),
+      capital_social: T('centavos', { rotulo: 'Capital social' }),
+      responsavel_tecnico_id: T('ref', { prefixos: ['eqp'], rotulo: 'Responsável técnico no CAU' }),
       fundacao: T('texto', { max: 10, rotulo: 'Fundação' }),
       email: T('texto', { max: 120, rotulo: 'E-mail' }),
       telefone: T('texto', { max: 40, rotulo: 'Telefone' }),
@@ -324,7 +330,7 @@ export const TABELAS = {
   arquivos: {
     prefixo: 'arq',
     campos: {
-      dono_id: T('ref', { prefixos: ['ppt', 'ctr', 'cot', 'ped', 'prj', 'opo', 'org', 'pes', 'eqp'], rotulo: 'Documento de' }),
+      dono_id: T('ref', { prefixos: ['ppt', 'ctr', 'cot', 'ped', 'prj', 'opo', 'org', 'pes', 'eqp', 'cre'], rotulo: 'Documento de' }),
       nome_original: T('texto', { obrig: true, max: 200, rotulo: 'Nome do arquivo' }),
       tipo_mime: T('texto', { obrig: true, max: 100, rotulo: 'Tipo' }),
       tamanho: T('inteiro', { min: 0, rotulo: 'Tamanho' }),
@@ -387,6 +393,26 @@ export const TABELAS = {
   },
 
   // imagem ↔ projeto, objeto ou coleção (uma imagem pode estar em vários)
+  // Credenciais (0021; Cid, 19/11): documentos que editais e concursos pedem; o tipo vem do catálogo em credenciais.js
+  credenciais: {
+    prefixo: 'cre',
+    campos: {
+      dono_id: T('ref', { obrig: true, prefixos: ['emp', 'eqp', 'prj'], rotulo: 'De quem é' }),
+      tipo: T('texto', { obrig: true, max: 40, rotulo: 'Documento' }),
+      titulo: T('texto', { max: 160, rotulo: 'Detalhe' }),
+      numero: T('texto', { max: 80, rotulo: 'Número' }),
+      emitido_em: T('data', { rotulo: 'Emitido em' }),
+      vence_em: T('data', { rotulo: 'Vence em' }),
+      arquivo_id: T('ref', { prefixos: ['arq'], rotulo: 'Arquivo' }),
+      observacao: T('textoLongo', { max: 1000, rotulo: 'Observação' }),
+      substitui_id: T('ref', { prefixos: ['cre'], rotulo: 'Substitui' }),
+    },
+    imutaveis: ['dono_id', 'tipo', 'substitui_id'],
+    // documentos da empresa e da equipe (identidade incluída): só o hub, por ora
+    permissoes: { hub: 'E', maquina: 'E' },
+    filtros: ['dono_id', 'tipo'],
+    ordem: 'vence_em, criado_em',
+  },
   galeria: {
     prefixo: 'gal',
     campos: {
@@ -837,6 +863,7 @@ export const ROTAS = {
   colecoes: 'colecoes',
   objetos: 'objetos',
   galeria: 'galeria',
+  credenciais: 'credenciais',
 };
 
 export const COMUNS = ['id', 'criado_em', 'atualizado_em', 'criado_por', 'atualizado_por', 'versao', 'arquivado_em'];

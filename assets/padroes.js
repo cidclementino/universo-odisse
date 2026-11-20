@@ -180,9 +180,8 @@ const AMOSTRA = {
 
   // ---- peças (tamanho real, quando cabe) ----
   abas: () => `<div class="pi-var"><small>modelo · em caixa, com o nome da seção à esquerda</small>
-      <span class="pi-abas-linha"><span class="u-rotulo">O Estúdio</span><span class="pi-abas-caixa"><span class="is-on">Empresa</span><span>Equipe</span><span>Marca</span><span>Canais</span></span></span>
+      <span class="pi-abas-linha"><span class="u-rotulo">O Estúdio</span><span class="pi-abas-caixa"><span class="is-on">Empresa</span><span>Equipe</span><span>Marca</span><span>Canais</span><span>Credenciais</span></span></span>
       <span class="pi-abas-linha"><span class="u-rotulo">Contatos</span><span class="pi-abas-caixa"><span class="is-on">Todos <em>42</em></span><span>Pessoas <em>30</em></span><span>Organizações <em>12</em></span></span></span></div>
-    <div class="pi-var pi-legado"><small>a ajustar · em pílula</small><nav class="abas-estudio pi-abas-real"><div class="abas"><a class="ativa">Empresa</a><a>Equipe</a><a>Marca</a></div></nav></div>
     <div class="pi-var pi-legado"><small>a ajustar · sublinhadas</small><span class="pi-abas-sub"><span class="is-on">Posts 3:4</span><span>Pins</span><span>Stories</span></span></div>`,
 
   seletor: () => `<div class="pi-var"><small>modelo · quadrado</small><span class="pi-seg pi-seg--g"><span class="is-on">Cartões</span><span>Lista</span></span>
@@ -341,8 +340,8 @@ const PECAS = [
       ajustar: 'Editor do marketing ainda com "← Publicações".' },
     { id: 'abas', nome: 'Abas', modelo: 'Contratos', decisao: 'em caixa, com o nome da seção à esquerda (Cid, 19/11)',
       para: 'Subpáginas de uma mesma seção: nome da seção à esquerda, abas em caixa ao lado; contagem quando ajuda.',
-      onde: { s: ['contratos'], v: ['contatos', 'referencias', 'bases', 'pgt', 'concursos'], a: ['estudio', 'publicacoes', 'metricas', 'painelSite'] },
-      ajustar: 'Em caixa já existe (vendas, Projetos, Radar), falta o nome da seção à esquerda (Contratos já tem). O Estúdio (pílula) e as sublinhadas (marketing, painel do site) mudam de desenho.' },
+      onde: { s: ['contratos', 'estudio'], v: ['contatos', 'referencias', 'bases', 'pgt', 'concursos'], a: ['publicacoes', 'metricas', 'painelSite'] },
+      ajustar: 'Em caixa já existe (vendas, Projetos, Radar), falta o nome da seção à esquerda (Contratos, KPIs e O Estúdio já têm). As sublinhadas (marketing, painel do site) mudam de desenho.' },
     { id: 'seletor', nome: 'Seletor', modelo: 'Propostas › Histórico', decisao: 'quadrado (Cid, 19/11)',
       para: 'Escolher um modo, um filtro ou uma unidade na mesma página (não navega): Todas / Propostas / Simulações, Coluna / Ficha, % / R$. Versão pequena nas grades (critérios da Complexidade).',
       onde: { s: ['historico', 'emissor'], v: ['concursos', 'editorMkt', 'painelSite'], a: ['fases'] },
