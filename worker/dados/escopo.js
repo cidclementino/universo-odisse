@@ -12,7 +12,8 @@
 //                                   para a etapa correspondente do escopo)
 //   POST escopo/:prj/acao           { acao, … } — duracao { cartao_id, dias (±) | para } · mover { cartao_id, dias (±) }
 //                                   · suprimir / restaurar { cartao_id, motivo? } · acrescentar { depois_de, tipo, texto, dias,
-//                                   tempo?, motivo? } · decisao { cartao_id, resultado } · suspender { de } · retomar { ate }
+//                                   tempo?, motivo?, origem_id?, codigo?, cliente?, terceiros?, evento_tipo?, sem_prazo? }
+//                                   (com origem_id: um cartão do PGT que não foi contratado entra com o código e a origem dele) · decisao { cartao_id, resultado } · suspender { de } · retomar { ate }
 //                                   · inicio { dia } · motivo { alteracao_id, motivo }
 //   Cliques seguidos no mesmo cartão (duração ou mover, até 10 s entre um e outro, sem mexer em outro cartão no meio)
 //   viram uma alteração só, com a soma dos dias.
@@ -196,12 +197,21 @@ async function acao(env, ferramenta, prjId, a) {
       const ordem = prox?.o != null ? (ref.ordem + prox.o) / 2 : ref.ordem + 1;
       const id = novoId('esc');
       const tempo = tipo === 'evento' && ['estudio', 'cliente', 'terceiros', 'pontual'].includes(a.tempo) ? a.tempo : (tipo === 'evento' ? 'estudio' : null);
+      // cartão do PGT não contratado: entra com a origem e o código dele (não pode já estar no escopo)
+      const origem = texto(a.origem_id, 60);
+      if (origem) {
+        const ja = await env.DB.prepare('SELECT 1 FROM escopo_cartoes WHERE projeto_id = ? AND origem_id = ? AND arquivado_em IS NULL').bind(prjId, origem).first();
+        if (ja) throw new ErroApi(409, 'este cartão do PGT já está no escopo');
+      }
+      const codigo = origem ? texto(a.codigo, 20) : null;
+      const cliente = tipo === 'evento' && (a.cliente || tempo === 'cliente') ? 1 : 0;
+      const terceiros = tipo === 'evento' && (a.terceiros || tempo === 'terceiros') ? 1 : 0;
       s.push(env.DB.prepare(`INSERT INTO escopo_cartoes (id, criado_em, atualizado_em, criado_por, atualizado_por, versao, projeto_id, tipo, etapa_id, ordem,
-          sigla, texto, fase_id, fase_nome, tempo, cliente, dias, dias_contratados, folga, adicionado, observacoes)
-          VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, 0, 1, ?)`)
-        .bind(id, agora, agora, ferramenta, ferramenta, prjId, tipo, etapa.id, ordem, etapa.sigla, t, etapa.fase_id, etapa.fase_nome, tempo,
-          tempo === 'cliente' ? 1 : 0, dias, texto(a.observacoes, 4000)),
-      registrar(env, prjId, id, 'acrescentar', 'aditivo', { descricao: `${etapa.sigla ? etapa.sigla + ' · ' : ''}${t}`, motivo, dias }, ferramenta, agora));
+          origem_id, codigo, sigla, texto, fase_id, fase_nome, evento_tipo, tempo, cliente, terceiros, dias, dias_contratados, folga, sem_prazo, adicionado, observacoes)
+          VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, 0, ?, 1, ?)`)
+        .bind(id, agora, agora, ferramenta, ferramenta, prjId, tipo, etapa.id, ordem, origem, codigo, etapa.sigla, t, etapa.fase_id, etapa.fase_nome,
+          tipo === 'evento' ? texto(a.evento_tipo, 40) : null, tempo, cliente, terceiros, dias, a.sem_prazo ? 1 : 0, texto(a.observacoes, 4000)),
+      registrar(env, prjId, id, 'acrescentar', 'aditivo', { descricao: `${codigo ? codigo + ' · ' : etapa.sigla ? etapa.sigla + ' · ' : ''}${t}`, motivo, dias }, ferramenta, agora));
       break;
     }
     case 'decisao': {

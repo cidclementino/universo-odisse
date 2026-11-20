@@ -74,6 +74,14 @@ const novo = E.cartoes.find((c) => c.texto === 'Estudo de insolação');
 const ordem = E.cartoes.map((c) => c.texto);
 ok(novo.adicionado === 1 && novo.etapa_id === id('CE') && ordem.indexOf('Estudo de insolação') === ordem.indexOf('Estudo de massa') + 1, 'acrescentado logo depois de CE-01, na mesma etapa');
 ok(E.alteracoes[0].tipo === 'acrescentar' && E.alteracoes[0].natureza === 'aditivo' && E.alteracoes[0].motivo === 'Pedido do cliente', 'acrescentar: potencial aditivo');
+// acrescentar um cartão do PGT que não foi contratado: entra com a origem e o código; não entra duas vezes
+E = await acao({ acao: 'acrescentar', depois_de: id('CE-01'), tipo: 'evento', texto: 'Visita extra', dias: 1, tempo: 'pontual', cliente: 1,
+  origem_id: 'pev_teste_extra', codigo: 'CE-M09', evento_tipo: 'visita' });
+const doPgt = E.cartoes.find((c) => c.origem_id === 'pev_teste_extra');
+ok(doPgt && doPgt.codigo === 'CE-M09' && doPgt.cliente === 1 && doPgt.adicionado === 1 && doPgt.evento_tipo === 'visita'
+  && E.alteracoes[0].descricao.startsWith('CE-M09'), 'acrescentar do PGT: código, origem e cliente');
+ok(await falha('POST', `escopo/${prj.id}/acao`, { acao: 'acrescentar', depois_de: id('CE-01'), tipo: 'evento', texto: 'Visita extra', origem_id: 'pev_teste_extra' }) === 409,
+  'o mesmo cartão do PGT duas vezes → 409');
 
 // decisão: a segunda rodada é extra previsto; o caminho esperado não registra
 E = await acao({ acao: 'decisao', cartao_id: id('CE-M03'), resultado: 'aprovado' });
@@ -94,5 +102,5 @@ const h2 = (await chamar('POST', 'horas', { equipe_id: eqp.id, projeto_id: prj.i
 ok(h2.cartao_id === id('CE'), 'hora lançada na etapa do escopo');
 const outro = (await chamar('POST', 'projetos', { nome: 'Outro', inicio: '2026-11-02' })).registro;
 ok(await falha('POST', 'horas', { equipe_id: eqp.id, projeto_id: outro.id, cartao_id: id('CE'), data: '2026-11-04', minutos: 60 }) >= 400, 'etapa do escopo de outro projeto → recusa');
-ok((await chamar('GET', 'escopo/' + prj.id, null, 'vendas')).cartoes.length === 6, 'vendas lê o escopo');
+ok((await chamar('GET', 'escopo/' + prj.id, null, 'vendas')).cartoes.length === 7, 'vendas lê o escopo');
 console.log('TUDO CERTO');
