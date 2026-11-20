@@ -2,6 +2,11 @@ name = "universo-hub"
 main = "index.js"
 compatibility_date = "2026-07-01"
 
+# KPIs (Cid, 19/11): todo dia às 06:47 de Brasília (depois da coleta do Instagram, 06:17) guarda os números
+# de ontem do Instagram e do site; no dia 1º fecha o balanço do mês anterior (worker/kpis.js).
+[triggers]
+crons = ["47 9 * * *"]
+
 # Os secrets (UNIVERSO_SENHA, MAQUINA_TOKEN, MARCA_GITHUB_TOKEN) são enviados pelo GitHub Actions
 # a partir dos secrets do repositório — nunca coloque os valores aqui.
 

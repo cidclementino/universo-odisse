@@ -1,15 +1,19 @@
 // Início do Universo — o panorama do dia numa leitura só (Cid, 19/11).
 //
-//   GET  /api/inicio            -> { hoje, em, radar, publicacoes, instagram, site }
+//   GET  /api/inicio            -> { hoje, em, radar, publicacoes, balanco }
+// Desde 19/11 (Cid) a Início traz só ações: as métricas de canal (Instagram e site de ontem) foram para a
+// seção KPIs (worker/kpis.js); aqui fica só o aviso de que o balanço do mês foi feito.
 //   POST /api/inicio/publicar   <- { tipo: 'item' | 'pauta', id }  -> confirma a publicação no marketing
 //
 // O hub busca nas outras ferramentas Worker a Worker (service bindings com entrypoint "Universo"; ver
 // wrangler.toml), sem as senhas delas. Cada parte vem ou falha sozinha: { erro } no lugar dos dados.
 //   radar       (RADAR → radar-odisse)        novidades(hoje): concursos, terrenos, licitações e contratos
 //                                              que entraram hoje (primeira coleta, Brasília)
-//   marketing   (MARKETING → universo-odisse)  resumo(hoje): publicações de hoje e atrasadas; Instagram de ontem
-//   site        (SITE_ODISSE → site-odisse)    metricasDoDia(ontem): números fechados de ontem e anteontem
+//   marketing   (MARKETING → universo-odisse)  resumo(hoje): publicações de hoje e atrasadas
+//   balanco     (R2, kpis/ultimo.json)         último balanço mensal, nos 10 dias seguintes ao fechamento
 // Dias sempre de Brasília: "do dia" = hoje, 00:00 até agora; "último dia" = ontem, 00:00–23:59.
+
+import { avisoBalanco } from './kpis.js';
 
 const TZ = 'America/Sao_Paulo';
 export const diaBR = (d = new Date()) =>
@@ -34,10 +38,10 @@ async function parte(nome, ligacao, chamar) {
 export async function inicio(env, agora = new Date()) {
   const hoje = diaBR(agora);
   const ontem = somarDias(hoje, -1);
-  const [radar, marketing, site] = await Promise.all([
+  const [radar, marketing, balanco] = await Promise.all([
     parte('Radar', env.RADAR, (r) => r.novidades(hoje)),
     parte('marketing', env.MARKETING, (m) => m.resumo(hoje)),
-    parte('site', env.SITE_ODISSE, (s) => s.metricasDoDia(ontem)),
+    env.ARQUIVOS ? avisoBalanco(env, agora).catch(() => null) : null,
   ]);
   const mErro = marketing?.erro ? { erro: marketing.erro } : null;
   return {
@@ -46,8 +50,7 @@ export async function inicio(env, agora = new Date()) {
     em: agora.toISOString(),
     radar,
     publicacoes: mErro || { linhas: marketing.linhas || [], publicadas: marketing.publicadas || 0, atrasadas: marketing.atrasadas || 0 },
-    instagram: mErro || marketing.instagram || { erro: 'Instagram não conectado' },
-    site,
+    balanco,
   };
 }
 

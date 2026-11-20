@@ -18,11 +18,11 @@ const env = {
 const r = await inicio(env, agora);
 ok(r.hoje === '2026-11-19' && r.ontem === '2026-11-18', 'hoje e ontem');
 ok(chamadas.some((c) => c[0] === 'radar' && c[1] === '2026-11-19') && chamadas.some((c) => c[0] === 'mkt' && c[1] === '2026-11-19'), 'Radar e marketing pedidos com o dia de hoje');
-ok(r.radar.terrenos === 2 && r.publicacoes.atrasadas === 3 && r.publicacoes.linhas.length === 1 && r.instagram.atual.alcance === 10, 'partes juntadas');
-ok(r.site.erro && r.site.erro.includes('fora do ar'), 'o site falhou sozinho, sem derrubar o resto');
+ok(r.radar.terrenos === 2 && r.publicacoes.atrasadas === 3 && r.publicacoes.linhas.length === 1, 'partes juntadas');
+ok(!('instagram' in r) && !('site' in r) && r.balanco === null, 'métricas de canal saíram da Início (foram para os KPIs)');
 
 const r2 = await inicio({}, agora);
-ok(r2.radar.erro && r2.publicacoes.erro && r2.instagram.erro && r2.site.erro, 'sem ligações: cada parte avisa');
+ok(r2.radar.erro && r2.publicacoes.erro, 'sem ligações: cada parte avisa');
 
 ok((await publicar(env, { tipo: 'item', id: 'pl-a' }, agora)).ok, 'confirma item do pool');
 ok(chamadas.at(-1)[2] === '2026-11-19', 'confirmação leva o dia de Brasília');

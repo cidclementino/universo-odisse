@@ -1,8 +1,9 @@
 // Início (#/) — o panorama do dia (Cid, 19/11).
 //
-// Uma leitura só (GET /api/inicio, worker/inicio.js), três partes, nesta ordem:
-//   1. Ontem: Placar com os números fechados do dia anterior (00:00–23:59 de Brasília), Instagram e site,
-//      com a variação sobre anteontem.
+// Uma leitura só (GET /api/inicio, worker/inicio.js). Desde 19/11 (Cid) só ações; as métricas de ontem
+// (Instagram e site) foram para a seção KPIs (assets/kpis.js). Nesta ordem:
+//   1. Balanço do mês: nos 10 dias seguintes ao fechamento (dia 1º), aviso de que o balanço foi feito, com
+//      Ver e Baixar o PDF. Sem balanço recente, não aparece.
 //   2. Radar: uma faixa por tipo, só quando entrou algo hoje ("3 novos terrenos no Radar"); sem nada novo,
 //      a seção não aparece. Cada faixa abre o Radar só com os novos do dia (nova aba).
 //   3. Publicações de hoje: o que ainda falta publicar no calendário editorial e o planejado para o dia
@@ -11,31 +12,22 @@
 // Abre na hora com a última cópia (memoria.js) e confere no servidor a cada abertura e a cada 2 h.
 
 import { lerCopia, gravarCopia, igual } from './memoria.js';
+import { abrirBalanco } from './kpis.js';
 
 const COPIA = 'inicio';
 const INTERVALO = 2 * 3600 * 1000;
 const RADAR = 'https://radar.odisse.com.br';
 const CALENDARIO = 'https://marketing.odisse.com.br/#/calendario';
-const METRICAS = 'https://marketing.odisse.com.br/#/metricas';
-const SITE_PAINEL = 'https://www.odisse.com.br/admin/';
 
 const NUCLEO = { estudio: 'Estúdio', arquitetos: 'Arquitetos', objetos: 'Objetos', elaia: 'Elaia' };
 const REDE = { instagram: 'Instagram', pinterest: 'Pinterest' };
 const SITUACAO_PAUTA = { pauta: 'só pauta', producao: 'em produção', pronta: 'pronta', publicada: 'publicada' };
 
 const SVG = {
-  sobe: '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M6 9.5V2.5M2.8 5.7 6 2.5l3.2 3.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-  desce: '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M6 2.5v7M2.8 6.3 6 9.5l3.2-3.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   fora: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M9.5 3H13v3.5M13 3 7.5 8.5M11 9.5V13H3V5h3.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   ok: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5 6.5 11.5 12.5 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
 };
 
-const num = (n) => {
-  if (n === null || n === undefined) return '—';
-  if (Math.abs(n) >= 10000) return `${(n / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} mil`;
-  return n.toLocaleString('pt-BR');
-};
-const diaCurto = (iso) => (iso ? new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' }) : '');
 const hora = (iso) => (iso ? new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '');
 
 export function criarInicio({ esc, api, toque }) {
@@ -44,58 +36,24 @@ export function criarInicio({ esc, api, toque }) {
   let timer = null;
   let buscando = null;
 
-  // ---- 1. Ontem (Placar) -------------------------------------------------------
+  // ---- 1. Balanço do mês ----------------------------------------------------------
 
-  function variacao(atual, antes) {
-    if (atual == null || antes == null) return '';
-    if (antes === 0) return atual === 0 ? '<span class="ini-var">=</span>' : '';
-    const p = Math.round(((atual - antes) / antes) * 100);
-    if (p === 0) return '<span class="ini-var">=</span>';
-    const cls = p > 0 ? 'sobe' : 'desce';
-    return `<span class="ini-var ${cls}" title="Anteontem: ${num(antes)}">${p > 0 ? SVG.sobe : SVG.desce}${Math.abs(p)}%</span>`;
-  }
-
-  const numero = (rotulo, valor, antes, extra = '') => `<div class="ini-num">
-      <span class="ini-num__rot">${esc(rotulo)}</span>
-      <b>${num(valor)}</b>
-      <span class="ini-num__pe">${variacao(valor, antes)}${extra}</span>
-    </div>`;
-
-  function grupoPlacar({ nome, cor, onde, link, corpo, erro, colunas }) {
-    const miolo = erro
-      ? `<p class="ini-vazio">${esc(erro)}</p>`
-      : `<div class="ini-placar" style="--n:${colunas}">${corpo}</div>`;
-    return `<section class="ini-grupo" style="--g:${cor}">
-        <a class="ini-grupo__faixa" href="${esc(link)}" target="_blank" rel="noopener">${esc(nome)}<span>${esc(onde)}</span><i class="ini-fora">${SVG.fora}</i></a>
-        ${miolo}
-      </section>`;
-  }
-
-  function placar(d) {
-    const ig = d.instagram || {};
-    const igErro = ig.erro ? 'Não foi possível ler o Instagram agora.' : !ig.atual ? 'O Instagram ainda não tem os números de ontem.' : '';
-    const a = ig.atual || {}, b = ig.anterior || {};
-    const ganhos = a.novos != null ? `<span class="ini-num__extra">+${num(a.novos)} ontem</span>` : '';
-    const toques = a.toques != null ? `<span class="ini-num__extra">${num(a.toques)} ${a.toques === 1 ? 'toque' : 'toques'} no link</span>` : '';
-    const instagram = grupoPlacar({
-      nome: 'Instagram', cor: 'var(--odisse-ambar, #ECC28F)', onde: '@odisseestudio', link: METRICAS, colunas: 4, erro: igErro,
-      corpo: numero('Alcance', a.alcance, b.alcance)
-        + numero('Interações', a.interacoes, b.interacoes)
-        + numero('Seguidores', ig.seguidores, null, ganhos) // o total muda pouco: vale o ganho do dia, não a %
-        + numero('Visitas ao perfil', a.visitas, b.visitas, toques),
-    });
-    const s = d.site || {};
-    const st = s.total || {}, sa = s.anterior || {};
-    const site = grupoPlacar({
-      nome: 'Site', cor: 'color-mix(in srgb, var(--odisse-ardosia, #3F4B57) 45%, white)', onde: 'odisse.com.br', link: SITE_PAINEL, colunas: 3,
-      erro: s.erro || !s.total ? 'Não foi possível ler as métricas do site agora.' : '',
-      corpo: numero('Visitantes', st.visitantes, sa.visitantes)
-        + numero('Projetos abertos', st.projetos, sa.projetos)
-        + numero('Contatos', st.contatos, sa.contatos, '<span class="ini-num__extra">WhatsApp, e-mail e telefone</span>'),
-    });
+  const NOME_MES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+  function balanco(d) {
+    const b = d.balanco;
+    if (!b?.mes) return '';
+    const nome = NOME_MES[+b.mes.slice(5, 7) - 1];
+    const quando = new Date(b.feito_em).toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' });
     return `<section class="ini-sec">
-        <h2 class="ini-sec__titulo">Ontem <span>${esc(diaCurto(d.ontem))}</span></h2>
-        <div class="ini-placares">${instagram}${site}</div>
+        <div class="ini-alerta ini-balanco">
+          <span class="ini-etq ok">${SVG.ok}</span>
+          <span class="ini-linha__txt"><b>Balanço de ${esc(nome)} feito</b><small>Fechado em ${esc(quando)}, com os números do mês, o retrospecto e a expectativa para o próximo</small></span>
+          <span class="ini-balanco__acoes">
+            <a class="u-botao" href="#/kpis?mes=${esc(b.mes)}">Abrir KPIs</a>
+            <button type="button" class="u-botao" data-balanco="ver" data-mes="${esc(b.mes)}">Ver PDF</button>
+            <button type="button" class="u-botao forte" data-balanco="baixar" data-mes="${esc(b.mes)}">Baixar PDF</button>
+          </span>
+        </div>
       </section>`;
   }
 
@@ -195,7 +153,7 @@ export function criarInicio({ esc, api, toque }) {
     const lado = dados?.em ? `${hoje} · atualizado às ${hora(dados.em)}` : hoje;
     const cab = `<div class="cab"><h1 class="u-titulo">Início</h1><div class="lado u-apoio">${esc(lado)}</div></div>`;
     if (!dados) { raiz.innerHTML = cab + '<p class="u-apoio ini-carregando">Carregando o panorama do dia…</p>'; return; }
-    raiz.innerHTML = cab + placar(dados) + radar(dados) + publicacoes(dados);
+    raiz.innerHTML = cab + balanco(dados) + radar(dados) + publicacoes(dados);
   }
 
   async function buscar() {
@@ -241,6 +199,13 @@ export function criarInicio({ esc, api, toque }) {
   }
 
   function aoClicar(ev) {
+    const bal = ev.target.closest('[data-balanco]');
+    if (bal) {
+      bal.disabled = true;
+      abrirBalanco(api, bal.dataset.mes, { baixar: bal.dataset.balanco === 'baixar' })
+        .catch((e) => toque('Não foi possível montar o PDF: ' + e.message)).finally(() => { bal.disabled = false; });
+      return;
+    }
     const b = ev.target.closest('[data-confirmar]');
     if (b) { ev.preventDefault(); confirmar(b); return; }
     // linha de publicação: clicável inteira (menos o botão), abre o calendário em nova aba

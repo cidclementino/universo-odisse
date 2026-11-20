@@ -14,6 +14,7 @@ import { criarInicio } from './inicio.js';
 import { criarPrecos } from './precos.js';
 import { criarPastas } from './pastas.js';
 import { criarAcervo } from './acervo.js';
+import { criarKpis } from './kpis.js';
 
 const MARCA = 'https://marca.odisse.com.br/';
 const API = 'https://universo-hub.reservaprojectbasework.workers.dev';
@@ -112,6 +113,7 @@ const padroes = criarPadroes({ esc });
 const inicio = criarInicio({ esc, api, toque });
 const precos = criarPrecos({ esc, api });
 const pastas = criarPastas({ esc, api, toque });
+const kpis = criarKpis({ esc, api, toque });
 const acervo = criarAcervo({ esc, api, apiBinario, toque });
 const empresa = criarEmpresa({ esc, api, toque, lerOdisse: () => ODISSE, gravarOdisse: (d) => { ODISSE = d; } });
 
@@ -127,8 +129,14 @@ function abasEstudio(atual) {
 
 const PAGINAS = {
   inicio() {
-    // panorama do dia (Cid, 19/11): métricas de ontem, novidades do Radar e publicações de hoje (assets/inicio.js)
+    // panorama do dia (Cid, 19/11): só ações — aviso do balanço do mês, novidades do Radar e publicações de
+    // hoje (assets/inicio.js). As métricas de ontem foram para os KPIs.
     return '<div id="pagina-inicio" class="pagina-inicio"></div>';
+  },
+
+  // KPIs (Cid, 19/11): seção do menu principal, atalho em Ferramentas › Gestão (assets/kpis.js)
+  kpis() {
+    return '<div id="pagina-kpis" class="pagina-kpis"></div>';
   },
 
   ferramentas() {
@@ -196,6 +204,7 @@ function depois(rota) {
   if (rota === 'padroes') padroes.ligar(vista.querySelector('#pagina-padroes'));
   if (rota === 'precos') precos.ligar(vista.querySelector('#pagina-precos'));
   if (rota === 'pastas') pastas.ligar(vista.querySelector('#pagina-pastas'));
+  if (rota === 'kpis') kpis.ligar(vista.querySelector('#pagina-kpis'));
   if (rota === 'acervo') acervo.ligar(vista.querySelector('#pagina-acervo'));
   if (rota === 'biblioteca') documentos.ligarModelos(vista.querySelector('#biblioteca-modelos'));
 }

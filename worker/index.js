@@ -28,6 +28,8 @@
 // Início (exige a senha da equipe; ver inicio.js):
 //   GET  /api/inicio           -> panorama do dia (Radar, publicações, Instagram e site de ontem)
 //   POST /api/inicio/publicar  <- { tipo: 'item'|'pauta', id } -> confirma a publicação no marketing
+// KPIs (exigem a senha da equipe; ver kpis.js): GET /api/kpis, GET /api/kpis/balanco, PUT /api/kpis/metas,
+//   POST /api/kpis/fechar. Cron diário (wrangler.toml): números de ontem dos canais e, no dia 1º, o balanço.
 // Mapa de preços (exige a senha da equipe):
 //   GET  /api/precos           -> { em, contratos, concursos } do Radar (ponto de entrada Universo, precos())
 //
@@ -40,6 +42,7 @@ import { api } from './dados/api.js';
 import { aplicar, mudancas, gerarCss, validarSvg, incluirLogo } from './marca.js';
 import { inicio, publicar } from './inicio.js';
 import { lerPastas, gravarPastas } from './pastas.js';
+import { lerKpis, lerBalanco, gravarMetas, fecharMes, rotina } from './kpis.js';
 
 const REPO = 'cidclementino/marca-odisse';
 const ARQUIVO = 'odisse.json';
@@ -141,6 +144,11 @@ async function gravarVarios(env, mensagem, arquivos) {
 // ---- rotas ----------------------------------------------------------------
 
 export default {
+  // Cron diário (KPIs): guarda os números de ontem dos canais e, no dia 1º, fecha o mês anterior.
+  async scheduled(evento, env, ctx) {
+    ctx.waitUntil(rotina(env).then((r) => console.log('kpis', JSON.stringify(r)), (e) => console.error('kpis', e)));
+  },
+
   async fetch(request, env, ctx) {
     const CORS = cors();
     const json = (data, status = 200) =>
@@ -174,6 +182,16 @@ export default {
         const r = request.method === 'GET' ? await lerPastas(env)
           : request.method === 'PUT' ? await gravarPastas(env, await request.text())
           : { status: 405, erro: 'método não aceito' };
+        return r.dados ? json(r.dados) : erro(r.erro, r.status);
+      }
+      // KPIs (Cid, 19/11): seção do menu principal; dados no R2 e no D1 (worker/kpis.js)
+      if (pathname.startsWith('/api/kpis')) {
+        const r = pathname === '/api/kpis' && request.method === 'GET' ? await lerKpis(env, url.searchParams.get('mes'))
+          : pathname === '/api/kpis/balanco' && request.method === 'GET' ? await lerBalanco(env, url.searchParams.get('mes'))
+          : pathname === '/api/kpis/metas' && request.method === 'PUT' ? await gravarMetas(env, await request.json().catch(() => null))
+          : pathname === '/api/kpis/fechar' && request.method === 'POST'
+            ? await request.json().catch(() => ({})).then((c) => fecharMes(env, c?.mes).then((d) => ({ status: 200, dados: d }), (e) => ({ status: 422, erro: e.message })))
+          : { status: 404, erro: 'rota não encontrada' };
         return r.dados ? json(r.dados) : erro(r.erro, r.status);
       }
       if (pathname === '/api/inicio/publicar') {

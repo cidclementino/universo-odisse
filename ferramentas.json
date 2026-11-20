@@ -2,6 +2,11 @@
   "versao": 2,
   "secoes": [
     {"id": "inicio", "nome": "Início", "descricao": "O que importa hoje"},
+    {
+      "id": "kpis",
+      "nome": "KPIs",
+      "descricao": "Como o estúdio está indo"
+    },
     {"id": "ferramentas", "nome": "Ferramentas", "descricao": "Onde se trabalha"},
     {"id": "estudio", "nome": "O Estúdio", "descricao": "Quem somos", "rota": "empresa"},
     {"id": "empresa", "nome": "Empresa", "descricao": "Dados da empresa e textos de apresentação", "pai": "estudio"},
@@ -174,6 +179,16 @@
       "descricao": "Mostra ao cliente cronograma, pranchas e aprovações",
       "acesso": "interna",
       "status": "em-breve"
+    },
+    {
+      "id": "kpis",
+      "nome": "KPIs",
+      "secao": "ferramentas",
+      "ramo": "gestao",
+      "descricao": "Indicadores do mês, metas e o balanço mensal em PDF",
+      "url": "https://universo.odisse.com.br/#/kpis",
+      "acesso": "interna",
+      "status": "no-ar"
     },
     {
       "id": "financeiro",
