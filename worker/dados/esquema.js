@@ -442,8 +442,12 @@ export const TABELAS = {
       reajuste_indice: T('texto', { max: 40, rotulo: 'Índice do reajuste' }),
       observacoes: T('textoLongo', { max: 2000, rotulo: 'Observações' }),
       arquivo_id: T('ref', { prefixos: ['arq'], rotulo: 'Contrato ou comprovante' }),
+      // 0026: simulação (fora das contas reais; efetivar = 0; real não volta a ser simulação)
+      simulada: T('sn', { rotulo: 'Simulação' }),
+      // 0026: valor varia de mês para mês (o valor é a estimativa; o real de cada mês em despesas_fixas_meses)
+      variavel: T('sn', { rotulo: 'Valor varia' }),
     },
-    padroes: { grupo: 'geral', moeda: 'brl', periodicidade: 'mensal' },
+    padroes: { grupo: 'geral', moeda: 'brl', periodicidade: 'mensal', simulada: 0, variavel: 0 },
     permissoes: { hub: 'E' },
     historico_sem_valores: true,
     filtros: ['grupo', 'categoria'],

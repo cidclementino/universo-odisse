@@ -1155,7 +1155,7 @@ span.bol-fonte + .bol-caixa, .bol-titulo + .bol-caixa { margin-left: auto; }
 .fin-conta { font-size: 12px; color: var(--u-tinta-2); white-space: nowrap; }
 
 /* Régua e linhas: mesmas colunas */
-.fin-regua, .fin-linha { display: grid; grid-template-columns: minmax(180px, 2.4fr) minmax(130px, 1.1fr) 210px 140px 60px 132px 92px; gap: 12px; align-items: center; }
+.fin-regua, .fin-linha { display: grid; grid-template-columns: minmax(180px, 2.4fr) minmax(130px, 1.1fr) 210px 140px 60px 132px 120px; gap: 12px; align-items: center; }
 .fin-regua { padding: 9px 14px; margin-bottom: 4px; border-radius: var(--u-raio); background: rgba(255,255,255,.55);
   font-size: var(--u-t-rotulo); font-weight: 650; letter-spacing: .06em; text-transform: uppercase; color: var(--u-tinta-2); }
 .fin-regua .num { text-align: right; }
@@ -1273,7 +1273,7 @@ span.bol-fonte + .bol-caixa, .bol-titulo + .bol-caixa { margin-left: auto; }
 }
 @media (max-width: 1100px) {
   .fin-regua { display: none; }
-  .fin-linha { grid-template-columns: minmax(0, 1fr) 190px 60px 92px; grid-template-areas: 'nome valor dia cmd' 'cat per prox prox'; row-gap: 4px; padding: 10px 12px; }
+  .fin-linha { grid-template-columns: minmax(0, 1fr) 190px 60px 120px; grid-template-areas: 'nome valor dia cmd' 'cat per prox prox'; row-gap: 4px; padding: 10px 12px; }
   .fin-c-nome { grid-area: nome; } .fin-c-cat { grid-area: cat; } .fin-c-valor { grid-area: valor; } .fin-c-per { grid-area: per; }
   .fin-c-dia { grid-area: dia; } .fin-c-prox { grid-area: prox; align-items: flex-end; } .fin-c-cmd { grid-area: cmd; }
   .fin-criar .fin-c-prox { display: none; }
@@ -1289,3 +1289,31 @@ span.bol-fonte + .bol-caixa, .bol-titulo + .bol-caixa { margin-left: auto; }
   .fin-sec-cab { flex-wrap: wrap; }
   .fin-sec-cab .fin-anos { order: 3; margin-left: 0; }
 }
+/* Simulações (Cid, 20/11): tracejado em ocre claro = fora das contas reais; nada de barra à esquerda */
+.fin-item.simulada { border-style: dashed; border-color: rgba(187,130,72,.55); background: rgba(242,221,190,.22); }
+.fin-item.simulada:focus-within { background: #fff; }
+.fin-efetivar { height: 24px; padding: 0 8px; border: 1px solid rgba(187,130,72,.6); border-radius: 4px; background: #fff; font: inherit; font-size: 11.5px; font-weight: 650;
+  color: #8A5A2B; cursor: pointer; white-space: nowrap; transition: background .15s, color .15s; }
+.fin-efetivar:hover { background: rgba(187,130,72,.12); }
+.fin-efetivar.armado { background: var(--odisse-ocre, #BB8248); border-color: var(--odisse-ocre, #BB8248); color: #fff; }
+.fin-efetivar:focus-visible { outline: 2px solid var(--u-foco); outline-offset: 1px; }
+.fin-mais { font-size: 12px; font-weight: 650; color: #8A5A2B; }
+.fin-etq-sim { display: inline-block; margin-right: 4px; padding: 1px 6px; border: 1px dashed rgba(187,130,72,.7); border-radius: 4px; font-size: 10.5px; font-weight: 650; color: #8A5A2B; vertical-align: 1px; }
+.fin-matriz tr.fin-l-simulacao th, .fin-matriz tr.fin-l-simulacao td { background: rgba(242,221,190,.25); }
+.fin-visao { margin-left: auto; }
+.fin-sec-cab .fin-sec-soma:not(button *) { color: #8A5A2B; }
+.fin-c-cmd { flex-wrap: nowrap; }
+/* Contas que variam: chave nos detalhes e grade dos 12 meses */
+.fin-chave { display: flex; align-items: flex-start; gap: 8px; margin: 0 0 12px; font-size: 13px; cursor: pointer; }
+.fin-chave input { margin: 2px 0 0; width: 15px; height: 15px; accent-color: var(--u-tinta); }
+.fin-varia { color: #8A5A2B; }
+.fin-det-meses { grid-column: 1 / -1; padding: 4px 0 12px; }
+.fin-det-meses .fin-det-rot small { font-weight: 400; color: var(--u-tinta-2); margin-left: 6px; }
+.fin-meses { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 6px; }
+.fin-mes { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.fin-mes > span { font-size: 11px; color: var(--u-tinta-2); text-align: center; }
+.fin-mes.atual > span { color: var(--u-tinta); font-weight: 650; }
+.fin-mes .fin-campo { border-color: var(--u-linha); background: #fff; padding: 5px 6px; font-size: 12.5px; }
+.fin-mes .fin-campo::placeholder { color: #B5BCC3; }
+@media (max-width: 1100px) { .fin-meses { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .fin-meses { grid-template-columns: repeat(3, minmax(0, 1fr)); } }

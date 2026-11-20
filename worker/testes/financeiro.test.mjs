@@ -66,6 +66,28 @@ await chamar('POST', `despesas-fixas/${pl.id}/arquivar`, { versao: pl.versao });
 q = await chamar('GET', 'financeiro/despesas');
 ok(!q.despesas.some((d) => d.id === pl.id), 'arquivada sai da leitura');
 
+// simulação: nasce simulada, efetiva, e real não volta a ser simulação
+const sim = (await chamar('POST', 'despesas-fixas', { nome: 'Estagiário', valor: 150000, dia: 5, simulada: 1 })).registro;
+ok(sim.simulada === 1 && alug.simulada === 0, 'simulação marcada; real por padrão');
+const ef = (await chamar('PATCH', `despesas-fixas/${sim.id}`, { versao: sim.versao, simulada: 0 })).registro;
+ok(ef.simulada === 0, 'efetivar passa a contar');
+ok((await pedir('PATCH', `despesas-fixas/${sim.id}`, { versao: ef.versao, simulada: 1 })).status === 422, 'real não volta a ser simulação');
+
+// pagamento começa depois: anual sem mês pega o mês do início
+const saas = (await chamar('POST', 'despesas-fixas', { nome: 'SaaS novo', valor: 9900, dia: 7, periodicidade: 'anual', inicio: '2027-01-01' })).registro;
+ok(saas.mes === 1 && saas.inicio === '2027-01-01', 'começa em janeiro: o pagamento anual fica em janeiro');
+ok((await chamar('GET', 'financeiro/despesas')).despesas.find((x) => x.id === saas.id).valores[0].desde === '2027-01', 'valor vale desde o mês em que começa');
+
+// valor que varia: lançar o real de um mês, trocar e tirar
+const luz = (await chamar('POST', 'despesas-fixas', { nome: 'Energia', valor: 30000, dia: 22, variavel: 1 })).registro;
+await chamar('POST', `financeiro/despesas/${luz.id}/meses`, { mes: '2026-10', valor: 31250 });
+await chamar('POST', `financeiro/despesas/${luz.id}/meses`, { mes: '2026-10', valor: 31290 });
+await chamar('POST', `financeiro/despesas/${luz.id}/meses`, { mes: '2026-09', valor: 28000 });
+await chamar('POST', `financeiro/despesas/${luz.id}/meses`, { mes: '2026-09', valor: null });
+const luzQ = (await chamar('GET', 'financeiro/despesas')).despesas.find((x) => x.id === luz.id);
+ok(luz.variavel === 1 && luzQ.meses['2026-10'] === 31290 && !('2026-09' in luzQ.meses), 'variável: real do mês lançado, trocado e tirado');
+ok((await pedir('POST', `financeiro/despesas/${luz.id}/meses`, { mes: '2026-13', valor: 1 })).status === 422, 'mês inválido é recusado');
+
 // lote
 const lote = await chamar('POST', 'financeiro/despesas/lote', { itens: [{ nome: 'Internet', valor: 12000, dia: 15 }, { nome: 'Sem dia', valor: 1 }] });
 ok(lote.criadas.length === 1 && lote.erros.length === 1 && lote.erros[0].linha === 2, 'lote cria o que dá e devolve o erro de cada linha');
@@ -102,9 +124,16 @@ ok(cm.geral === 120000 + 10000 + 10000 && cm.pessoal === 500000 && cm.estimado.g
 const pv = previsaoAnual(lista, 2026, cot);
 ok(pv.meses[2] === 120000 + 10000 + 120000 + 500000 && pv.meses[0] === 120000 + 10000 + 500000 + 9999 && pv.meses[1] === 630000, 'previsão: anual no mês dela, encerrada só até o fim');
 ok(pv.total === 12 * 630000 + 120000 + 9999 && pv.estimado && pv.linhas.at(-1).categoria === 'Pessoal', 'previsão: total do ano, com *, Pessoal numa linha no fim');
+const pvS = previsaoAnual([...lista, d({ nome: 'Estagiário', valor: 100000, simulada: 1, valores: [{ desde: '2026-01', valor: 100000, moeda: 'brl' }] })], 2026, cot);
+ok(pvS.linhas.at(-1).grupo === 'simulacao' && pvS.linhas.at(-1).categoria === 'Estagiário' && pvS.total === pv.total + 1200000, 'simulada vira linha própria no fim da previsão');
+const luzD = d({ valor: 30000, variavel: 1, valores: [{ desde: '2026-01', valor: 30000, moeda: 'brl' }], meses: { '2026-10': 31290 } });
+const pvL = previsaoAnual([luzD], 2026, cot);
+ok(pvL.meses[9] === 31290 && !pvL.est[9] && pvL.meses[10] === 30000 && pvL.est[10], 'variável: real no mês lançado; estimativa (com *) nos outros');
 ok(previsaoAnual(lista, 2026, null).falta, 'sem cotação, avisa que o dólar ficou de fora');
 ok(proximoVencimento(d({ dia: 31 }), '2026-02-10') === '2026-02-28', 'dia 31 em fevereiro vence no último dia');
 ok(proximoVencimento(d({ periodicidade: 'anual', mes: 3, dia: 5 }), '2026-03-06') === '2027-03-05', 'anual já paga no ano vai para o ano seguinte');
+ok(proximoVencimento(d({ inicio: '2027-01-01', dia: 7 }), '2026-11-20') === '2027-01-07', 'começa daqui a 2 meses: primeiro vencimento no mês do início');
+ok(previsaoAnual([d({ inicio: '2026-12-01', valor: 100, valores: [{ desde: '2026-12', valor: 100, moeda: 'brl' }] })], 2026, cot).total === 100, 'previsão conta só a partir do início');
 ok(proximoVencimento(d({ fim: '2026-03-01' }), '2026-03-02') === null, 'encerrada não tem próximo vencimento');
 
 ok(lerValor('1.234,56') === 123456 && lerValor('1234.5') === 123450 && lerValor('R$ 1.234') === 123400 && lerValor('1,234.56') === 123456 && lerValor('abc') === null, 'lê valores nos formatos de sempre');

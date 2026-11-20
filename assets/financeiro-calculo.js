@@ -8,6 +8,9 @@
 //   * previsão do ano = cada despesa no mês em que é paga (mensal todo mês; trimestral a cada 3 meses a partir do
 //     mês dela; semestral a cada 6; anual no mês dela), entre o início e o fim, com o valor vigente no mês.
 //     Reajustes futuros não são projetados.
+//   * valor que varia (Cid, 20/11): no mês com o real lançado vale o real; nos outros, a estimativa, como previsão (*);
+//   * simulações (Cid, 20/11): a página tira as simuladas das contas reais; na visão "Com simulações", cada
+//     simulada vira uma linha própria da previsão, depois do Pessoal.
 
 export const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 export const PASSO = { mensal: 1, trimestral: 3, semestral: 6, anual: 12 };
@@ -18,11 +21,14 @@ const am = (ano, m) => `${ano}-${String(m).padStart(2, '0')}`;
 
 // ---- valores
 
+// despesa que varia: o real lançado no mês vale; sem lançamento, a estimativa (marcada como previsão)
 export function valorNoMes(d, mes) {
+  const real = d.meses?.[mes];
+  if (real !== undefined && real !== null) return { valor: real, moeda: d.moeda || 'brl', lancado: true };
   const vs = d.valores?.length ? d.valores : [{ desde: '0000-00', valor: d.valor, moeda: d.moeda }];
   let v = vs[0];
   for (const x of vs) if (x.desde <= mes) v = x;
-  return { valor: v.valor, moeda: v.moeda || 'brl' };
+  return { valor: v.valor, moeda: v.moeda || 'brl', estimativa: !!d.variavel };
 }
 
 // centavos na moeda → centavos em real; sem cotação, o dólar não entra (falta = true)
@@ -76,8 +82,9 @@ export function custoMensal(despesas, cot, hoje) {
   const r = { total: 0, geral: 0, pessoal: 0, estimado: { total: false, geral: false, pessoal: false }, falta: false };
   for (const d of despesas) {
     if (!ativaNoMes(d, mes) || encerrada(d, hoje)) continue;
-    const { valor, moeda } = valorNoMes(d, mes);
-    const x = emReais(valor, moeda, cot);
+    const vm = valorNoMes(d, mes);
+    const x = emReais(vm.valor, vm.moeda, cot);
+    if (vm.estimativa) x.estimado = true;
     const v = Math.round(x.brl / (PASSO[d.periodicidade] || 1));
     const g = d.grupo === 'pessoal' ? 'pessoal' : 'geral';
     r[g] += v; r.total += v;
@@ -91,8 +98,10 @@ export function custoMensal(despesas, cot, hoje) {
 export function noMes(d, ano, m, cot) {
   const mes = am(ano, m);
   if (!mesesDePagamento(d).includes(m) || !ativaNoMes(d, mes)) return null;
-  const { valor, moeda } = valorNoMes(d, mes);
-  return emReais(valor, moeda, cot);
+  const v = valorNoMes(d, mes);
+  const r = emReais(v.valor, v.moeda, cot);
+  if (v.estimativa) r.estimado = true;
+  return r;
 }
 
 // previsão do ano: total por mês e por linha (categoria; o Pessoal numa linha só, a menos que abra por categoria)
@@ -103,8 +112,9 @@ export function previsaoAnual(despesas, ano, cot, { pessoalPorCategoria = false 
   const est = Array(12).fill(false);
   let falta = false;
   for (const d of despesas) {
-    const grupo = d.grupo === 'pessoal' ? 'pessoal' : 'geral';
-    const cat = grupo === 'pessoal' && !pessoalPorCategoria ? 'Pessoal' : (d.categoria || 'Sem categoria');
+    // simulação: uma linha por despesa simulada, no fim (para ver o impacto de cada uma)
+    const grupo = d.simulada ? 'simulacao' : d.grupo === 'pessoal' ? 'pessoal' : 'geral';
+    const cat = grupo === 'simulacao' ? d.nome : grupo === 'pessoal' && !pessoalPorCategoria ? 'Pessoal' : (d.categoria || 'Sem categoria');
     const k = grupo + '|' + cat;
     for (let m = 1; m <= 12; m++) {
       const x = noMes(d, ano, m, cot);
@@ -116,7 +126,7 @@ export function previsaoAnual(despesas, ano, cot, { pessoalPorCategoria = false 
       if (x.falta) falta = true;
     }
   }
-  const ordem = (l) => (l.grupo === 'pessoal' ? 1 : 0);
+  const ordem = (l) => ({ geral: 0, pessoal: 1, simulacao: 2 }[l.grupo]);
   const lista = [...linhas.values()].sort((a, b) => ordem(a) - ordem(b) || b.total - a.total || a.categoria.localeCompare(b.categoria, 'pt'));
   const total = meses.reduce((s, v) => s + v, 0);
   return { ano, linhas: lista, meses, est, total, estimado: est.some(Boolean), falta };

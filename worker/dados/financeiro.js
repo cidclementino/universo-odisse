@@ -2,6 +2,7 @@
 //
 //   GET  financeiro/despesas        -> { hoje, mes, cotacao, despesas, categorias } numa leitura só
 //                                      (cada despesa com os seus valores ao longo do tempo)
+//   POST financeiro/despesas/:id/meses { mes, valor|null } -> valor real do mês (despesa que varia)
 //   POST financeiro/despesas/lote { itens: [{ nome, valor, dia, … }] }  -> várias de uma vez (colar de uma planilha)
 //   POST / PATCH / arquivar / restaurar: rotas comuns (despesas-fixas).
 //
@@ -9,6 +10,10 @@
 //   * cadastro o mais rápido possível: nome, valor e dia bastam; mensal e em reais vêm prontos;
 //   * a moeda pode ser dólar: o valor fica em US$; nas somas da página vira real pela cotação do dia, com *;
 //   * mudou o valor (ou a moeda), o antigo fica guardado em despesas_fixas_valores, com o mês desde quando vale;
+//   * simulação (0026): despesa simulada fica fora das contas reais; serve para ver o impacto no orçamento.
+//     Efetivar = passa a contar; uma real não volta a ser simulação; descartar = arquivar;
+//   * valor que varia (0026): contas como a de luz seguem fixas; o valor é a estimativa, e o real de cada mês se
+//     lança em POST financeiro/despesas/:id/meses { mes: 'AAAA-MM', valor } (valor nulo tira o lançamento);
 //   * Pessoal (pró-labore, salários, encargos) é um grupo à parte; o histórico das despesas guarda só o nome dos
 //     campos mudados, nunca o valor (os valores ficam na própria tabela de valores, só para o hub).
 // A previsão do ano e as somas são calculadas na página (assets/financeiro-calculo.js), que tem tudo o que precisa.
@@ -42,16 +47,17 @@ export const regraDespesas = {
   async criar(env, ferramenta, v, corpo, id) {
     conferir(v);
     if (v.periodicidade === 'mensal') v.mes = null;
-    else if (!v.mes) v.mes = numMesAtual();
+    else if (!v.mes) v.mes = v.inicio ? Number(v.inicio.slice(5, 7)) : numMesAtual(); // primeiro pagamento no mês do início
     const desde = v.inicio && mesDe(v.inicio) > mesAtual() ? mesDe(v.inicio) : mesAtual();
     return [sqlValor(env, id, desde, v.valor, v.moeda || 'brl', ferramenta, 1)];
   },
   async alterar(env, ferramenta, atual, mudancas) {
+    if (mudancas.simulada === 1 && atual.simulada === 0) throw new ErroApi(422, 'uma despesa real não volta a ser simulação');
     const v = { ...atual, ...mudancas };
     conferir(v);
     if ('periodicidade' in mudancas || 'mes' in mudancas) {
       if (v.periodicidade === 'mensal') { if (atual.mes !== null) mudancas.mes = null; else delete mudancas.mes; }
-      else if (!v.mes) mudancas.mes = numMesAtual();
+      else if (!v.mes) mudancas.mes = v.inicio ? Number(v.inicio.slice(5, 7)) : numMesAtual();
     }
     if (!('valor' in mudancas) && !('moeda' in mudancas)) return [];
     const desde = v.inicio && mesDe(v.inicio) > mesAtual() ? mesDe(v.inicio) : mesAtual();
@@ -98,22 +104,48 @@ export async function cotacao(env, { buscar = fetch, forcar = false } = {}) {
 // ---------------------------------------------------------------- leitura juntada
 
 export async function despesas(env) {
-  const [d, v] = await env.DB.batch([
+  const [d, v, ms] = await env.DB.batch([
     env.DB.prepare(`SELECT * FROM despesas_fixas WHERE arquivado_em IS NULL ORDER BY grupo, categoria, nome`),
     env.DB.prepare(`SELECT v.despesa_id, v.desde, v.valor, v.moeda FROM despesas_fixas_valores v
       JOIN despesas_fixas d ON d.id = v.despesa_id AND d.arquivado_em IS NULL ORDER BY v.despesa_id, v.desde`),
+    env.DB.prepare(`SELECT m.despesa_id, m.mes, m.valor FROM despesas_fixas_meses m
+      JOIN despesas_fixas d ON d.id = m.despesa_id AND d.arquivado_em IS NULL`),
   ]);
+  const meses = new Map();
+  for (const x of ms.results) {
+    if (!meses.has(x.despesa_id)) meses.set(x.despesa_id, {});
+    meses.get(x.despesa_id)[x.mes] = x.valor;
+  }
   const porDespesa = new Map();
   for (const x of v.results) {
     if (!porDespesa.has(x.despesa_id)) porDespesa.set(x.despesa_id, []);
     porDespesa.get(x.despesa_id).push({ desde: x.desde, valor: x.valor, moeda: x.moeda });
   }
-  return d.results.map((x) => ({ ...x, valores: porDespesa.get(x.id) || [] }));
+  return d.results.map((x) => ({ ...x, valores: porDespesa.get(x.id) || [], meses: meses.get(x.id) || {} }));
 }
 
 export async function rotasFinanceiro(env, ferramenta, m, partes, corpo, h) {
-  const [rota, id, acao] = partes;
+  const [rota, id, acao, sub] = partes;
   if (rota !== 'financeiro' || id !== 'despesas') return undefined;
+  // valor real de um mês (despesa que varia): grava, troca ou tira (valor nulo)
+  if (acao && acao.startsWith('dfx_') && sub === 'meses' && m === 'POST') {
+    h.exigir('despesas_fixas', ferramenta, 'E');
+    const d = await env.DB.prepare('SELECT id, arquivado_em FROM despesas_fixas WHERE id = ?').bind(acao).first();
+    if (!d || d.arquivado_em) throw new ErroApi(404, 'despesa não encontrada');
+    const mes = String(corpo?.mes || '');
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(mes)) throw new ErroApi(422, 'Mês: no formato AAAA-MM');
+    const valor = corpo?.valor;
+    if (valor === null || valor === undefined || valor === '') {
+      await env.DB.prepare('DELETE FROM despesas_fixas_meses WHERE despesa_id = ? AND mes = ?').bind(acao, mes).run();
+      return { mes, valor: null };
+    }
+    if (!Number.isInteger(valor) || valor < 0) throw new ErroApi(422, 'Valor: em centavos, zero ou mais');
+    const agora = agoraISO();
+    await env.DB.prepare(`INSERT INTO despesas_fixas_meses (id, despesa_id, mes, valor, criado_em, atualizado_em, por)
+      VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (despesa_id, mes) DO UPDATE SET valor = excluded.valor,
+      atualizado_em = excluded.atualizado_em, por = excluded.por`).bind(novoId('dfm'), acao, mes, valor, agora, agora, ferramenta).run();
+    return { mes, valor };
+  }
   if (!acao && m === 'GET') {
     h.exigir('despesas_fixas', ferramenta, 'L');
     const [lista, cot] = await Promise.all([despesas(env), cotacao(env).catch(() => null)]);

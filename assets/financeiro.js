@@ -9,6 +9,11 @@
 //     linhas de uma planilha abre a prévia), grupos por categoria com o total do mês, e cada despesa editada na
 //     própria linha (grava ao sair do campo; Esc desfaz). Detalhes recolhidos na linha (chevron à direita).
 //   Pessoal: seção própria, sempre começa recolhida; fora da cópia do navegador.
+//   Valor que varia (Cid, 20/11): marcado nos detalhes; o valor da linha vira a estimativa e uma grade dos 12 meses
+//     recebe o real de cada mês (POST financeiro/despesas/:id/meses). Sem o real, vale a estimativa, com *.
+//   Simulações (Cid, 20/11): despesas que não entram nas contas reais, para dimensionar o impacto no orçamento.
+//     Seção própria com linha de criar; Efetivar passa a contar (com confirmação), Descartar arquiva.
+//     O Seletor Real | Com simulações (nos Filtros) leva as simulações ao Placar e à previsão, com o acréscimo.
 //   Previsão de custos do ano: Seletor do ano, Gráfico dos 12 meses e Matriz categoria × mês.
 //   Notas no fim.
 // Moeda: R$ por padrão; um clique na etiqueta troca para US$. O valor fica em dólar; as somas convertem pela
@@ -18,7 +23,7 @@
 import { lerCopia, gravarCopia } from './memoria.js';
 import {
   MESES, PERIODICIDADES, FORMAS, valorNoMes, emReais, custoMensal, previsaoAnual, proximoVencimento,
-  diasAte, lerValor, moedaDoTexto, interpretarColagem, sugerirCategoria, reais, comMoeda,
+  diasAte, lerValor, PASSO, moedaDoTexto, interpretarColagem, sugerirCategoria, reais, comMoeda,
 } from './financeiro-calculo.js';
 
 const COPIA = 'financeiro:despesas';
@@ -35,6 +40,14 @@ const SVG = {
 const dataBr = (d) => (d ? d.split('-').reverse().join('/') : '');
 const hojeBR = () => new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10);
 const nomeMes = (m) => MESES[m - 1];
+const mesAno = (d) => `${MESES[+d.slice(5, 7) - 1]}/${d.slice(2, 4)}`;
+// os próximos 18 meses, para o "Começa em" da linha de criar (vazio = agora)
+function mesesSeguintes(hoje, n = 18) {
+  let a = +hoje.slice(0, 4), m = +hoje.slice(5, 7);
+  const out = [];
+  for (let i = 0; i < n; i++) { m += 1; if (m > 12) { m = 1; a += 1; } out.push(`${a}-${String(m).padStart(2, '0')}-01`); }
+  return out;
+}
 const sem = (s) => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
 export function criarFinanceiro({ esc, api, toque }) {
@@ -45,7 +58,8 @@ export function criarFinanceiro({ esc, api, toque }) {
   let ano = null;
   let pessoalAberto = false;          // começa sempre recolhida (dado restrito fechado até pedir)
   const abertos = new Set();          // despesas com os detalhes abertos
-  const moedaNova = { geral: 'brl', pessoal: 'brl' };
+  const moedaNova = { geral: 'brl', pessoal: 'brl', sim: 'brl' };
+  let visao = 'real';                 // 'real' | 'sim' (com simulações)
   let armado = null;                  // arquivar pede um segundo clique
   const fechados = (() => { try { return new Set(JSON.parse(localStorage.getItem(LEMBRAR + 'fechados') || '[]')); } catch { return new Set(); } })();
   const lembrarFechados = () => { try { localStorage.setItem(LEMBRAR + 'fechados', JSON.stringify([...fechados])); } catch {} };
@@ -55,7 +69,11 @@ export function criarFinanceiro({ esc, api, toque }) {
   const fechada = (d) => !!d.fim && d.fim <= hoje();
   const cot = () => D?.cotacao || null;
   const achar = (id) => D?.despesas.find((d) => d.id === id);
-  const doGrupo = (g) => (D?.despesas || []).filter((d) => (d.grupo || 'geral') === g);
+  const reaisDe = () => (D?.despesas || []).filter((d) => !d.simulada);
+  const simuladas = () => (D?.despesas || []).filter((d) => d.simulada);
+  // 'geral' e 'pessoal' = contas reais do grupo; 'sim' = todas as simulações
+  const doGrupo = (g) => (g === 'sim' ? simuladas() : reaisDe().filter((d) => (d.grupo || 'geral') === g));
+  const grupoReal = (g) => (g === 'sim' ? 'geral' : g);
   const estrela = (est) => (est ? '<sup class="fin-est" title="Previsão: tem valor em dólar convertido pela cotação do dia">*</sup>' : '');
   const brl = (centavos, est, o) => `R$ ${reais(centavos, o)}${estrela(est)}`;
 
@@ -86,8 +104,9 @@ export function criarFinanceiro({ esc, api, toque }) {
   const opcoesMes = (atual, vazio) => opcoes(MESES.map((n, i) => [i + 1, n]), atual, vazio);
 
   function categoriasDe(g) {
-    const usadas = doGrupo(g).map((d) => d.categoria).filter(Boolean);
-    return [...new Set([...(D?.categorias?.[g] || []), ...usadas])];
+    const usadas = (D?.despesas || []).filter((d) => g === 'sim' || d.grupo === g).map((d) => d.categoria).filter(Boolean);
+    const base = g === 'sim' ? [...(D?.categorias?.geral || []), ...(D?.categorias?.pessoal || [])] : (D?.categorias?.[g] || []);
+    return [...new Set([...base, ...usadas])];
   }
 
   function proximo(d) {
@@ -95,7 +114,8 @@ export function criarFinanceiro({ esc, api, toque }) {
     const p = proximoVencimento(d, hoje());
     if (!p) return '<span class="u-apoio">—</span>';
     const n = diasAte(p, hoje());
-    const ate = d.fim ? `<small class="fin-ate">até ${dataBr(d.fim)}</small>` : '';
+    const ate = d.inicio && d.inicio > hoje() ? `<small class="fin-ate">começa em ${mesAno(d.inicio)}</small>`
+      : d.fim ? `<small class="fin-ate">até ${dataBr(d.fim)}</small>` : '';
     if (n <= 7) return `<span class="ini-etq atencao" title="${dataBr(p)}">${n === 0 ? 'vence hoje' : n === 1 ? 'amanhã' : `em ${n} dias`}</span>${ate}`;
     return `<span class="fin-data">${dataBr(p).slice(0, p.slice(0, 4) === hoje().slice(0, 4) ? 5 : 10)}</span>${ate}`;
   }
@@ -113,14 +133,18 @@ export function criarFinanceiro({ esc, api, toque }) {
     const fim = fechada(d);
     const aberto = abertos.has(d.id);
     const { valor, moeda } = { valor: d.valor, moeda: d.moeda };
-    const conv = moeda === 'usd'
+    const conv = (d.variavel ? '<small class="fin-conv fin-varia">estimativa · varia</small>' : '') + (moeda === 'usd'
       ? (cot()?.valor ? `<small class="fin-conv">≈ ${brl(Math.round(valor * cot().valor), true)}</small>` : '<small class="fin-conv">sem cotação</small>')
-      : '';
+      : '');
     const naoMensal = d.periodicidade !== 'mensal';
-    return `<div class="fin-item${fim ? ' encerrada' : ''}${aberto ? ' aberto' : ''}" data-id="${esc(d.id)}">
+    const sim = !!d.simulada;
+    const cmdFim = sim
+      ? `<button type="button" class="fin-efetivar${armado === 'ef:' + d.id ? ' armado' : ''}" data-acao="efetivar" title="Passa a contar nas contas reais">${armado === 'ef:' + d.id ? 'Confirmar' : 'Efetivar'}</button>`
+      : fim ? caixa('reativar', SVG.reativar, 'Reativar') : caixa('encerrar', SVG.encerrar, 'Encerrar a partir de hoje');
+    return `<div class="fin-item${fim ? ' encerrada' : ''}${sim ? ' simulada' : ''}${aberto ? ' aberto' : ''}" data-id="${esc(d.id)}">
       <div class="fin-linha">
         <span class="fin-c-nome"><input class="fin-campo fin-nome" data-campo="nome" value="${esc(d.nome)}" aria-label="Despesa" autocomplete="off"></span>
-        <span class="fin-c-cat"><input class="fin-campo fin-etq" data-campo="categoria" value="${esc(d.categoria || '')}" list="fin-cats-${d.grupo}" placeholder="categoria" aria-label="Categoria" autocomplete="off"></span>
+        <span class="fin-c-cat"><input class="fin-campo fin-etq" data-campo="categoria" value="${esc(d.categoria || '')}" list="fin-cats-${sim ? 'sim' : d.grupo}" placeholder="categoria" aria-label="Categoria" autocomplete="off"></span>
         <span class="fin-c-valor">${campoValor(d.id, valor, moeda)}${conv}</span>
         <span class="fin-c-per"><select class="fin-sel" data-campo="periodicidade" aria-label="Periodicidade">${opcoes(PERIODICIDADES, d.periodicidade)}</select>
           ${naoMensal ? `<select class="fin-sel fin-sel-mes" data-campo="mes" aria-label="${d.periodicidade === 'anual' ? 'Mês do pagamento' : 'Mês do primeiro pagamento'}" title="${d.periodicidade === 'anual' ? 'Mês do pagamento' : 'Mês do primeiro pagamento do ano'}">${opcoesMes(d.mes)}</select>` : ''}</span>
@@ -128,7 +152,7 @@ export function criarFinanceiro({ esc, api, toque }) {
         <span class="fin-c-prox">${proximo(d)}</span>
         <span class="fin-c-cmd">
           ${caixa('duplicar', SVG.copiar, 'Duplicar')}
-          ${fim ? caixa('reativar', SVG.reativar, 'Reativar') : caixa('encerrar', SVG.encerrar, 'Encerrar a partir de hoje')}
+          ${cmdFim}
           ${caixa('detalhes', seta(aberto), aberto ? 'Fechar os detalhes' : 'Abrir os detalhes', ` aria-expanded="${aberto}"`)}
         </span>
       </div>
@@ -141,13 +165,29 @@ export function criarFinanceiro({ esc, api, toque }) {
     const hist = vs.length > 1
       ? `<ul class="fin-hist">${vs.map((v) => `<li><b>${esc(comMoeda(v.valor, v.moeda))}</b> desde ${esc(nomeMes(+v.desde.slice(5)))}/${v.desde.slice(0, 4)}</li>`).join('')}</ul>`
       : '<p class="u-apoio">Só o valor atual. Quando o valor mudar, o anterior fica guardado aqui, com o mês.</p>';
-    const outro = d.grupo === 'pessoal' ? ['geral', 'Mover para Despesas'] : ['pessoal', 'Mover para Pessoal'];
+    const outro = d.simulada
+      ? (d.grupo === 'pessoal' ? ['geral', 'Ao efetivar, vai para Despesas'] : ['pessoal', 'Ao efetivar, vai para Pessoal'])
+      : d.grupo === 'pessoal' ? ['geral', 'Mover para Despesas'] : ['pessoal', 'Mover para Pessoal'];
+    const a = ano || +hoje().slice(0, 4);
+    const mesHoje = hoje().slice(0, 7);
+    const grade = d.variavel ? `<div class="fin-det-meses">
+        <span class="fin-det-rot">Valor real de cada mês, ${a} <small>vazio = vale a estimativa (${esc(comMoeda(d.valor, d.moeda))})</small></span>
+        <div class="fin-meses">${MESES.map((n, i) => {
+          const mes = `${a}-${String(i + 1).padStart(2, '0')}`;
+          const v = d.meses?.[mes];
+          return `<label class="fin-mes${mes === mesHoje ? ' atual' : ''}"><span>${n}</span>
+            <input class="fin-campo num" data-mes="${mes}" inputmode="decimal" autocomplete="off" value="${v === undefined || v === null ? '' : esc(reais(v))}"
+              placeholder="${esc(reais(valorNoMes({ ...d, meses: {} }, mes).valor))}" aria-label="Valor real de ${n}/${a}"></label>`;
+        }).join('')}</div></div>` : '';
     return `<div class="fin-det">
       <div class="fin-det-col">
+        <label class="fin-chave"><input type="checkbox" data-campo="variavel"${d.variavel ? ' checked' : ''}><span>O valor varia de mês para mês (luz, água…)</span></label>
         <label class="u-campo"><span>Forma de pagamento</span><select data-campo="forma">${opcoes(FORMAS, d.forma, '—')}</select></label>
         <label class="u-campo"><span>Fornecedor</span><input data-campo="fornecedor" value="${esc(d.fornecedor || '')}" autocomplete="off"></label>
         <div class="fin-dupla">
-          <label class="u-campo"><span>Início</span><input type="date" data-campo="inicio" value="${esc(d.inicio || '')}"></label>
+          <label class="u-campo"><span>Pagamento começa em</span><select data-campo="inicio">${opcoes(
+            [...new Set([...(d.inicio ? [d.inicio.slice(0, 7) + '-01'] : []), ...mesesSeguintes(hoje().slice(0, 8) + '01', 24).map((x) => x)])]
+              .sort().map((x) => [x, mesAno(x)]), d.inicio ? d.inicio.slice(0, 7) + '-01' : '', 'desde o cadastro')}</select></label>
           <label class="u-campo"><span>Fim</span><input type="date" data-campo="fim" value="${esc(d.fim || '')}"></label>
         </div>
       </div>
@@ -162,19 +202,21 @@ export function criarFinanceiro({ esc, api, toque }) {
         <span class="fin-det-rot">Valores</span>${hist}
         <div class="fin-det-acoes">
           <button type="button" class="u-botao" data-acao="mover" data-para="${outro[0]}">${outro[1]}</button>
-          <button type="button" class="u-botao perigo" data-acao="arquivar">${armado === d.id ? 'Confirmar: arquivar' : 'Arquivar (cadastrada por engano)'}</button>
+          <button type="button" class="u-botao perigo" data-acao="arquivar">${armado === d.id ? (d.simulada ? 'Confirmar: descartar' : 'Confirmar: arquivar') : d.simulada ? 'Descartar simulação' : 'Arquivar (cadastrada por engano)'}</button>
         </div>
       </div>
+      ${grade}
     </div>`;
   }
 
   function linhaCriar(g) {
     return `<div class="fin-item fin-criar" data-grupo="${g}">
       <div class="fin-linha">
-        <span class="fin-c-nome"><input class="fin-campo fin-nome" data-novo="nome" placeholder="${g === 'pessoal' ? 'Novo: pró-labore, salário, encargo…' : 'Nova despesa'}" aria-label="Nova despesa: nome" autocomplete="off"></span>
+        <span class="fin-c-nome"><input class="fin-campo fin-nome" data-novo="nome" placeholder="${g === 'pessoal' ? 'Novo: pró-labore, salário, encargo…' : g === 'sim' ? 'Nova simulação: o que custaria…' : 'Nova despesa'}" aria-label="Nova despesa: nome" autocomplete="off"></span>
         <span class="fin-c-cat"><input class="fin-campo fin-etq" data-novo="categoria" list="fin-cats-${g}" placeholder="categoria" aria-label="Nova despesa: categoria" autocomplete="off"></span>
         <span class="fin-c-valor">${campoValor(null, null, moedaNova[g], g).replace('data-campo="valor"', 'data-novo="valor"')}</span>
-        <span class="fin-c-per"><select class="fin-sel" data-novo="periodicidade" aria-label="Nova despesa: periodicidade">${opcoes(PERIODICIDADES, 'mensal')}</select></span>
+        <span class="fin-c-per"><select class="fin-sel" data-novo="periodicidade" aria-label="Nova despesa: periodicidade">${opcoes(PERIODICIDADES, 'mensal')}</select>
+          <select class="fin-sel fin-sel-mes" data-novo="inicio" aria-label="Nova despesa: pagamento começa em" title="Pagamento começa em">${opcoes(mesesSeguintes(hoje()).map((x) => [x, 'começa em ' + mesAno(x)]), '', 'começa agora')}</select></span>
         <span class="fin-c-dia"><input class="fin-campo num" data-novo="dia" inputmode="numeric" placeholder="dia" aria-label="Nova despesa: dia do vencimento" autocomplete="off"></span>
         <span class="fin-c-prox fin-dica">Enter grava</span>
         <span class="fin-c-cmd">${caixa('criar', SVG.mais, 'Acrescentar despesa')}</span>
@@ -213,7 +255,9 @@ export function criarFinanceiro({ esc, api, toque }) {
             <span class="fin-grupo-soma">${soma.total || soma.estimado.total ? `${brl(soma.total, soma.estimado.total)}<small> por mês</small>` : ''}</span></div>
           ${ds.map(linhaDespesa).join('')}`;
       }).join('');
-    const vazio = !todas.length
+    const vazio = !todas.length && g === 'sim'
+      ? '<p class="fin-vazio">Nenhuma simulação. Escreva aqui uma despesa que você está considerando: ela não entra nas contas reais. Para ver o impacto, escolha <b>Com simulações</b> nos filtros.</p>'
+      : !todas.length
       ? '<p class="fin-vazio">Nenhuma despesa ainda. Escreva o nome, o valor e o dia na linha acima e aperte Enter. Para várias de uma vez, cole as linhas de uma planilha (nome, valor, dia) no campo do nome.</p>'
       : !lista.length ? '<p class="fin-vazio">Nada com esse filtro.</p>' : '';
     return `<datalist id="fin-cats-${g}">${categoriasDe(g).map((c) => `<option value="${esc(c)}">`).join('')}</datalist>
@@ -223,19 +267,24 @@ export function criarFinanceiro({ esc, api, toque }) {
   // ---- Placar e previsão ---------------------------------------------------------
 
   function placar() {
-    const t = custoMensal(D.despesas, cot(), hoje());
+    const base = visao === 'sim' ? D.despesas : reaisDe();
+    const t = custoMensal(base, cot(), hoje());
     const anoAtual = +hoje().slice(0, 4);
-    const pv = previsaoAnual(D.despesas, anoAtual, cot());
-    const em7 = D.despesas.filter((d) => !fechada(d)).map((d) => ({ d, p: proximoVencimento(d, hoje()) }))
+    const pv = previsaoAnual(base, anoAtual, cot());
+    // acréscimo das simulações (visão Com simulações)
+    const s = visao === 'sim' && simuladas().length ? custoMensal(simuladas(), cot(), hoje()) : null;
+    const sAno = s ? previsaoAnual(simuladas(), anoAtual, cot()) : null;
+    const mais = (v, est) => (v ? `<span class="fin-mais">+ ${brl(v, est, { centavosSempre: false })} simulado</span>` : '');
+    const em7 = reaisDe().filter((d) => !fechada(d)).map((d) => ({ d, p: proximoVencimento(d, hoje()) }))
       .filter((x) => x.p && diasAte(x.p, hoje()) <= 7);
     const soma7 = em7.reduce((s, x) => { const v = valorNoMes(x.d, x.p.slice(0, 7)); const r = emReais(v.valor, v.moeda, cot()); s.v += r.brl; s.e ||= r.estimado; return s; }, { v: 0, e: false });
     const semP = D.semPessoal;
-    const num = (rot, valor, pe) => `<div class="pas-num-cx"><span class="pas-rot">${rot}</span><b>${valor}</b><span class="pas-pe">${pe}</span></div>`;
+    const num = (rot, valor, pe, extra = '') => `<div class="pas-num-cx${extra ? ' fin-com-sim' : ''}"><span class="pas-rot">${rot}</span><b>${valor}</b>${extra}<span class="pas-pe">${pe}</span></div>`;
     return `<div class="pas-placar fin-placar">
-      ${num('Custo fixo por mês', semP ? '…' : brl(t.total, t.estimado.total, { centavosSempre: false }), 'despesas ativas, levadas ao mês')}
-      ${num('Sem pessoal', brl(t.geral, t.estimado.geral, { centavosSempre: false }), 'espaço, software, taxas e o resto')}
-      ${num('Pessoal', semP ? '…' : brl(t.pessoal, t.estimado.pessoal, { centavosSempre: false }), 'pró-labore, salários e encargos')}
-      ${num(`Previsão ${anoAtual}`, semP ? '…' : brl(pv.total, pv.estimado, { centavosSempre: false }), 'jan a dez, cada uma no mês do pagamento')}
+      ${num('Custo fixo por mês', semP ? '…' : brl(t.total, t.estimado.total, { centavosSempre: false }), 'despesas ativas, levadas ao mês', s ? mais(s.total, s.estimado.total) : '')}
+      ${num('Sem pessoal', brl(t.geral, t.estimado.geral, { centavosSempre: false }), 'espaço, software, taxas e o resto', s ? mais(s.geral, s.estimado.geral) : '')}
+      ${num('Pessoal', semP ? '…' : brl(t.pessoal, t.estimado.pessoal, { centavosSempre: false }), 'pró-labore, salários e encargos', s ? mais(s.pessoal, s.estimado.pessoal) : '')}
+      ${num(`Previsão ${anoAtual}`, semP ? '…' : brl(pv.total, pv.estimado, { centavosSempre: false }), 'jan a dez, cada uma no mês do pagamento', sAno ? mais(sAno.total, sAno.estimado) : '')}
       ${num('Vencem em 7 dias', em7.length || '0', em7.length ? brl(soma7.v, soma7.e) : 'nenhuma')}
     </div>`;
   }
@@ -258,7 +307,7 @@ export function criarFinanceiro({ esc, api, toque }) {
     const anoAtual = +hoje().slice(0, 4);
     const mesAtual = +hoje().slice(5, 7);
     const a = ano || anoAtual;
-    const pv = previsaoAnual(D.despesas, a, cot(), { pessoalPorCategoria: pessoalAberto });
+    const pv = previsaoAnual(visao === 'sim' ? D.despesas : reaisDe(), a, cot(), { pessoalPorCategoria: pessoalAberto });
     const aberto = !fechados.has('previsao');
     const seletor = `<span class="pre-seletor fin-anos" role="group" aria-label="Ano">${[anoAtual, anoAtual + 1].map((y) =>
       `<button type="button" data-acao="ano" data-ano="${y}" class="${y === a ? 'ativo' : ''}" aria-pressed="${y === a}">${y}</button>`).join('')}</span>`;
@@ -266,7 +315,7 @@ export function criarFinanceiro({ esc, api, toque }) {
       const cls = a === anoAtual && i + 1 < mesAtual ? ' passado' : a === anoAtual && i + 1 === mesAtual ? ' atual' : '';
       return `<td class="num${cls}">${v ? reais(v, { centavosSempre: false }) + estrela(est) : '<span class="fin-zero">—</span>'}</td>`;
     };
-    const corpo = pv.linhas.map((l) => `<tr${l.grupo === 'pessoal' ? ' class="fin-l-pessoal"' : ''}><th scope="row">${esc(l.categoria)}</th>
+    const corpo = pv.linhas.map((l) => `<tr class="fin-l-${l.grupo}"><th scope="row">${l.grupo === 'simulacao' ? '<span class="fin-etq-sim">simulação</span> ' : ''}${esc(l.categoria)}</th>
         ${l.meses.map((v, i) => cel(v, l.est[i], i)).join('')}<td class="num fin-tot">${reais(l.total, { centavosSempre: false })}${estrela(l.estimado)}</td></tr>`).join('');
     const tabela = pv.linhas.length ? `<div class="fin-matriz-cx"><table class="u-tabela fin-matriz">
         <thead><tr><th>R$</th>${MESES.map((m, i) => `<th class="num${a === anoAtual && i + 1 === mesAtual ? ' atual' : ''}">${m}</th>`).join('')}<th class="num">Total</th></tr></thead>
@@ -275,7 +324,7 @@ export function criarFinanceiro({ esc, api, toque }) {
       </table></div>` : '<p class="fin-vazio">A previsão aparece quando houver despesas cadastradas.</p>';
     return `<section class="fin-sec">
       <div class="fin-sec-cab">
-        <button type="button" class="bol-titulo" data-acao="recolher" data-bloco="previsao" aria-expanded="${aberto}"><h2>Previsão de custos ${a}</h2>
+        <button type="button" class="bol-titulo" data-acao="recolher" data-bloco="previsao" aria-expanded="${aberto}"><h2>Previsão de custos ${a}${visao === 'sim' && simuladas().length ? ' com simulações' : ''}</h2>
           ${pv.total ? `<span class="fin-sec-soma">${brl(pv.total, pv.estimado, { centavosSempre: false })}</span>` : ''}</button>
         ${aberto ? seletor : ''}
         <button type="button" class="bol-caixa" data-acao="recolher" data-bloco="previsao" aria-label="${aberto ? 'Recolher' : 'Abrir'} a previsão">${seta(aberto)}</button>
@@ -292,6 +341,22 @@ export function criarFinanceiro({ esc, api, toque }) {
 
   const abas = () => `<nav class="abas-caixa-linha" aria-label="Financeiro"><span class="u-rotulo">Financeiro</span>
       <span class="abas-caixa"><a href="#/financeiro" class="ativa" aria-current="page">Despesas fixas</a></span></nav>`;
+
+  // acréscimo das simulações: por mês (cada uma levada ao mês, mesmo as que começam depois) e por ano
+  function somaSim() {
+    const ss = simuladas().filter((d) => !fechada(d));
+    if (!ss.length) return '';
+    let mes = 0, est = false;
+    for (const d of ss) {
+      const r = emReais(d.valor, d.moeda, cot());
+      mes += Math.round(r.brl / (PASSO[d.periodicidade] || 1));
+      est ||= r.estimado || !!d.variavel;
+    }
+    const y = +hoje().slice(0, 4);
+    const anos = [y, y + 1].map((a) => [a, previsaoAnual(ss, a, cot())]).filter(([, p]) => p.total)
+      .map(([a, p]) => ` · + ${brl(p.total, p.estimado, { centavosSempre: false })} em ${a}`).join('');
+    return `<span class="fin-sec-soma">+ ${brl(mes, est, { centavosSempre: false })} por mês${anos}</span>`;
+  }
 
   function desenhar(erro) {
     if (!pagina?.isConnected) return;
@@ -316,6 +381,8 @@ export function criarFinanceiro({ esc, api, toque }) {
         <input class="fin-busca" type="search" data-filtro="q" placeholder="Buscar despesa, categoria ou fornecedor" value="${esc(filtro.q)}" aria-label="Buscar">
         <span class="pre-seletor" role="group" aria-label="Situação">${[['ativas', 'Ativas'], ['encerradas', 'Encerradas'], ['todas', 'Todas']].map(([v, n]) =>
           `<button type="button" data-acao="situacao" data-v="${v}" class="${filtro.situacao === v ? 'ativo' : ''}" aria-pressed="${filtro.situacao === v}">${n}</button>`).join('')}</span>
+        <span class="pre-seletor fin-visao" role="group" aria-label="Contas">${[['real', 'Real'], ['sim', `Com simulações${simuladas().length ? ` (${simuladas().length})` : ''}`]].map(([v, n]) =>
+          `<button type="button" data-acao="visao" data-v="${v}" class="${visao === v ? 'ativo' : ''}" aria-pressed="${visao === v}">${n}</button>`).join('')}</span>
         ${filtro.q || filtro.situacao !== 'ativas' ? '<button type="button" class="fin-limpar" data-acao="limpar">limpar</button>' : ''}
       </div>
       <section class="fin-sec fin-sec-primeira">
@@ -330,14 +397,23 @@ export function criarFinanceiro({ esc, api, toque }) {
         </div>
         ${pessoalAberto ? (D.semPessoal ? '<p class="u-apoio">Carregando…</p>' : registro('pessoal')) : ''}
       </section>
+      <section class="fin-sec">
+        <div class="fin-sec-cab"><h2 class="fin-sec-titulo">Simulações</h2>${somaSim()}</div>
+        ${registro('sim')}
+      </section>
       ${previsao()}
       <section class="pas-notas">
         <div><h3 class="u-rotulo">Cadastro</h3>
           <p>Nome, valor e dia bastam: a despesa entra mensal e em reais, com a categoria sugerida pelo nome. Enter grava e abre a próxima. Para várias de uma vez, cole as linhas de uma planilha (nome, valor, dia) no campo do nome.</p>
+          <p><b>Simulações</b> não entram nas contas reais nem no histórico de contas: servem para ver quanto uma despesa mudaria o orçamento. Escolha <b>Com simulações</b> para somá-las ao Placar e à previsão. <b>Efetivar</b> passa a contar (e não volta a ser simulação); <b>descartar</b> tira da lista.</p>
           <p>Cada campo grava ao sair dele; Esc desfaz. <b>Encerrar</b> deixa a despesa de fora a partir de hoje; <b>arquivar</b> é para o que foi cadastrado por engano.</p></div>
+        <div><h3 class="u-rotulo">Começa depois</h3>
+          <p>Contratou agora e o primeiro pagamento só vem daqui a uns meses? Escolha o mês em <b>começa em</b>, abaixo da periodicidade. A despesa entra na previsão a partir dele, o próximo pagamento já aparece certo, e o custo por mês só a conta quando começar. Nas anuais, o pagamento fica no mês em que começa.</p></div>
+        <div><h3 class="u-rotulo">Contas que variam</h3>
+          <p>Luz, água e afins continuam aqui. Marque <b>o valor varia</b> nos detalhes: o valor da linha passa a ser a estimativa (média), e a grade dos 12 meses recebe o valor real de cada conta quando ela chega. Nos meses lançados vale o real; nos outros, a estimativa, com o <b>*</b> de previsão.</p></div>
         <div><h3 class="u-rotulo">Valores e dólar</h3>
           <p>Mudou o valor, o anterior fica guardado com o mês desde quando valia, e a previsão dos meses passados usa o valor da época.</p>
-          <p>Um clique na etiqueta R$ troca para US$. O valor fica em dólar; nas somas ele vira real pela <b>PTAX de venda do Banco Central</b> do dia${c?.data ? ` (a de ${dataBr(c.data)})` : ''}, e o total ganha um <b>*</b>: é previsão.</p></div>
+          <p>Um clique na etiqueta R$ troca para US$. O valor fica em dólar; nas somas ele vira real pela <b>PTAX de venda do Banco Central</b> do dia${c?.data ? ` (a de ${dataBr(c.data)})` : ''}, e o total ganha um <b>*</b>: é previsão (o mesmo * marca a estimativa das contas que variam).</p></div>
         <div><h3 class="u-rotulo">Previsão do ano</h3>
           <p>Cada despesa entra no mês em que é paga: mensal todo mês; trimestral e semestral a partir do mês dela; anual no mês dela, entre o início e o fim. Os reajustes futuros não entram.</p>
           <p>O <b>custo por mês</b> leva tudo ao mês (trimestral ÷ 3, semestral ÷ 6, anual ÷ 12). <b>Pessoal</b> abre recolhido, não fica guardado neste computador e, fechado, aparece numa linha só na previsão.</p></div>
@@ -367,6 +443,7 @@ export function criarFinanceiro({ esc, api, toque }) {
     const criar = el.closest('.fin-criar');
     if (criar && el.dataset.novo) return `.fin-criar[data-grupo="${criar.dataset.grupo}"] [data-novo="${el.dataset.novo}"]`;
     const item = el.closest('.fin-item[data-id]');
+    if (item && el.dataset.mes) return `.fin-item[data-id="${item.dataset.id}"] [data-mes="${el.dataset.mes}"]`;
     if (item && el.dataset.campo) return `.fin-item[data-id="${item.dataset.id}"] [data-campo="${el.dataset.campo}"]`;
     if (item && el.dataset.acao) return `.fin-item[data-id="${item.dataset.id}"] [data-acao="${el.dataset.acao}"]`;
     return null;
@@ -386,7 +463,7 @@ export function criarFinanceiro({ esc, api, toque }) {
     pagina?.querySelectorAll('.fin-criar').forEach((l) => {
       const nome = l.querySelector('[data-novo="nome"]').value;
       const cat = l.querySelector('[data-novo="categoria"]');
-      cat.placeholder = sugerirCategoria(nome, l.dataset.grupo, D?.despesas || []) || 'categoria';
+      cat.placeholder = sugerirCategoria(nome, grupoReal(l.dataset.grupo), D?.despesas || []) || 'categoria';
     });
   }
 
@@ -435,6 +512,7 @@ export function criarFinanceiro({ esc, api, toque }) {
     }
     if (c === 'nome' && !v.trim()) throw new Error('A despesa precisa de um nome');
     if (['mes', 'reajuste_mes'].includes(c)) return { [c]: v ? Number(v) : null };
+    if (c === 'variavel') return { variavel: el.checked ? 1 : 0 };
     return { [c]: v.trim() === '' ? null : v };
   }
 
@@ -442,6 +520,7 @@ export function criarFinanceiro({ esc, api, toque }) {
     const el = ev.target;
     if (el.dataset.filtro) return;
     if (el.dataset.novo === 'periodicidade' || el.dataset.novo) return;
+    if (el.dataset.mes) return lancarMes(el);
     const item = el.closest('.fin-item[data-id]');
     if (!item || !el.dataset.campo) return;
     el.dataset.sujo = '';
@@ -452,6 +531,24 @@ export function criarFinanceiro({ esc, api, toque }) {
     const muda = Object.entries(campos).some(([k, v]) => d[k] !== v);
     if (!muda) { if ('valor' in campos) el.value = reais(d.valor); return; }
     await salvar(d.id, campos, campos.fim ? 'Encerrada: deixa de contar depois desse dia' : null);
+  }
+
+  // valor real de um mês (despesa que varia)
+  async function lancarMes(el) {
+    const id = el.closest('.fin-item[data-id]')?.dataset.id;
+    const d = achar(id);
+    if (!d) return;
+    const mes = el.dataset.mes;
+    const txt = el.value.trim();
+    const valor = txt ? lerValor(txt) : null;
+    if (txt && valor === null) { toque('Valor: escreva um número, como 312,40'); el.value = d.meses?.[mes] != null ? reais(d.meses[mes]) : ''; return; }
+    if ((d.meses?.[mes] ?? null) === valor) { if (valor !== null) el.value = reais(valor); return; }
+    const r = await api(`/api/v1/financeiro/despesas/${encodeURIComponent(id)}/meses`, { method: 'POST', body: JSON.stringify({ mes, valor }) })
+      .catch((e) => ({ status: 0, erro: e.message }));
+    if (r.status !== 201 && r.status !== 200) { toque(r.erro || 'Não foi possível salvar'); return desenhar(); }
+    d.meses = { ...(d.meses || {}) };
+    if (valor === null) delete d.meses[mes]; else d.meses[mes] = valor;
+    desenhar();
   }
 
   async function criar(g) {
@@ -469,8 +566,9 @@ export function criarFinanceiro({ esc, api, toque }) {
     }
     const moeda = moedaDoTexto(valorTxt) || moedaNova[g];
     const corpo = {
-      nome, valor, dia, moeda, grupo: g, periodicidade: val('periodicidade').value,
-      categoria: val('categoria').value.trim() || sugerirCategoria(nome, g, D.despesas) || null,
+      nome, valor, dia, moeda, grupo: grupoReal(g), periodicidade: val('periodicidade').value, simulada: g === 'sim' ? 1 : 0,
+      inicio: val('inicio').value || null,
+      categoria: val('categoria').value.trim() || sugerirCategoria(nome, grupoReal(g), D.despesas) || null,
     };
     const b = l.querySelector('[data-acao="criar"]');
     b.disabled = true;
@@ -480,18 +578,18 @@ export function criarFinanceiro({ esc, api, toque }) {
     const d = { ...r.registro, valores: [] };
     guardarValorLocal(d);
     D.despesas.push(d);
-    l.querySelectorAll('[data-novo]').forEach((i) => { i.value = i.tagName === 'SELECT' ? 'mensal' : ''; });
+    l.querySelectorAll('[data-novo]').forEach((i) => { if (i.tagName === 'SELECT') i.selectedIndex = 0; else i.value = ''; });
     moedaNova[g] = 'brl';
     if (filtro.situacao === 'encerradas') filtro.situacao = 'ativas';
     val('nome').focus();
     desenhar();
     pagina.querySelector(`.fin-criar[data-grupo="${g}"] [data-novo="nome"]`)?.focus();
-    toque(`${nome} acrescentada`);
+    toque(g === 'sim' ? `${nome}: simulação acrescentada` : `${nome} acrescentada`);
   }
 
   async function duplicar(id) {
     const d = achar(id);
-    const campos = ['grupo', 'categoria', 'moeda', 'valor', 'periodicidade', 'dia', 'mes', 'forma', 'fornecedor', 'reajuste_mes', 'reajuste_indice', 'observacoes'];
+    const campos = ['grupo', 'simulada', 'inicio', 'variavel', 'categoria', 'moeda', 'valor', 'periodicidade', 'dia', 'mes', 'forma', 'fornecedor', 'reajuste_mes', 'reajuste_indice', 'observacoes'];
     const corpo = Object.fromEntries(campos.map((k) => [k, d[k]]));
     corpo.nome = `${d.nome} (cópia)`;
     const r = await api('/api/v1/despesas-fixas', { method: 'POST', body: JSON.stringify(corpo) }).catch((e) => ({ status: 0, erro: e.message }));
@@ -519,12 +617,12 @@ export function criarFinanceiro({ esc, api, toque }) {
   // ---- colar várias linhas -------------------------------------------------------
 
   function previaColagem(g, texto) {
-    const linhas = interpretarColagem(texto).map((l) => ({ ...l, categoria: sugerirCategoria(l.nome, g, D.despesas) }));
+    const linhas = interpretarColagem(texto).map((l) => ({ ...l, categoria: sugerirCategoria(l.nome, grupoReal(g), D.despesas) }));
     const boas = linhas.filter((l) => l.ok);
     const dlg = document.createElement('dialog');
     dlg.className = 'fin-dialogo';
     dlg.innerHTML = `<form method="dialog">
-      <div class="fin-dlg-cab"><h2>Acrescentar ${boas.length} ${boas.length === 1 ? 'despesa' : 'despesas'}${g === 'pessoal' ? ' em Pessoal' : ''}</h2>
+      <div class="fin-dlg-cab"><h2>Acrescentar ${boas.length} ${boas.length === 1 ? 'despesa' : 'despesas'}${g === 'pessoal' ? ' em Pessoal' : g === 'sim' ? ' como simulação' : ''}</h2>
         <button type="button" class="fin-caixa" data-fechar aria-label="Fechar"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4 12 12M12 4 4 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button></div>
       <div class="fin-dlg-corpo"><table class="u-tabela"><thead><tr><th>Despesa</th><th class="num">Valor</th><th class="num">Dia</th><th>Categoria</th><th></th></tr></thead>
         <tbody>${linhas.map((l) => `<tr${l.ok ? '' : ' class="fin-ruim"'}><td>${esc(l.nome || '—')}</td>
@@ -542,7 +640,7 @@ export function criarFinanceiro({ esc, api, toque }) {
       e.preventDefault();
       const bt = dlg.querySelector('[type="submit"]');
       bt.disabled = true; bt.textContent = 'Acrescentando…';
-      const itens = boas.map((l) => ({ nome: l.nome, valor: l.valor, dia: l.dia, moeda: l.moeda, grupo: g, categoria: l.categoria, periodicidade: 'mensal' }));
+      const itens = boas.map((l) => ({ nome: l.nome, valor: l.valor, dia: l.dia, moeda: l.moeda, grupo: grupoReal(g), simulada: g === 'sim' ? 1 : 0, categoria: l.categoria, periodicidade: 'mensal' }));
       const r = await api('/api/v1/financeiro/despesas/lote', { method: 'POST', body: JSON.stringify({ itens }) }).catch((er) => ({ status: 0, erro: er.message }));
       dlg.close();
       if (r.status !== 201) { toque(r.erro || 'Não foi possível acrescentar'); return; }
@@ -559,7 +657,8 @@ export function criarFinanceiro({ esc, api, toque }) {
     if (!b || b.disabled) return;
     const acao = b.dataset.acao;
     const id = b.closest('.fin-item[data-id]')?.dataset.id;
-    if (acao !== 'arquivar') armado = null;
+    if (acao !== 'arquivar' && acao !== 'efetivar') armado = null;
+    if (acao === 'visao') { visao = b.dataset.v; return desenhar(); }
     if (acao === 'situacao') { filtro.situacao = b.dataset.v; return desenhar(); }
     if (acao === 'limpar') { filtro.q = ''; filtro.situacao = 'ativas'; return desenhar(); }
     if (acao === 'ano') { ano = +b.dataset.ano; return desenhar(); }
@@ -587,6 +686,13 @@ export function criarFinanceiro({ esc, api, toque }) {
     if (acao === 'duplicar') return duplicar(id);
     if (acao === 'encerrar') return salvar(id, { fim: hoje() }, 'Encerrada: deixa de contar a partir de amanhã');
     if (acao === 'reativar') return salvar(id, { fim: null }, 'Reativada');
+    if (acao === 'efetivar') {
+      const k = 'ef:' + id;
+      if (armado !== k) { armado = k; desenhar(); setTimeout(() => { if (armado === k) { armado = null; desenhar(); } }, 4000); return; }
+      armado = null;
+      const d = achar(id);
+      return salvar(id, { simulada: 0 }, `${d.nome}: efetivada, passa a contar em ${d.grupo === 'pessoal' ? 'Pessoal' : 'Despesas'}`);
+    }
     if (acao === 'mover') return salvar(id, { grupo: b.dataset.para, categoria: null }, b.dataset.para === 'pessoal' ? 'Movida para Pessoal' : 'Movida para Despesas');
     if (acao === 'arquivar') {
       if (armado !== id) { armado = id; desenhar(); setTimeout(() => { if (armado === id) { armado = null; desenhar(); } }, 4000); return; }
@@ -597,7 +703,8 @@ export function criarFinanceiro({ esc, api, toque }) {
   function aoTeclar(ev) {
     const el = ev.target;
     if (el.dataset.novo && ev.key === 'Enter') { ev.preventDefault(); return criar(el.closest('.fin-criar').dataset.grupo); }
-    if (!el.dataset.campo || el.tagName === 'SELECT') return;
+    if (el.dataset.mes && ev.key === 'Enter') { ev.preventDefault(); el.blur(); return; }
+    if (!el.dataset.campo || el.tagName === 'SELECT' || el.type === 'checkbox') return;
     if (ev.key === 'Enter' && el.tagName !== 'TEXTAREA') { ev.preventDefault(); el.blur(); }
     if (ev.key === 'Escape') { el.value = valorOriginal(el); el.dataset.sujo = ''; el.blur(); }
   }
