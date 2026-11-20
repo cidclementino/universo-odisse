@@ -2,7 +2,7 @@
 // Duas subpáginas, com as Abas em caixa (nome da seção à esquerda) acima do título:
 //   Painel (#/kpis)        disposição Boletim: um Bloco por tema (Comercial, Redes sociais, Site); em cada um,
 //                          a Régua e uma linha por indicador com o valor do mês, a régua das faixas da meta
-//                          (com o marcador no valor; no mês corrente, no ritmo do mês), a variação sobre o mês
+//                          (com o marcador no valor; no mês corrente, na projeção do mês), a variação sobre o mês
 //                          anterior, os últimos 12 meses em barras e, nos canais, o número de ontem. Embaixo,
 //                          a leitura do mês e a expectativa; nas notas, o que ainda não tem dados.
 //   Metas (#/kpis/metas)   Ficha: um Bloco por tema, três colunas (mínimo, adequado, excelente); Barra de salvar.
@@ -241,8 +241,8 @@ export function criarKpis({ esc, api, toque }) {
     const pos = posicaoNaRegua(ind, alvo, f);
     const lim = (k) => formatar(ind.formato, f[k], true);
     return `<span class="bol-regua" title="Mínimo ${esc(lim('minimo'))} · adequado ${esc(lim('adequado'))} · excelente ${esc(lim('excelente'))}">
+        <span class="bol-faixa f-${fx || 'nada'}">${fx ? FAIXA[fx][0] : '—'}</span>
         <span class="bol-trilho">${FAIXAS.map((z) => `<i class="z-${z}${z === fx ? ' on' : ''}"></i>`).join('')}${pos != null ? `<b style="left:${(pos * 100).toFixed(1)}%"></b>` : ''}</span>
-        <span class="bol-faixa f-${fx || 'nada'}">${fx ? (ritmo != null ? 'no ritmo: ' : '') + FAIXA[fx][0] : '—'}</span>
       </span>`;
   }
 
@@ -258,7 +258,7 @@ export function criarKpis({ esc, api, toque }) {
     const pOn = on ? varPct(on[0], on[1]) : null;
     return `<div class="bol-linha" role="row">
         <span class="bol-nome" role="cell"><b>${esc(ind.nome)}</b>${ind.sentido === -1 ? '<small>menos é melhor</small>' : ''}</span>
-        <span class="bol-valor" role="cell">${esc(formatar(ind.formato, v, true))}${ritmo != null ? `<small>ritmo ${esc(formatar(ind.formato, ritmo))}</small>` : ''}</span>
+        <span class="bol-valor" role="cell">${esc(formatar(ind.formato, v, true))}${ritmo != null ? `<small>projeção ${esc(formatar(ind.formato, ritmo))}</small>` : ''}</span>
         <span role="cell">${regua(ind, v, d.metas, ritmo)}</span>
         <span class="bol-var" role="cell">${delta(p, bom, ant != null ? `${Maius(nomeMes(mesAnt))}: ${formatar(ind.formato, ant, true)}` : '')}</span>
         <span role="cell">${barras(d.historico, ind)}</span>
@@ -296,7 +296,7 @@ export function criarKpis({ esc, api, toque }) {
         ${cabBloco(g.id, g.nome, g.onde, g.link, extra)}
         ${ab ? `<div class="bol-tabela" role="table" aria-label="${esc(g.nome)}">
           <div class="bol-regua-cab" role="row"><span role="columnheader">Indicador</span><span role="columnheader">${esc(nomeCol)}${d.mes.parcial ? ' até agora' : ''}</span>
-            <span role="columnheader">Faixa${d.mes.parcial ? ' no ritmo do mês' : ''}</span><span role="columnheader">Sobre ${esc(nomeMes(somarMeses(d.mes.mes, -1)))}</span>
+            <span role="columnheader">Faixa${d.mes.parcial ? ' pela projeção' : ''}</span><span role="columnheader">Sobre ${esc(nomeMes(somarMeses(d.mes.mes, -1)))}</span>
             <span role="columnheader">12 meses</span><span role="columnheader">${g.ontem ? 'Ontem' : ''}</span></div>
           ${porRede(inds).map(([t, x]) => (t === 'sub' ? `<div class="bol-sub" role="row"><span role="cell">${esc(x)}</span></div>` : linha(x, d, g))).join('')}${origem}
         </div>` : ''}
@@ -328,7 +328,7 @@ export function criarKpis({ esc, api, toque }) {
       </div>
       <section class="pas-notas">
         <div><h3 class="u-rotulo">Como ler</h3>
-          <p><b>Faixa</b>: a régua tem as quatro faixas da meta (abaixo do mínimo, mínimo, adequado, excelente) e o traço marca onde o valor caiu. No mês corrente, as somas são lidas pelo <b>ritmo</b>: o que já entrou, levado ao mês inteiro.</p>
+          <p><b>Faixa</b>: a régua tem as quatro faixas da meta (abaixo do mínimo, mínimo, adequado, excelente) e o traço marca onde o valor caiu. No mês corrente, as somas são lidas pela <b>projeção</b>: o que já entrou, no mesmo passo, levado ao mês inteiro.</p>
           <p><b>Sobre o mês anterior</b> aparece só nos meses fechados: comparar meio mês com um mês inteiro engana. <b>12 meses</b>: o mês escolhido é a barra escura.</p></div>
         <div><h3 class="u-rotulo">Ainda sem dados</h3><ul>${d.em_breve.map((b) => `<li><b>${esc(NOME_BREVE[b.grupo] || b.grupo)}</b>: ${esc(b.nomes.join(', '))}. Falta ${esc(b.falta)}.</li>`).join('')}</ul></div>
         <div><h3 class="u-rotulo">Fechamento</h3>
