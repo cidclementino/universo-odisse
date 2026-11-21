@@ -462,6 +462,9 @@ li.eq-item.alvo-depois { box-shadow: 0 3px 0 var(--odisse-ocre, #BB8248); }
 .emp-texto-rot b { font-size: 14px; font-weight: 650; }
 .emp-texto-rot .u-apoio { font-size: 12.5px; }
 .emp-texto textarea { min-height: 0; resize: vertical; }
+.emp-aviso { margin: 0 0 var(--u-esp-4); padding: 10px 14px; border-radius: var(--u-raio-p); font-size: 13px;
+  background: rgba(187, 130, 72, .11); color: #8A5A2B; }
+.etq--atencao { background: rgba(187, 130, 72, .16); color: #8A5A2B; font-weight: 600; border-radius: 4px; vertical-align: middle; }
 .emp-conta { font-variant-numeric: tabular-nums; text-align: right; }
 .lingua { display: inline-block; padding: 1px 6px; border-radius: 999px; font-size: 10.5px; font-weight: 650; background: var(--odisse-nevoa, #E6E8EB); }
 .lingua.en { background: var(--odisse-pessego, #F2DDBE); }

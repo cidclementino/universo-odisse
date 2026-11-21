@@ -104,6 +104,11 @@ const ACERVO = { hub: 'E', vendas: 'L', projetos: 'E', marketing: 'E', maquina: 
 // o marketing só enxerga as mídias públicas (Cid, 19/11: as restritas não aparecem no Construtor)
 const SO_PUBLICAS = "(t.categoria NOT IN ('imagem', 'video') OR t.publica = 1)";
 
+// Empresa sem os dados bancários (0027): o que marketing e site enxergam.
+const EMPRESA_PUBLICA = ['nome', 'nome_completo', 'nome_completo_en', 'razao_social', 'cnpj', 'inscricao_municipal', 'registro_cau',
+  'inscricao_estadual', 'capital_social', 'responsavel_tecnico_id', 'fundacao', 'email', 'telefone', 'logradouro', 'bairro', 'cidade',
+  'uf', 'cep', 'caixa_postal', 'texto_curto', 'texto_curto_en', 'texto_medio', 'texto_medio_en', 'texto_longo', 'texto_longo_en'];
+
 export const TABELAS = {
   organizacoes: {
     prefixo: 'org',
@@ -289,8 +294,14 @@ export const TABELAS = {
       texto_medio_en: T('textoLongo', { max: 900, rotulo: 'Texto médio (inglês)' }),
       texto_longo: T('textoLongo', { max: 4000, rotulo: 'Texto longo' }),
       texto_longo_en: T('textoLongo', { max: 4000, rotulo: 'Texto longo (inglês)' }),
+      // 0027: dados bancários para o pagamento dos contratos (marketing e site não enxergam)
+      banco: T('texto', { max: 80, rotulo: 'Banco' }),
+      agencia: T('texto', { max: 20, rotulo: 'Agência' }),
+      conta: T('texto', { max: 30, rotulo: 'Conta' }),
+      pix: T('texto', { max: 120, rotulo: 'Chave PIX' }),
     },
     permissoes: { hub: 'E', vendas: 'L', projetos: 'L', marketing: 'L', site: 'L', maquina: 'E' },
+    campos_restritos: { marketing: EMPRESA_PUBLICA, site: EMPRESA_PUBLICA },
     filtros: [],
     ordem: 'nome',
   },
@@ -878,8 +889,13 @@ export const TABELAS = {
       texto: T('textoLongo', { obrig: true, max: 2000, rotulo: 'Texto' }),
       padrao: T('sn', { rotulo: 'Marcada por padrão' }),
       ordem: T('inteiro', { min: 0, max: 9999, rotulo: 'Ordem' }),
+      // 0027: cláusulas gerais do contrato (grupo 'geral') — seção 1–15, nome curto, fixa/opcional e condição
+      secao: T('inteiro', { min: 1, max: 15, rotulo: 'Seção do contrato' }),
+      titulo: T('texto', { max: 80, rotulo: 'Nome curto' }),
+      tipo: T('lista', { valores: ['fixa', 'opcional'], rotulo: 'Fixa ou opcional' }),
+      condicao: T('lista', { valores: ['projeto_legal', 'legal_executiva', 'despesas', 'co_clientes'], rotulo: 'Só entra quando' }),
     },
-    padroes: { padrao: 1, ordem: 0 },
+    padroes: { padrao: 1, ordem: 0, tipo: 'opcional' },
     permissoes: { hub: 'E', vendas: 'E', projetos: 'L', maquina: 'E' },
     filtros: ['grupo'],
     ordem: 'grupo, ordem',

@@ -241,7 +241,7 @@ export async function retratoHonorarios(env) {
       WHERE s.arquivado_em IS NULL AND f.arquivado_em IS NULL AND x.peso IS NOT NULL ORDER BY f.ordem, s.ordem`),
     // 0019: textos das cláusulas (dos eventos e do vendas), editados em Contratos › Gestor de cláusulas
     env.DB.prepare(`SELECT id, clausula FROM pgt_eventos WHERE arquivado_em IS NULL AND clausula_marcada = 1 AND clausula IS NOT NULL AND trim(clausula) <> '' ORDER BY id`),
-    env.DB.prepare('SELECT id, grupo, texto, padrao, ordem FROM vendas_clausulas WHERE arquivado_em IS NULL ORDER BY grupo, ordem, id'),
+    env.DB.prepare('SELECT id, grupo, secao, titulo, tipo, condicao, texto, padrao, ordem FROM vendas_clausulas WHERE arquivado_em IS NULL ORDER BY grupo, ordem, id'),
   ]);
   const vale = mapaDerivado(der.results);
   const pesos = {};

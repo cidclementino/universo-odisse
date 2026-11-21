@@ -8,6 +8,8 @@
 // Constituição e registros (0021; Cid, 19/11): os dados jurídicos e, embaixo, os documentos de constituição e do CAU
 // da PJ; a caixa Contato e sede leva os documentos da sede. Os documentos gravam sozinhos (Gaveta, assets/credenciais.js);
 // os campos, pela Barra de salvar.
+// Dados bancários (0027; Cid, 21/11): banco, agência, conta e PIX para o pagamento dos contratos. Só no banco do Universo
+// (fora da cópia pública; marketing e site não enxergam). Enquanto faltar algum, o Bloco mostra o aviso "a preencher".
 
 import { lerCopia, gravarCopia } from './memoria.js';
 
@@ -22,6 +24,7 @@ const TAMANHOS = [
 const CAMPOS = ['nome', 'nome_completo', 'nome_completo_en', 'razao_social', 'cnpj', 'inscricao_municipal', 'registro_cau', 'fundacao',
   'inscricao_estadual', 'capital_social', 'responsavel_tecnico_id',
   'email', 'telefone', 'logradouro', 'bairro', 'cidade', 'uf', 'cep', 'caixa_postal',
+  'banco', 'agencia', 'conta', 'pix',
   ...TAMANHOS.flatMap(([k]) => ['texto_' + k, 'texto_' + k + '_en'])];
 // o que vai para a cópia pública (odisse.json)
 const PUBLICOS = new Set(['nome', 'nome_completo', 'nome_completo_en', 'email', 'telefone', 'logradouro', 'bairro', 'cidade', 'uf', 'cep',
@@ -35,6 +38,8 @@ const centavos = (t) => {
   const n = Math.round(Number(s) * 100);
   return Number.isFinite(n) ? n : null;
 };
+const BANCARIOS = [['banco', 'banco'], ['agencia', 'agência'], ['conta', 'conta'], ['pix', 'chave PIX']];
+const faltamBancarios = (d) => BANCARIOS.filter(([k]) => !d?.[k]).map(([, r]) => r);
 const valorDe = (k, bruto) => (k === 'capital_social' ? centavos(bruto) : (String(bruto ?? '').trim() || null));
 
 export function criarEmpresa({ esc, api, toque, lerOdisse, gravarOdisse, cred }) {
@@ -115,6 +120,16 @@ export function criarEmpresa({ esc, api, toque, lerOdisse, gravarOdisse, cred })
           </div>
           <div class="cre-docs"><span class="u-rotulo">Documentos da sede</span><div data-docs="sede"></div></div></section>
 
+        <section class="u-cartao eq-sec"><h2 class="u-subtitulo">Dados bancários <span data-falta-banco></span></h2>
+          <div data-aviso-banco></div>
+          <div class="eq-tres">
+            <div class="eq-col">${campo('banco', 'Banco', { ph: 'Nome e código (ex.: BS2 – 218)' })}${campo('agencia', 'Agência')}</div>
+            <div class="eq-col">${campo('conta', 'Conta corrente', { ph: '000000-0' })}${campo('pix', 'Chave PIX', { dica: 'De preferência o CNPJ.' })}</div>
+            <div><span class="u-rotulo">Como sai no contrato</span>
+              <div class="eq-folha"><p class="emp-qualif" data-banco></p></div>
+              <small class="u-apoio">Ficam só no Universo: não vão para o site nem para a cópia pública da Marca.</small></div>
+          </div></section>
+
         <section class="u-cartao eq-sec"><h2 class="u-subtitulo">Textos de apresentação</h2>
           ${TAMANHOS.map(([k, nome, max, uso]) => `<div class="eq-tres emp-texto">
             <div class="emp-texto-rot"><b>${nome}</b><span class="u-apoio">Até ${max} caracteres. ${uso}</span></div>
@@ -127,7 +142,15 @@ export function criarEmpresa({ esc, api, toque, lerOdisse, gravarOdisse, cred })
       </form>`;
     const f = raiz.querySelector('form');
     const atualizar = () => {
-      raiz.querySelector('[data-qualif]').textContent = qualificacao(ler(raiz));
+      const d = ler(raiz);
+      raiz.querySelector('[data-qualif]').textContent = qualificacao(d);
+      const faltam = faltamBancarios(d);
+      raiz.querySelector('[data-falta-banco]').innerHTML = faltam.length ? '<span class="etq etq--atencao">a preencher</span>' : '';
+      raiz.querySelector('[data-aviso-banco]').innerHTML = faltam.length
+        ? `<p class="emp-aviso">O contrato precisa destes dados para o pagamento dos honorários. Falta: ${esc(faltam.join(', '))}.</p>` : '';
+      raiz.querySelector('[data-banco]').textContent = `O pagamento será feito por depósito, transferência ou PIX em favor de ${d.razao_social || d.nome_completo || '[razão social]'}`
+        + `, CNPJ ${d.cnpj || '[CNPJ]'}: banco ${d.banco || '[banco]'}, agência ${d.agencia || '[agência]'}, conta corrente ${d.conta || '[conta]'}`
+        + `; chave PIX ${d.pix || '[chave PIX]'}.`;
       const barra = raiz.querySelector('[data-barra]');
       barra.hidden = !sujo.size;
       raiz.querySelector('[data-conta-mud]').textContent = `${sujo.size} ${sujo.size === 1 ? 'mudança' : 'mudanças'} não salvas`;

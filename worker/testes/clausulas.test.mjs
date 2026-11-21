@@ -19,8 +19,8 @@ const chamar = async (m, caminho, corpo, ferr) => {
 const ok = (c, msg) => { if (!c) throw new Error('FALHOU: ' + msg); console.log('ok -', msg); };
 
 const l = await chamar('GET', 'vendas-clausulas?grupo=despesa');
-ok(l.itens.length === 3 && l.itens[0].id === 'vcl_plotagem', 'três despesas reembolsáveis semeadas, na ordem');
-const nova = (await chamar('POST', 'vendas-clausulas', { grupo: 'despesa', texto: 'Cópias autenticadas.', ordem: 4 })).registro;
+ok(l.itens.length === 4 && l.itens[0].id === 'vcl_plotagem' && l.itens[3].id === 'vcl_rrt', 'quatro despesas reembolsáveis semeadas, na ordem (RRT por último, 0027)');
+const nova = (await chamar('POST', 'vendas-clausulas', { grupo: 'despesa', texto: 'Cópias autenticadas.', ordem: 5 })).registro;
 ok(nova.id.startsWith('vcl_') && nova.padrao === 1, 'vendas cria despesa (marcada por padrão)');
 ok((await pedir('POST', 'vendas-clausulas', { grupo: 'despesa', texto: 'x' }, 'projetos')).status === 403, 'Projetos não cria cláusula');
 
@@ -34,7 +34,7 @@ ok((await pedir('PATCH', 'pgt-eventos/pev_ce_m03', { nome: 'Outro nome', versao:
 const pub = await chamar('POST', 'honorarios/publicar', { nota: 'cláusulas' });
 const u = await chamar('GET', 'publicacoes/ultima?tipo=honorarios');
 ok(u.numero === pub.numero && u.dados.clausulas_eventos.pev_ce_m03 === 'Inclui uma rodada de ajuste do estudo.', 'retrato dos Honorários com o texto do evento');
-ok(u.dados.clausulas.filter((c) => c.grupo === 'despesa').length === 4, 'retrato dos Honorários com as despesas');
+ok(u.dados.clausulas.filter((c) => c.grupo === 'despesa').length === 5, 'retrato dos Honorários com as despesas');
 await chamar('PATCH', `vendas-clausulas/${nova.id}`, { texto: 'Cópias autenticadas de documentos.', versao: nova.versao });
 // marca no PGT, texto no vendas: marcado sem texto = a redigir (fora do retrato)
 const g2 = await chamar('GET', 'pgt-eventos/pev_ce_m01'); const e1 = g2.registro || g2;
@@ -46,4 +46,28 @@ ok((await pedir('PATCH', 'pgt-eventos/pev_ce_m01', { clausula_marcada: 0, versao
 const h = await chamar('GET', 'honorarios');
 ok(!('pev_ce_m01' in h.clausulas_eventos) && h.clausulas_eventos.pev_ce_m03, 'cláusula a redigir fica fora; as redigidas vêm na página dos Honorários');
 ok(h.pendente === true, 'mudar uma cláusula deixa os Honorários pendentes de publicação');
+
+// 0027: cláusulas gerais do contrato (15 seções) e dados bancários da Empresa
+const gerais = (await chamar('GET', 'vendas-clausulas?grupo=geral&limite=200')).itens;
+ok(gerais.length === 55 && gerais.every((c) => c.secao >= 1 && c.secao <= 15 && c.titulo), '55 cláusulas gerais semeadas, cada uma com seção e nome');
+ok(new Set(gerais.map((c) => c.secao)).size === 15, 'todas as 15 seções têm cláusula geral');
+ok(gerais.filter((c) => c.tipo === 'fixa').every((c) => c.padrao === 1), 'cláusula fixa sempre marcada');
+ok(gerais.find((c) => c.id === 'vcl_c06_05').padrao === 0, 'reajuste entra desmarcado');
+ok(gerais.filter((c) => c.condicao === 'projeto_legal').length === 2, 'duas cláusulas só com Projeto Legal');
+ok((await chamar('GET', 'vendas-clausulas?grupo=despesa')).itens.some((c) => c.id === 'vcl_rrt'), 'RRT vira despesa reembolsável');
+const cg = (await chamar('POST', 'vendas-clausulas', { grupo: 'geral', secao: 12, titulo: 'Teste', tipo: 'fixa', texto: 'Texto de teste.', ordem: 1299 })).registro;
+ok(cg.secao === 12 && cg.tipo === 'fixa', 'vendas cria cláusula geral numa seção');
+ok((await pedir('POST', 'vendas-clausulas', { grupo: 'geral', secao: 16, texto: 'x' })).status === 422, 'seção fora de 1–15 recusada');
+ok((await pedir('POST', 'vendas-clausulas', { grupo: 'geral', secao: 3, texto: 'x', condicao: 'outra' })).status === 422, 'condição fora da lista recusada');
+const ret = await chamar('GET', 'honorarios');
+ok(ret.pendente === true, 'cláusula geral nova deixa os Honorários pendentes');
+await chamar('POST', 'honorarios/publicar', { nota: 'gerais' });
+const u2 = await chamar('GET', 'publicacoes/ultima?tipo=honorarios');
+ok(u2.dados.clausulas.find((c) => c.id === 'vcl_c15_02')?.secao === 15, 'retrato dos Honorários leva as cláusulas gerais com a seção');
+const emp = await chamar('GET', 'empresa/emp_odisse', null, 'hub'); const er = emp.registro || emp;
+const e2 = (await chamar('PATCH', 'empresa/emp_odisse', { banco: 'BS2 (218)', agencia: '0001', conta: '632055-4', pix: '38.440.925/0001-26', versao: er.versao }, 'hub')).registro;
+ok(e2.pix === '38.440.925/0001-26', 'hub grava os dados bancários da Empresa');
+const ev2 = await chamar('GET', 'empresa/emp_odisse', null, 'vendas'); ok((ev2.registro || ev2).conta === '632055-4', 'vendas lê os dados bancários');
+const em = await chamar('GET', 'empresa/emp_odisse', null, 'marketing'); const emr = em.registro || em;
+ok(!('conta' in emr) && !('pix' in emr) && emr.nome, 'marketing não enxerga os dados bancários');
 console.log('todos os testes das cláusulas passaram');
