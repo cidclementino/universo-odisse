@@ -136,6 +136,13 @@ ok(cod('Briefing').junto_anterior === 1, 'evento do cliente e entrega ao mesmo t
 ok(await falha('POST', `escopo/${prj2.id}/acao`, { acao: 'andamento', modo: 'juntos', cartoes: [cod('Briefing').id] }) === 422, 'juntos com um só → 422');
 ok(await falha('POST', `escopo/${prj2.id}/acao`, { acao: 'andamento', modo: 'juntos', cartoes: [cod('Briefing').id, id('CE-01')] }) === 404, 'cartão de outro projeto → 404');
 
+// inverter a ordem: Similares (PP-03) e Mobiliário (PP-04) trocam de lugar e de código
+F = await ac2({ acao: 'trocar', cartoes: [cod('Mobiliário').id, cod('Similares').id], dias: 0 });
+const ordem3 = F.cartoes.filter((c) => c.tipo !== 'etapa').map((c) => c.texto);
+ok(ordem3.indexOf('Mobiliário') < ordem3.indexOf('Similares') && cod('Mobiliário').codigo === 'PP-03' && cod('Similares').codigo === 'PP-04', 'inverter: trocam de lugar e de código');
+ok(F.alteracoes[0].descricao.includes('trocam de lugar'), 'inverter: registrado');
+ok(await falha('POST', `escopo/${prj2.id}/acao`, { acao: 'trocar', cartoes: [cod('Mobiliário').id] }) === 422, 'inverter com um só → 422');
+
 // ---------------------------------------------------------------- materiais do cartão (0028)
 const pet = (await chamar('POST', 'pgt-etapas', { fase_id: (await env.DB.prepare('SELECT id FROM pgt_fases LIMIT 1').first()).id, sigla: 'ZZ', nome: 'Etapa teste' })).registro;
 const pen = (await chamar('POST', 'pgt-entregaveis', { etapa_id: pet.id, texto: 'Entrega teste' })).registro;

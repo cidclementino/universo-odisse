@@ -17,6 +17,7 @@
 //                                   · inicio { dia } · motivo { alteracao_id, motivo }
 //                                   · andamento { cartoes: [esc_…], modo: 'juntos'|'sequencia', dias? } (0028: ao mesmo tempo ou
 //                                     em sequência; com buracos, os selecionados passam à frente e os códigos acompanham)
+//                                   · trocar { cartoes: [esc_a, esc_b], dias? } (inverter a ordem de dois cartões da etapa)
 //                                   · materiais { cartao_id, acrescentar: pma_/pmo_ | tirar: pma_/pmo_ } (sem registro em Alterações)
 //                                   · material_novo { cartao_id, tipo, nome, link, descricao? } (entra no banco do PGT na hora)
 //   GET  escopo/materiais           -> { materiais, modelos } (banco de materiais do PGT, rascunho vivo)
@@ -179,13 +180,27 @@ export function planejarAndamento(filhos, ids, modo) {
   const ordens = lista.map((c) => c.ordem);
   nova.forEach((c, i) => por(c, 'ordem', ordens[i]));
   for (const c of resto) { por(c, 'junto_anterior', 1); por(c, 'folga', 0); }
+  return { mud, renomes: renumerar(lista, nova, por) };
+}
+function renumerar(lista, nova, por) {
   const renomes = [];
   for (const rx of [RX_EVT, RX_ENT]) {
     const doGrupo = (c) => c.codigo && rx.test(c.codigo) && (rx === RX_EVT || !RX_EVT.test(c.codigo));
     const nums = lista.filter(doGrupo).map((c) => c.codigo).sort((a, b) => Number(a.match(rx)[2]) - Number(b.match(rx)[2]));
     nova.filter(doGrupo).forEach((c, i) => { if (c.codigo !== nums[i]) { renomes.push([c.codigo, nums[i]]); por(c, 'codigo', nums[i]); } });
   }
-  return { mud, renomes };
+  return renomes;
+}
+// inverter a ordem de dois cartões da mesma etapa: trocam de lugar; o lugar (correr junto com o anterior, hiato ou
+// paralelo antes) fica onde estava, e os códigos acompanham a nova ordem
+export function planejarTroca(filhos, a, b) {
+  const lista = [...filhos].sort((x, y) => x.ordem - y.ordem);
+  const A = lista.find((c) => c.id === a), B = lista.find((c) => c.id === b);
+  const mud = new Map();
+  const por = (c, k, v) => { if (c[k] !== v) { const m = mud.get(c.id) || {}; m[k] = v; mud.set(c.id, m); } };
+  const nova = lista.map((c) => (c === A ? B : c === B ? A : c));
+  for (const k of ['ordem', 'junto_anterior', 'folga']) { const va = A[k], vb = B[k]; por(A, k, vb); por(B, k, va); }
+  return { mud, renomes: renumerar(lista, nova, por) };
 }
 const lerMats = (c) => { const m = lerJson(c.materiais, {}) || {}; return { mais: Array.isArray(m.mais) ? m.mais : [], menos: Array.isArray(m.menos) ? m.menos : [] }; };
 async function itemDoBanco(env, id) {
@@ -352,6 +367,21 @@ async function acao(env, ferramenta, prjId, a) {
       s.push(registrar(env, prjId, ord[0].id, 'andamento', 'prazo', { dias, antes: modo === 'juntos' ? 'sequencia' : 'juntos', depois: modo,
         descricao: `${nomes.join(', ')} ${modo === 'juntos' ? 'passam a correr ao mesmo tempo' : 'passam a correr em sequência'}${renomes.length ? ` (${renomes.map(([x, y]) => `${x} → ${y}`).join(', ')})` : ''}`,
         motivo }, ferramenta, agora));
+      break;
+    }
+    case 'trocar': {
+      const ids = (Array.isArray(a.cartoes) ? a.cartoes : []).map(String);
+      if (ids.length !== 2 || ids[0] === ids[1]) throw new ErroApi(422, 'escolha dois cartões para inverter');
+      const [x, y] = [await cartao(env, prjId, ids[0]), await cartao(env, prjId, ids[1])];
+      if ([x, y].some((c) => c.tipo === 'etapa' || c.encerramento)) throw new ErroApi(422, 'só entregas e eventos (sem a etapa e o Encerramento)');
+      if (x.etapa_id !== y.etapa_id) throw new ErroApi(422, 'escolha cartões de uma etapa só');
+      const { results: filhos } = await env.DB.prepare('SELECT * FROM escopo_cartoes WHERE etapa_id = ? AND arquivado_em IS NULL ORDER BY ordem').bind(x.etapa_id).all();
+      const { mud, renomes } = planejarTroca(filhos, x.id, y.id);
+      for (const [id, campos] of mud) s.push(mudarCartao(env, { id }, campos, ferramenta, agora));
+      const [p1, p2] = [x, y].sort((u, v) => u.ordem - v.ordem);
+      const dias = a.dias === undefined || a.dias === null ? null : inteiro(a.dias, -400, 400, 'Dias');
+      s.push(registrar(env, prjId, p1.id, 'andamento', 'prazo', { dias, antes: 'ordem', depois: 'invertida',
+        descricao: `${p1.codigo || p1.texto} e ${p2.codigo || p2.texto} trocam de lugar${renomes.length ? ` (${renomes.map(([u, v]) => `${u} → ${v}`).join(', ')})` : ''}`, motivo }, ferramenta, agora));
       break;
     }
     case 'materiais': {
