@@ -15,6 +15,11 @@
 //                                   tempo?, motivo?, origem_id?, codigo?, cliente?, terceiros?, evento_tipo?, sem_prazo? }
 //                                   (com origem_id: um cartão do PGT que não foi contratado entra com o código e a origem dele) · decisao { cartao_id, resultado } · suspender { de } · retomar { ate }
 //                                   · inicio { dia } · motivo { alteracao_id, motivo }
+//                                   · andamento { cartoes: [esc_…], modo: 'juntos'|'sequencia', dias? } (0028: ao mesmo tempo ou
+//                                     em sequência; com buracos, os selecionados passam à frente e os códigos acompanham)
+//                                   · materiais { cartao_id, acrescentar: pma_/pmo_ | tirar: pma_/pmo_ } (sem registro em Alterações)
+//                                   · material_novo { cartao_id, tipo, nome, link, descricao? } (entra no banco do PGT na hora)
+//   GET  escopo/materiais           -> { materiais, modelos } (banco de materiais do PGT, rascunho vivo)
 //   Cliques seguidos no mesmo cartão (duração ou mover, até 10 s entre um e outro, sem mexer em outro cartão no meio)
 //   viram uma alteração só, com a soma dos dias.
 
@@ -55,7 +60,7 @@ export async function lerEscopo(env, prjId) {
   ]);
   return {
     projeto: p,
-    cartoes: c.results.map((x) => ({ ...x, decisao: lerJson(x.decisao) })),
+    cartoes: c.results.map((x) => ({ ...x, decisao: lerJson(x.decisao), materiais: lerMats(x) })),
     alteracoes: a.results.map((x) => ({ ...x, antes: lerJson(x.antes, x.antes), depois: lerJson(x.depois, x.depois) })),
   };
 }
@@ -153,6 +158,51 @@ const mudarCartao = (env, c, campos, ferramenta, agora) => {
   return env.DB.prepare(`UPDATE escopo_cartoes SET ${ks.map((k) => `${k} = ?`).join(', ')}, versao = versao + 1, atualizado_em = ?, atualizado_por = ? WHERE id = ?`)
     .bind(...ks.map((k) => campos[k]), agora, ferramenta, c.id);
 };
+
+
+// ---------------------------------------------------------------- andamento (0028)
+// Códigos de entrega (PP-01) e de evento (PP-M01) seguem a ordem na etapa: ao reordenar, os números existentes de cada
+// grupo são redistribuídos na nova ordem (o conjunto de códigos não muda).
+const RX_ENT = /^(.+)-(\d+)$/, RX_EVT = /^(.+)-M(\d+)$/;
+export function planejarAndamento(filhos, ids, modo) {
+  const lista = [...filhos].sort((a, b) => a.ordem - b.ordem);
+  const sel = lista.filter((c) => ids.includes(c.id));
+  const mud = new Map();    // id -> { campo: valor }
+  const por = (c, k, v) => { if (c[k] !== v) { const m = mud.get(c.id) || {}; m[k] = v; mud.set(c.id, m); } };
+  if (modo === 'sequencia') {
+    for (const c of sel) { por(c, 'junto_anterior', 0); if (c.folga < 0) por(c, 'folga', 0); }
+    return { mud, renomes: [] };
+  }
+  const [prim, ...resto] = sel;
+  const nova = lista.filter((c) => !resto.includes(c));
+  nova.splice(nova.indexOf(prim) + 1, 0, ...resto);
+  const ordens = lista.map((c) => c.ordem);
+  nova.forEach((c, i) => por(c, 'ordem', ordens[i]));
+  for (const c of resto) { por(c, 'junto_anterior', 1); por(c, 'folga', 0); }
+  const renomes = [];
+  for (const rx of [RX_EVT, RX_ENT]) {
+    const doGrupo = (c) => c.codigo && rx.test(c.codigo) && (rx === RX_EVT || !RX_EVT.test(c.codigo));
+    const nums = lista.filter(doGrupo).map((c) => c.codigo).sort((a, b) => Number(a.match(rx)[2]) - Number(b.match(rx)[2]));
+    nova.filter(doGrupo).forEach((c, i) => { if (c.codigo !== nums[i]) { renomes.push([c.codigo, nums[i]]); por(c, 'codigo', nums[i]); } });
+  }
+  return { mud, renomes };
+}
+const lerMats = (c) => { const m = lerJson(c.materiais, {}) || {}; return { mais: Array.isArray(m.mais) ? m.mais : [], menos: Array.isArray(m.menos) ? m.menos : [] }; };
+async function itemDoBanco(env, id) {
+  const tab = /^pma_/.test(id) ? 'pgt_materiais' : /^pmo_/.test(id) ? 'pgt_modelos' : null;
+  if (!tab) throw new ErroApi(422, 'Material: pma_ ou pmo_');
+  const r = await env.DB.prepare(`SELECT id, nome FROM ${tab} WHERE id = ? AND arquivado_em IS NULL`).bind(id).first();
+  if (!r) throw new ErroApi(404, 'material não encontrado no banco do PGT');
+  return r;
+}
+export async function bancoMateriais(env) {
+  const [m, o] = await env.DB.batch([
+    env.DB.prepare(`SELECT m.id, m.alvo_id, m.tipo, m.nome, m.descricao, m.link, m.modelo_id FROM pgt_materiais m LEFT JOIN pgt_modelos o ON o.id = m.modelo_id
+      WHERE m.arquivado_em IS NULL AND (m.modelo_id IS NULL OR o.arquivado_em IS NULL) ORDER BY m.alvo_id, m.ordem`),
+    env.DB.prepare('SELECT id, nome, tipo, descricao FROM pgt_modelos WHERE arquivado_em IS NULL ORDER BY ordem, nome'),
+  ]);
+  return { materiais: m.results, modelos: o.results };
+}
 
 async function acao(env, ferramenta, prjId, a) {
   const p = await projeto(env, prjId);
@@ -282,6 +332,64 @@ async function acao(env, ferramenta, prjId, a) {
       s.push(mudarCartao(env, c, { observacoes: texto(a.observacoes, 4000) }, ferramenta, agora));
       break;
     }
+    case 'andamento': {
+      const modo = a.modo === 'sequencia' ? 'sequencia' : a.modo === 'juntos' ? 'juntos' : null;
+      if (!modo) throw new ErroApi(422, 'Modo: juntos ou sequencia');
+      const ids = [...new Set((Array.isArray(a.cartoes) ? a.cartoes : []).map(String))];
+      if (ids.length < (modo === 'juntos' ? 2 : 1) || ids.length > 200) throw new ErroApi(422, modo === 'juntos' ? 'escolha ao menos dois cartões' : 'escolha ao menos um cartão');
+      const { results: sel } = await env.DB.prepare(`SELECT * FROM escopo_cartoes WHERE projeto_id = ? AND arquivado_em IS NULL AND id IN (SELECT value FROM json_each(?))`)
+        .bind(prjId, JSON.stringify(ids)).all();
+      if (sel.length !== ids.length) throw new ErroApi(404, 'cartão não encontrado');
+      if (sel.some((c) => c.tipo === 'etapa' || c.encerramento)) throw new ErroApi(422, 'só entregas e eventos (sem a etapa e o Encerramento)');
+      if (new Set(sel.map((c) => c.etapa_id)).size > 1) throw new ErroApi(422, 'escolha cartões de uma etapa só');
+      const { results: filhos } = await env.DB.prepare('SELECT * FROM escopo_cartoes WHERE etapa_id = ? AND arquivado_em IS NULL ORDER BY ordem').bind(sel[0].etapa_id).all();
+      const { mud, renomes } = planejarAndamento(filhos, ids, modo);
+      if (!mud.size) return lerEscopo(env, prjId);
+      for (const [id, campos] of mud) s.push(mudarCartao(env, { id }, campos, ferramenta, agora));
+      const ord = sel.sort((x, y) => x.ordem - y.ordem);
+      const nomes = ord.map((c) => { const r = renomes.find((x) => x[0] === c.codigo); return r ? r[1] : (c.codigo || c.texto); });
+      const dias = a.dias === undefined || a.dias === null ? null : inteiro(a.dias, -400, 400, 'Dias');
+      s.push(registrar(env, prjId, ord[0].id, 'andamento', 'prazo', { dias, antes: modo === 'juntos' ? 'sequencia' : 'juntos', depois: modo,
+        descricao: `${nomes.join(', ')} ${modo === 'juntos' ? 'passam a correr ao mesmo tempo' : 'passam a correr em sequência'}${renomes.length ? ` (${renomes.map(([x, y]) => `${x} → ${y}`).join(', ')})` : ''}`,
+        motivo }, ferramenta, agora));
+      break;
+    }
+    case 'materiais': {
+      const c = await cartao(env, prjId, a.cartao_id);
+      const m = lerMats(c);
+      if (a.acrescentar) {
+        const it = await itemDoBanco(env, String(a.acrescentar));
+        if (m.menos.includes(it.id)) m.menos = m.menos.filter((x) => x !== it.id);
+        else if (!m.mais.includes(it.id)) m.mais.push(it.id);
+      } else if (a.tirar) {
+        const id = String(a.tirar);
+        if (m.mais.includes(id)) m.mais = m.mais.filter((x) => x !== id);
+        else if (!m.menos.includes(id)) m.menos.push(id);
+      } else throw new ErroApi(422, 'diga acrescentar ou tirar');
+      if (m.mais.length + m.menos.length > 200) throw new ErroApi(422, 'materiais demais neste cartão');
+      s.push(mudarCartao(env, c, { materiais: JSON.stringify(m) }, ferramenta, agora));
+      break;
+    }
+    case 'material_novo': {
+      const c = await cartao(env, prjId, a.cartao_id);
+      const tipo = ['modelo', 'formulario', 'checklist', 'referencia'].includes(a.tipo) ? a.tipo : null;
+      if (!tipo) throw new ErroApi(422, 'Tipo: modelo, formulário, checklist ou referência');
+      const nome = texto(a.nome, 160);
+      if (!nome) throw new ErroApi(422, 'Nome: diga o que é o material');
+      const link = texto(a.link, 2000);
+      if (!link || !/^https:\/\/[^\s]+$/i.test(link)) throw new ErroApi(422, 'Link: endereço começando com https://');
+      let alvo = /^(pen|pev|pet)_/.test(c.origem_id || '') ? c.origem_id : null;
+      if (!alvo && c.etapa_id) { const et = await cartao(env, prjId, c.etapa_id); alvo = /^pet_/.test(et.origem_id || '') ? et.origem_id : null; }
+      if (!alvo) throw new ErroApi(422, 'este cartão não tem entrega, evento ou etapa no PGT para ligar o material');
+      const ult = await env.DB.prepare('SELECT MAX(ordem) AS o FROM pgt_materiais WHERE alvo_id = ?').bind(alvo).first();
+      const pma = novoId('pma');
+      const m = lerMats(c); m.mais.push(pma);
+      s.push(env.DB.prepare(`INSERT INTO pgt_materiais (id, criado_em, atualizado_em, criado_por, atualizado_por, versao, alvo_id, tipo, nome, descricao, link, ordem)
+          VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?)`)
+          .bind(pma, agora, agora, ferramenta, ferramenta, alvo, tipo, nome, texto(a.descricao, 2000) || `Criado no escopo de ${p.codigo || p.nome}`, link, Math.min(999, (ult?.o ?? -1) + 1)),
+        mudarCartao(env, c, { materiais: JSON.stringify(m) }, ferramenta, agora));
+      break;
+    }
     default:
       throw new ErroApi(422, 'ação desconhecida');
   }
@@ -292,6 +400,7 @@ async function acao(env, ferramenta, prjId, a) {
 export async function rotasEscopo(env, ferramenta, m, partes, corpo, { exigir }) {
   const [rota, prj, sub] = partes;
   if (rota !== 'escopo') return undefined;
+  if (m === 'GET' && prj === 'materiais' && !sub) { exigir('pgt_materiais', ferramenta, 'L'); return bancoMateriais(env); }
   if (!/^prj_/.test(prj || '')) throw new ErroApi(404, 'rota não encontrada');
   if (m === 'GET' && !sub) { exigir('escopo_cartoes', ferramenta, 'L'); return lerEscopo(env, prj); }
   if (m === 'POST' && sub === 'gerar') { exigir('escopo_cartoes', ferramenta, 'E'); return gerar(env, ferramenta, prj, corpo || {}); }

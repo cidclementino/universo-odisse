@@ -103,4 +103,59 @@ ok(h2.cartao_id === id('CE'), 'hora lançada na etapa do escopo');
 const outro = (await chamar('POST', 'projetos', { nome: 'Outro', inicio: '2026-11-02' })).registro;
 ok(await falha('POST', 'horas', { equipe_id: eqp.id, projeto_id: outro.id, cartao_id: id('CE'), data: '2026-11-04', minutos: 60 }) >= 400, 'etapa do escopo de outro projeto → recusa');
 ok((await chamar('GET', 'escopo/' + prj.id, null, 'vendas')).cartoes.length === 7, 'vendas lê o escopo');
+
+// ---------------------------------------------------------------- andamento (0028)
+// etapa nova com 4 entregas e um evento do cliente: CL-01 … CL-04, CL-M01
+const prj2 = (await chamar('POST', 'projetos', { nome: 'Casa Andamento', inicio: '2026-12-07' })).registro;
+let F = await chamar('POST', `escopo/${prj2.id}/gerar`, { inicio: '2026-12-07', cartoes: [
+  { ref: 'e', tipo: 'etapa', origem_id: 'pet_pp', sigla: 'PP', texto: 'Programação', fase_id: 'pfa_conceitual', fase_nome: 'Conceitual' },
+  { ref: 'm1', tipo: 'evento', etapa_ref: 'e', origem_id: 'pev_pp_m01', codigo: 'PP-M01', texto: 'Questionário', tempo: 'cliente', cliente: 1, dias: 3 },
+  { ref: '1', tipo: 'entrega', etapa_ref: 'e', origem_id: 'pen_pp_01', codigo: 'PP-01', texto: 'Briefing', dias: 1 },
+  { ref: '2', tipo: 'entrega', etapa_ref: 'e', origem_id: 'pen_pp_02', codigo: 'PP-02', texto: 'Similares', dias: 1 },
+  { ref: '3', tipo: 'entrega', etapa_ref: 'e', origem_id: 'pen_pp_03', codigo: 'PP-03', texto: 'Programa', dias: 1 },
+  { ref: '4', tipo: 'entrega', etapa_ref: 'e', origem_id: 'pen_pp_04', codigo: 'PP-04', texto: 'Mobiliário', dias: 2 },
+] });
+const ac2 = (corpo) => chamar('POST', `escopo/${prj2.id}/acao`, corpo);
+const cod = (t) => F.cartoes.find((c) => c.texto === t);
+F = await ac2({ acao: 'andamento', modo: 'juntos', cartoes: [cod('Similares').id, cod('Programa').id, cod('Mobiliário').id], dias: -2 });
+ok(cod('Programa').junto_anterior === 1 && cod('Mobiliário').junto_anterior === 1 && cod('Similares').junto_anterior === 0, 'juntos: os seguintes correm com o primeiro');
+const al = F.alteracoes[0];
+ok(al.tipo === 'andamento' && al.natureza === 'prazo' && al.dias === -2 && al.descricao.includes('ao mesmo tempo'), 'juntos: registrado como ajuste de prazo');
+F = await ac2({ acao: 'andamento', modo: 'sequencia', cartoes: [cod('Programa').id, cod('Mobiliário').id] });
+ok(!cod('Programa').junto_anterior && !cod('Mobiliário').junto_anterior && F.alteracoes[0].descricao.includes('em sequência'), 'em sequência desfaz');
+// com buraco: Briefing e Programa (Similares no meio) -> Programa passa à frente e vira PP-02
+F = await ac2({ acao: 'andamento', modo: 'juntos', cartoes: [cod('Briefing').id, cod('Programa').id] });
+const ordem2 = F.cartoes.filter((c) => c.tipo !== 'etapa').map((c) => c.texto);
+ok(ordem2.join() === 'Questionário,Briefing,Programa,Similares,Mobiliário', 'buraco: o selecionado passa à frente');
+ok(cod('Programa').codigo === 'PP-02' && cod('Similares').codigo === 'PP-03' && cod('Mobiliário').codigo === 'PP-04' && cod('Questionário').codigo === 'PP-M01',
+  'códigos acompanham a nova ordem');
+ok(F.alteracoes[0].descricao.includes('PP-03 → PP-02'), 'registro diz a troca de código');
+// evento do cliente e entrega ao mesmo tempo (camadas diferentes)
+F = await ac2({ acao: 'andamento', modo: 'juntos', cartoes: [cod('Questionário').id, cod('Briefing').id] });
+ok(cod('Briefing').junto_anterior === 1, 'evento do cliente e entrega ao mesmo tempo');
+ok(await falha('POST', `escopo/${prj2.id}/acao`, { acao: 'andamento', modo: 'juntos', cartoes: [cod('Briefing').id] }) === 422, 'juntos com um só → 422');
+ok(await falha('POST', `escopo/${prj2.id}/acao`, { acao: 'andamento', modo: 'juntos', cartoes: [cod('Briefing').id, id('CE-01')] }) === 404, 'cartão de outro projeto → 404');
+
+// ---------------------------------------------------------------- materiais do cartão (0028)
+const pet = (await chamar('POST', 'pgt-etapas', { fase_id: (await env.DB.prepare('SELECT id FROM pgt_fases LIMIT 1').first()).id, sigla: 'ZZ', nome: 'Etapa teste' })).registro;
+const pen = (await chamar('POST', 'pgt-entregaveis', { etapa_id: pet.id, texto: 'Entrega teste' })).registro;
+const pmaBanco = (await chamar('POST', 'pgt-materiais', { alvo_id: pen.id, tipo: 'checklist', nome: 'Checklist do banco', link: 'https://exemplo.com/a' })).registro;
+await env.DB.prepare('UPDATE escopo_cartoes SET origem_id = ? WHERE id = ?').bind(pen.id, cod('Similares').id).run();
+let banco = await chamar('GET', 'escopo/materiais');
+ok(banco.materiais.some((m) => m.id === pmaBanco.id), 'banco de materiais lido pelo projetos');
+F = await ac2({ acao: 'materiais', cartao_id: cod('Mobiliário').id, acrescentar: pmaBanco.id });
+ok(cod('Mobiliário').materiais.mais[0] === pmaBanco.id, 'acrescentar do banco');
+const nAlt = F.alteracoes.length;
+F = await ac2({ acao: 'materiais', cartao_id: cod('Mobiliário').id, tirar: pmaBanco.id });
+ok(!cod('Mobiliário').materiais.mais.length && F.alteracoes.length === nAlt, 'tirar; materiais não entram nas Alterações');
+F = await ac2({ acao: 'materiais', cartao_id: cod('Similares').id, tirar: 'pma_do_pgt' });
+ok(cod('Similares').materiais.menos[0] === 'pma_do_pgt', 'tirar um material do PGT vai para menos');
+F = await ac2({ acao: 'material_novo', cartao_id: cod('Similares').id, tipo: 'modelo', nome: 'Prancha de similares', link: 'https://exemplo.com/b' });
+const pmaNovo = cod('Similares').materiais.mais[0];
+const linha = await env.DB.prepare('SELECT * FROM pgt_materiais WHERE id = ?').bind(pmaNovo).first();
+ok(linha && linha.alvo_id === pen.id && linha.tipo === 'modelo' && linha.descricao.startsWith('Criado no escopo'), 'material novo entra no banco do PGT, ligado à entrega de origem');
+banco = await chamar('GET', 'escopo/materiais');
+ok(banco.materiais.some((m) => m.id === pmaNovo), 'disponível na hora para outros projetos');
+ok(await falha('POST', `escopo/${prj2.id}/acao`, { acao: 'material_novo', cartao_id: cod('Similares').id, tipo: 'modelo', nome: 'x', link: 'ftp://a' }) === 422, 'link sem https → 422');
+ok(await falha('POST', `escopo/${prj2.id}/acao`, { acao: 'materiais', cartao_id: cod('Similares').id, acrescentar: 'pma_naoexiste' }) === 404, 'material inexistente → 404');
 console.log('TUDO CERTO');
