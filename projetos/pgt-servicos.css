@@ -1,0 +1,171 @@
+/* Plano Geral de Trabalho — Serviços, Ficha do serviço, Faixas e prazo e as abas (Cid, 20/11/2026).
+   Segue o design.md do Universo (Abas em caixa, Trilha, Registro com Régua, Seletor quadrado, Etiquetas,
+   Bloco recolhível e fluido, Matriz, Barra de salvar). Prefixo pg- para não esbarrar nas classes do plano. */
+
+.pgt { --pg-veu: rgba(63, 75, 87, .05); --pg-ok: #3E6B48; --pg-ok-fundo: #E2EBDF; --pg-at: #8A5A2B; --pg-at-fundo: rgba(187, 130, 72, .11); --pg-tinta-3: #8A939C; }
+html { scrollbar-gutter: stable; }
+.pgt svg { width: 14px; height: 14px; flex: none; }
+.pgt .sem { color: var(--pg-tinta-3); }
+
+/* ---------------------------------------------------------------- Abas em caixa e cabeçalho */
+.abas-caixa-linha { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin: 4px 0 16px; }
+.abas-caixa-linha .u-rotulo { margin: 0; }
+.abas-caixa { display: inline-flex; padding: 3px; gap: 2px; background: var(--pg-veu); border-radius: 8px; max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+.abas-caixa a { flex: none; white-space: nowrap; padding: 6px 12px; border-radius: 6px; font-size: 13px; color: var(--u-tinta-2, #5B6773); text-decoration: none; transition: background .15s, color .15s; }
+.abas-caixa a:hover { color: var(--u-tinta, #3F4B57); background: rgba(255, 255, 255, .6); }
+.abas-caixa a.ativa { background: #fff; color: var(--u-tinta, #3F4B57); font-weight: 600; box-shadow: 0 1px 2px rgba(46, 48, 54, .08); }
+.abas-caixa a:focus-visible { outline: 2px solid var(--u-foco, #3C82DC); outline-offset: 1px; }
+.pgt-cab { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.pg-empurra { flex: 1; }
+.pgt-cab h1 { margin: 0; }
+.pgt .pgt-cab { border-bottom: 0; padding-bottom: 0; margin-bottom: 16px; }
+.pgt .u-trilha { margin-bottom: 4px; }
+.pgt .u-botao { display: inline-flex; align-items: center; gap: 6px; text-decoration: none; }
+.pgt .u-botao:disabled { opacity: .45; cursor: default; }
+
+/* ---------------------------------------------------------------- Seletor quadrado e Etiquetas */
+.pg-seletor { display: inline-flex; border: 1px solid var(--u-linha-forte, #C3C8CD); border-radius: 6px; overflow: hidden; background: #fff; vertical-align: middle; }
+.pg-seletor button { display: inline-flex; align-items: center; gap: 6px; border: 0; border-left: 1px solid var(--u-linha, #D7DADD); background: none;
+  padding: 6px 11px; font: inherit; font-size: 12.5px; font-weight: 500; color: var(--u-tinta, #3F4B57); cursor: pointer; white-space: nowrap; }
+.pg-seletor button:first-child { border-left: 0; }
+.pg-seletor button:hover { background: var(--pg-veu); }
+.pg-seletor button[aria-checked="true"] { background: var(--odisse-ardosia, #3F4B57); color: var(--odisse-papel, #FAFAF7); font-weight: 600; }
+.pg-seletor button:focus-visible { outline: 2px solid var(--u-foco, #3C82DC); outline-offset: -2px; }
+.pg-seletor .n { font-size: 11px; font-weight: 600; opacity: .7; font-variant-numeric: tabular-nums; }
+
+.pg-etq { display: inline-block; padding: 3px 9px; border-radius: 4px; font-size: 11.5px; font-weight: 550; white-space: nowrap;
+  background: var(--odisse-nevoa, #E6E8EB); color: var(--u-tinta, #3F4B57); border: 1px solid transparent; line-height: 1.3; }
+.pg-etq.ok { background: var(--pg-ok-fundo); color: var(--pg-ok); }
+.pg-etq.atencao { background: var(--pg-at-fundo); color: var(--pg-at); }
+.pg-etq.ambar { background: color-mix(in srgb, var(--odisse-ambar, #ECC28F) 45%, #fff); }
+.pg-etq.ardosia { background: color-mix(in srgb, var(--odisse-ardosia, #3F4B57) 14%, #fff); }
+.pg-etq.tracejada { background: transparent; border: 1px dashed var(--u-linha-forte, #C3C8CD); color: var(--u-tinta-2, #5B6773); }
+
+/* Caixa de comando */
+.pg-caixa { display: inline-grid; place-items: center; width: 24px; height: 24px; padding: 0; border: 1px solid var(--u-linha-forte, #C3C8CD); border-radius: 4px;
+  background: #fff; color: var(--u-tinta, #3F4B57); cursor: pointer; font: inherit; vertical-align: middle; }
+.pg-caixa:hover:not(:disabled) { border-color: var(--u-tinta-2, #5B6773); background: var(--pg-veu); }
+.pg-caixa:disabled { opacity: .35; cursor: default; }
+.pg-caixa:focus-visible { outline: 2px solid var(--u-foco, #3C82DC); outline-offset: 1px; }
+
+/* ---------------------------------------------------------------- Serviços: Registro */
+.pg-cab-secao { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 8px; }
+.pg-cab-secao .u-subtitulo { margin: 0; }
+.pg-contagem { font-size: 13px; font-weight: 500; color: var(--u-tinta-2, #5B6773); margin-left: 6px; }
+.pg-filtros { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 16px; }
+.pg-busca { width: 220px; padding: 6px 10px; border: 1px solid var(--u-linha-forte, #C3C8CD); border-radius: 6px; font: inherit; font-size: 13px; background: #fff; color: inherit; }
+.pg-grade-srv { display: grid; grid-template-columns: 24px minmax(0, 1fr) 110px 110px 170px 170px 24px; align-items: center; gap: 12px; }
+.pg-srv { background: #fff; border: 1px solid var(--u-linha, #D7DADD); border-radius: 8px; }
+.pg-srv > .pg-linha { border: 0; cursor: pointer; }
+.pg-srv.aberto { border-color: var(--u-linha-forte, #C3C8CD); box-shadow: 0 3px 10px rgba(46, 48, 54, .06); }
+.pg-srv.aberto > .pg-linha { border-radius: 8px 8px 0 0; }
+.pg-srv-seta svg { transition: transform .15s; transform: rotate(-90deg); }
+.pg-srv.aberto .pg-srv-seta svg { transform: none; }
+.pg-srv-corpo { padding: 4px 14px 16px 50px; }
+.pg-srv-chaves { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin: 4px 0 12px; }
+.pg-regua { margin-top: 16px; padding: 9px 14px; border-radius: 8px; background: rgba(255, 255, 255, .55);
+  font-size: 11px; font-weight: 650; letter-spacing: .06em; text-transform: uppercase; color: var(--u-tinta-2, #5B6773); }
+.pg-registro { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+.pg-linha { min-height: 52px; padding: 8px 14px; background: #fff; border: 1px solid var(--u-linha, #D7DADD); border-radius: 8px; color: inherit; text-decoration: none;
+  transition: background-color .15s, border-color .15s, box-shadow .15s, transform .15s; }
+.pg-linha:hover { background: #FCFCFB; border-color: var(--u-tinta-2, #5B6773); box-shadow: 0 3px 10px rgba(46, 48, 54, .09); transform: translateY(-1px); }
+.pg-linha:active { transform: none; box-shadow: none; }
+.pg-linha:focus-visible { outline: 2px solid var(--u-foco, #3C82DC); outline-offset: 2px; }
+.pg-nome { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.pg-nome > span:last-child { min-width: 0; }
+.pg-nome b { display: block; font-size: 13px; font-weight: 650; }
+.pg-nome small { display: block; font-size: 12px; color: var(--u-tinta-2, #5B6773); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pg-sigla { flex: none; min-width: 34px; font-size: 12px; font-weight: 700; letter-spacing: .02em; }
+.pg-apoio { font-size: 12.5px; color: var(--u-tinta-2, #5B6773); }
+.pg-vazio { padding: 24px; border: 1px dashed var(--u-linha-forte, #C3C8CD); border-radius: 8px; text-align: center; font-size: 13px; color: var(--u-tinta-2, #5B6773); }
+
+/* ---------------------------------------------------------------- Seções e notas */
+.pg-secao { margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--u-linha-forte, #C3C8CD); }
+.pg-secao > .pg-cab-secao { margin: 0 0 16px; }
+.pg-notas { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px 32px; }
+.pg-notas h3 { margin: 0 0 6px; }
+.pg-notas p { margin: 0; font-size: 12.5px; color: var(--u-tinta-2, #5B6773); line-height: 1.55; max-width: 640px; }
+
+/* ---------------------------------------------------------------- Bloco recolhível e fluido */
+.pg-fluxo { columns: var(--bloco-larg, 520px) auto; column-gap: 16px; margin-top: 8px; }
+.pg-fluxo > .pg-bloco { break-inside: avoid; display: inline-block; width: 100%; margin: 0 0 16px; }
+.pg-bloco { background: #fff; border: 1px solid var(--u-linha, #D7DADD); border-radius: 8px; }
+.pg-fluxo + .pg-bloco { margin-top: 0; }
+.pg-bloco-cab { display: flex; align-items: center; gap: 10px; padding: 14px 16px 14px 24px; }
+.pg-bloco-alterna { flex: 1; min-width: 0; padding: 4px 0; background: none; border: 0; text-align: left; color: inherit; cursor: pointer; font: inherit; }
+.pg-bloco-alterna:focus-visible { outline: 2px solid var(--u-foco, #3C82DC); outline-offset: 2px; border-radius: 4px; }
+.pg-bloco-h { margin: 0; font-size: 17px; font-weight: 650; letter-spacing: -.01em; }
+.pg-bloco-seta svg { transition: transform .15s; }
+.pg-bloco.fechado .pg-bloco-seta svg { transform: rotate(-90deg); }
+.pg-bloco-corpo { padding: 4px 24px 24px; }
+.pg-bloco.fechado .pg-bloco-corpo { display: none; }
+.pg-campos { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 4px 16px; }
+.pg-campos .pg-inteiro { grid-column: 1 / -1; }
+.pg-bloco .u-campo small { line-height: 1.5; }
+.pg-bloco .u-campo small a { color: inherit; display: inline-flex; align-items: center; gap: 4px; }
+.pg-bloco .u-campo > .pg-seletor { display: inline-flex; margin: 2px 0 4px; font-size: inherit; font-weight: 400; }
+.pg-numeros { display: flex; flex-wrap: wrap; gap: 6px 20px; margin: 0 0 16px; font-size: 13px; color: var(--u-tinta-2, #5B6773); }
+.pg-numeros b { font-size: 20px; font-weight: 650; color: var(--u-tinta, #3F4B57); margin-right: 4px; font-variant-numeric: tabular-nums; }
+.pg-meia { width: calc(50% - 8px); min-height: 40px; justify-content: center; }
+.pg-arquivar { margin: 24px 0 0; }
+.pg-acoes-bloco { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
+
+/* ---------------------------------------------------------------- Matriz (IC, tipologias, faixas) */
+.pg-matriz { overflow-x: auto; margin: 0 -8px; padding: 0 8px; }
+.pg-matriz .u-tabela { width: 100%; }
+.pg-tabela-ic th, .pg-tabela-ic td { padding: 5px 4px; vertical-align: middle; }
+.pg-tabela-ic td:first-child { min-width: 190px; padding-right: 12px; }
+.pg-vertical { font-size: 11px; font-weight: 650; text-align: center; white-space: normal; line-height: 1.2; min-width: 76px; color: var(--u-tinta-2, #5B6773); }
+.pg-ic { width: 100%; min-width: 70px; padding: 4px 6px; border: 1px solid var(--u-linha-forte, #C3C8CD); border-radius: 6px; font: inherit; font-size: 12px; background: #fff; color: inherit; }
+.pg-ic.nv-baixo { background: color-mix(in srgb, var(--pg-ok-fundo) 70%, #fff); }
+.pg-ic.nv-alto { background: color-mix(in srgb, var(--odisse-pessego, #F2DDBE) 75%, #fff); }
+.pg-ic.herdado { border-style: dashed; background: transparent; color: var(--u-tinta-2, #5B6773); }
+.pg-herda td:first-child { color: var(--u-tinta-2, #5B6773); }
+.pg-grupo td { background: var(--pg-veu); font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--u-tinta-2, #5B6773); padding: 7px 10px; }
+.pg-cat td { padding-top: 12px; }
+.pg-cat td b { font-size: 13px; margin: 0 6px 0 4px; }
+.pg-dir { text-align: right; }
+.pg-tabela-usos tr.clicavel { cursor: pointer; }
+.pg-tabela-usos tr.clicavel:hover td { background: rgba(63, 75, 87, .04); }
+.pg-unidade { display: inline-flex; align-items: center; border: 1px solid var(--u-linha-forte, #C3C8CD); border-radius: 6px; background: #fff; overflow: hidden; }
+.pg-unidade input { width: 84px; border: 0; padding: 6px 8px; font: inherit; font-size: 13px; text-align: right; font-variant-numeric: tabular-nums; background: transparent; }
+.pg-unidade i { font-style: normal; padding: 0 8px 0 2px; font-size: 12px; color: var(--u-tinta-2, #5B6773); }
+.pg-unidade:focus-within { outline: 2px solid var(--u-foco, #3C82DC); outline-offset: -1px; }
+
+/* ---------------------------------------------------------------- Barra de salvar (ficha) */
+.pg-barra-salvar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 12px 32px; background: var(--odisse-ardosia, #3F4B57); color: var(--odisse-papel, #FAFAF7); font-size: 13px; box-shadow: 0 -6px 20px rgba(46, 48, 54, .14); }
+.pg-barra-salvar > div { display: flex; gap: 8px; }
+.pg-barra-salvar .u-botao:not(.forte) { background: transparent; color: var(--odisse-papel, #FAFAF7); border-color: rgba(255, 255, 255, .35); }
+body.pg-com-barra main { padding-bottom: 120px; }
+
+/* ---------------------------------------------------------------- Plano das ilhas: cabeçalho de cada ilha (serviço) */
+.fase--ilha .fase__estado .sigla { font-size: 12px; font-weight: 700; }
+.fase--ilha .ctl a.ctl__btn { display: inline-grid; place-items: center; color: inherit; }
+.vazio--ilha { padding: 12px; margin: 0; }
+
+/* ---------------------------------------------------------------- telas menores */
+@media (max-width: 1100px) {
+  .pg-regua { display: none; }
+  .pg-grade-srv { grid-template-columns: 24px minmax(0, 1fr) auto auto 24px; grid-template-areas: "ed nome din preco seta" "ed ic ic cart seta"; row-gap: 6px; }
+  .pg-grade-srv > :nth-child(1) { grid-area: ed; }
+  .pg-grade-srv > :nth-child(2) { grid-area: nome; }
+  .pg-grade-srv > :nth-child(3) { grid-area: din; }
+  .pg-grade-srv > :nth-child(4) { grid-area: preco; }
+  .pg-grade-srv > :nth-child(5) { grid-area: ic; }
+  .pg-grade-srv > :nth-child(6) { grid-area: cart; text-align: right; }
+  .pg-grade-srv > :nth-child(7) { grid-area: seta; }
+  .pg-srv-corpo { padding-left: 14px; }
+}
+@media (max-width: 640px) {
+  .pg-grade-srv { grid-template-columns: 24px auto minmax(0, 1fr) 24px; grid-template-areas: "ed nome nome seta" "ed din preco seta" "ed ic cart seta"; }
+  .pg-grade-srv > :nth-child(4) { justify-self: start; }
+  .pg-meia { width: 100%; }
+  .pg-campos { grid-template-columns: 1fr; }
+  .pg-barra-salvar { padding: 12px 16px; }
+  .pg-busca { width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pg-linha, .pg-bloco-seta svg, .abas-caixa a { transition: none; }
+  .pg-linha:hover { transform: none; }
+}

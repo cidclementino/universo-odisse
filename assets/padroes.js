@@ -15,7 +15,7 @@ import { vitrineV2, ligarV2 } from './padroes-v2.js';
 
 const H = 'https://universo.odisse.com.br/';
 const V = 'https://universo.odisse.com.br/vendas/';
-const P = 'https://projetos.odisse.com.br/';
+const P = 'https://universo.odisse.com.br/projetos/';
 const R = 'https://radar.odisse.com.br/';
 const M = 'https://marketing.odisse.com.br/';
 const S = 'https://www.odisse.com.br/admin/';

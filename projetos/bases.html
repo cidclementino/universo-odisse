@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Bases · Projetos — Odisse</title>
+<meta name="robots" content="noindex, nofollow">
+<!-- As Bases entraram no Plano Geral de Trabalho (aba Serviços e aba Faixas e prazo), em 20/11/2026. -->
+<script>
+  var abas = { tipologias: 'servicos', indice: 'servicos', servicos: 'servicos', prazos: 'faixas' };
+  var a = '';
+  try { a = sessionStorage.getItem('aba:/bases.html') || ''; } catch (e) {}
+  location.replace('pgt.html#' + (abas[a] || 'servicos'));
+</script>
+<meta http-equiv="refresh" content="0; url=pgt.html#servicos">
+</head>
+<body><p><a href="pgt.html#servicos">As Bases agora ficam no Plano Geral de Trabalho.</a></p></body>
+</html>
