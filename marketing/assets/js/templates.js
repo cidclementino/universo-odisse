@@ -41,6 +41,10 @@ const CARIMBO = { y: E.cabecalho + 12 - E.bloco / 2, h: E.bloco };
 // Campos que não entram em "Textos": rótulos, legendas, créditos, ficha e avisos.
 const FORA_DOS_TEXTOS = /^(rotulo|legR|legT|fonte|aviso|link|assin|planta|cota|rodape|l\d|f\d+[rv])$/;
 const OP_CARIMBO = { k: 'carimbo', rot: 'Carimbo', valores: [['linhas', 'Só linhas'], ['cheio', 'Fundo cheio']], padrao: 'linhas' };
+// Véu: opacidade dos gradientes do núcleo sobre a imagem, por card. Multiplica a opacidade que cada modelo
+// já usa (Padrão = como o modelo foi desenhado). Só aparece no painel quando o card desenha algum véu.
+const FATOR_VEU = { sem: 0, leve: 0.5, padrao: 1, forte: 1.4 };
+export const OP_VEU = { k: 'veu', rot: 'Véu', valores: [['sem', 'Sem'], ['leve', 'Leve'], ['padrao', 'Padrão'], ['forte', 'Forte']], padrao: 'padrao' };
 
 // Preenchimento: a cor que pinta o fundo do card e o carimbo cheio. Existe em todo modelo cujo fundo
 // não é imagem (declaram `preenche(n, op)` com a cor padrão). Opções: as cores de fundo, painel e véu
@@ -96,9 +100,12 @@ export function criarContexto({ card, indice, total, nucleo, globais, modelo, mo
 
   // Preenchimento do card (fundo + carimbo cheio) e a tinta que contrasta com ele
   const f = modelo.preenche ? corDoPreenchimento(ops.fundo, n) || modelo.preenche(n, (k) => ops[k]) : null;
+  // Véu do card: fator sobre a opacidade de cada gradiente (teto 1)
+  const fatorVeu = FATOR_VEU[card.opcoes?.veu] ?? 1;
+  const va = (a) => Math.min(1, a * fatorVeu);
 
   const t = {
-    n, g, editavel, textos, fichas,
+    n, g, editavel, textos, fichas, veus: 0,
     f, tinta: f ? tintaSobre(f) : A, filete: f ? regraSobre(f) : regraSobre(COR.papel), // filete: cor das regras sobre o preenchimento
     op: (k) => ops[k],
     tem: (chave) => textoAtivo(chave) && !!String(card.campos?.[chave] ?? '').replace(/<[^>]+>|&nbsp;|\s/g, ''),
@@ -164,14 +171,18 @@ export function criarContexto({ card, indice, total, nucleo, globais, modelo, mo
     regra(x, y, w, cor) { return `<div class="bloco" style="${pos(x, y, w, 1.5)}background:${cor}"></div>`; },
 
     veuTopo(h = 200, a = 0.6, x = 0, w = LARG) {
-      return `<div class="bloco" style="${pos(x, 0, w, h)}background:linear-gradient(${hexA(n.veu, a)},${hexA(n.veu, 0)})"></div>`;
+      t.veus++;
+      return fatorVeu ? `<div class="bloco" style="${pos(x, 0, w, h)}background:linear-gradient(${hexA(n.veu, va(a))},${hexA(n.veu, 0)})"></div>` : '';
     },
     /** Véu no meio do card, para texto centralizado sobre imagem inteira. */
     veuMeio(a = 0.6) {
-      return `<div class="bloco" style="${pos(0, 0, LARG, ALT)}background:linear-gradient(${hexA(n.veu, 0.25)},${hexA(n.veu, a)} 35%,${hexA(n.veu, a)} 65%,${hexA(n.veu, 0.35)})"></div>`;
+      t.veus++;
+      return fatorVeu ? `<div class="bloco" style="${pos(0, 0, LARG, ALT)}background:linear-gradient(${hexA(n.veu, va(0.25))},${hexA(n.veu, va(a))} 35%,${hexA(n.veu, va(a))} 65%,${hexA(n.veu, va(0.35))})"></div>` : '';
     },
-    veuBase(h = 340, a = 0.72, x = 0, w = LARG) {
-      return `<div class="bloco" style="${pos(x, ALT - h, w, h)}background:linear-gradient(${hexA(n.veu, 0)},${hexA(n.veu, a)})"></div>`;
+    /** Véu na base; `alt` = altura do canvas (o pin tem 1620). */
+    veuBase(h = 340, a = 0.72, x = 0, w = LARG, alt = ALT) {
+      t.veus++;
+      return fatorVeu ? `<div class="bloco" style="${pos(x, alt - h, w, h)}background:linear-gradient(${hexA(n.veu, 0)},${hexA(n.veu, va(a))})"></div>` : '';
     },
 
     /** Carimbo: caixa tripartida no alto, como o carimbo de desenho técnico.
@@ -1009,7 +1020,7 @@ const P01 = {
         ${selo(t.tinta)}`;
     }
     // imagem plena, sem texto; véu leve na base para o selo
-    const veu = FOTO_CLARA(t.n) ? '' : `<div class="bloco" style="${pos(0, ALT_PIN - 420, LARG, 420)}background:linear-gradient(${hexA(t.n.veu, 0)},${hexA(t.n.veu, 0.42)})"></div>`;
+    const veu = FOTO_CLARA(t.n) ? '' : t.veuBase(420, 0.42, 0, LARG, ALT_PIN);
     return `${t.img('a', 0, 0, LARG, ALT_PIN, { fundo: FUNDO_FOTO(t.n) })}${veu}${selo(B)}`;
   },
 };
@@ -1156,12 +1167,12 @@ export function renderCard(opc) {
 /** Textos de conteúdo do card (Título / Corpo), na ordem em que aparecem: [{ chave, macro, padrao }]. */
 export function textosDe(opc) { return estruturaDe(opc).textos; }
 
-/** Textos e fichas do card (render seco no modo de edição): { textos, fichas: [{ prefixo, linhas }] }. */
+/** Textos, fichas e véu do card (render seco no modo de edição): { textos, fichas: [{ prefixo, linhas }], veu }. */
 export function estruturaDe({ card, nucleo, globais }) {
   const modelo = modeloDe(nucleo.id, card.modelo);
   const t = criarContexto({ card, indice: 0, total: 2, nucleo, globais, modelo, modo: 'editar', fonteImagem: () => '' });
   modelo.render(t);
-  return { textos: t.textos, fichas: t.fichas };
+  return { textos: t.textos, fichas: t.fichas, veu: t.veus > 0 };
 }
 
 /**
