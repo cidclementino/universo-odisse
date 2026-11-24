@@ -179,9 +179,9 @@
       "secao": "ferramentas",
       "ramo": "comercial",
       "descricao": "Encontra terrenos, corretores e concursos",
-      "url": "https://radar.odisse.com.br/",
+      "url": "https://universo.odisse.com.br/radar/",
       "hosts": [
-        "radar.odisse.com.br"
+        "universo.odisse.com.br/radar"
       ],
       "acesso": "interna",
       "status": "no-ar"

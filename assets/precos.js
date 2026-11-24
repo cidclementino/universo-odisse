@@ -134,7 +134,7 @@ export function criarPrecos({ esc, api }) {
   function linhaContrato(c) {
     const l = c.leitura;
     // Sem área: leva ao cartão do contrato no Radar, onde o botão "Ler o termo de referência" lê o TR na hora.
-    const noRadar = `https://radar.odisse.com.br/licitacoes?fase=contratadas&id=${encodeURIComponent(c.id)}`;
+    const noRadar = `/radar/licitacoes?fase=contratadas&id=${encodeURIComponent(c.id)}`;
     const estado = l ? (l.legivel === false ? 'TR não lido' : 'sem área no TR') : c.tr ? 'TR a ler' : 'sem TR';
     const area = l?.area_m2 ? `<b>${esc(m2(l.area_m2))}</b><small>${esc(reais(porM2(c)))}/m²</small>`
       : `<span class="pre-etq ${l?.legivel === false ? 'problema' : 'opcional'}" title="${esc(l?.erro || '')}">${estado}</span>

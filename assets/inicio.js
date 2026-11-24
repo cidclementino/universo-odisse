@@ -20,7 +20,7 @@ import { cabecalho, numeros, segmentado, recorte, secao, bandeja, lista, nome, e
 
 const COPIA = 'inicio';
 const INTERVALO = 2 * 3600 * 1000;
-const RADAR = 'https://radar.odisse.com.br';
+const RADAR = '/radar';
 const CALENDARIO = 'https://marketing.odisse.com.br/#/calendario';
 const VENDAS = '/vendas/';
 const PROJETO = '/projetos/projeto.html#';
