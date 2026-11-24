@@ -21,7 +21,7 @@
 // Uma leitura só (GET /api/v1/financeiro/despesas); gravação pelas rotas comuns (despesas-fixas).
 
 import { lerCopia, gravarCopia } from './memoria.js';
-import { numeros, abas as abasV2 } from '../base/v2/componentes.js';
+import { numeros, abas as abasV2, segmentado } from '../base/v2/componentes.js';
 import {
   MESES, PERIODICIDADES, FORMAS, valorNoMes, emReais, custoMensal, previsaoAnual, proximoVencimento,
   diasAte, lerValor, PASSO, moedaDoTexto, interpretarColagem, sugerirCategoria, reais, comMoeda,
@@ -310,8 +310,7 @@ export function criarFinanceiro({ esc, api, toque }) {
     const a = ano || anoAtual;
     const pv = previsaoAnual(visao === 'sim' ? D.despesas : reaisDe(), a, cot(), { pessoalPorCategoria: pessoalAberto });
     const aberto = !fechados.has('previsao');
-    const seletor = `<span class="pre-seletor fin-anos" role="group" aria-label="Ano">${[anoAtual, anoAtual + 1].map((y) =>
-      `<button type="button" data-acao="ano" data-ano="${y}" class="${y === a ? 'ativo' : ''}" aria-pressed="${y === a}">${y}</button>`).join('')}</span>`;
+    const seletor = `<span class="fin-anos">${segmentado([anoAtual, anoAtual + 1].map((y) => ({ id: String(y), rotulo: String(y) })), String(a), 'ano', 'Ano')}</span>`;
     const cel = (v, est, i) => {
       const cls = a === anoAtual && i + 1 < mesAtual ? ' passado' : a === anoAtual && i + 1 === mesAtual ? ' atual' : '';
       return `<td class="num${cls}">${v ? reais(v, { centavosSempre: false }) + estrela(est) : '<span class="fin-zero">—</span>'}</td>`;
@@ -379,10 +378,8 @@ export function criarFinanceiro({ esc, api, toque }) {
     pagina.innerHTML = cab + placar() + `
       <div class="bol-filtros fin-filtros">
         <input class="fin-busca" type="search" data-filtro="q" placeholder="Buscar despesa, categoria ou fornecedor" value="${esc(filtro.q)}" aria-label="Buscar">
-        <span class="pre-seletor" role="group" aria-label="Situação">${[['ativas', 'Ativas'], ['encerradas', 'Encerradas'], ['todas', 'Todas']].map(([v, n]) =>
-          `<button type="button" data-acao="situacao" data-v="${v}" class="${filtro.situacao === v ? 'ativo' : ''}" aria-pressed="${filtro.situacao === v}">${n}</button>`).join('')}</span>
-        <span class="pre-seletor fin-visao" role="group" aria-label="Contas">${[['real', 'Real'], ['sim', `Com simulações${simuladas().length ? ` (${simuladas().length})` : ''}`]].map(([v, n]) =>
-          `<button type="button" data-acao="visao" data-v="${v}" class="${visao === v ? 'ativo' : ''}" aria-pressed="${visao === v}">${n}</button>`).join('')}</span>
+        ${segmentado([['ativas', 'Ativas'], ['encerradas', 'Encerradas'], ['todas', 'Todas']].map(([id, rotulo]) => ({ id, rotulo })), filtro.situacao, 'situacao', 'Situação')}
+        <span class="fin-visao">${segmentado([{ id: 'real', rotulo: 'Real' }, { id: 'sim', rotulo: 'Com simulações', n: simuladas().length || null }], visao, 'visao', 'Contas')}</span>
         ${filtro.q || filtro.situacao !== 'ativas' ? '<button type="button" class="fin-limpar" data-acao="limpar">limpar</button>' : ''}
       </div>
       <section class="fin-sec fin-sec-primeira">
@@ -653,15 +650,22 @@ export function criarFinanceiro({ esc, api, toque }) {
   // ---- eventos -------------------------------------------------------------------
 
   async function aoClicar(ev) {
+    // filtros no Segmentado da v2 (Situação, Contas, Ano da previsão)
+    const sg = ev.target.closest('[data-segmentado]');
+    if (sg) {
+      armado = null;
+      const v = sg.dataset.valor;
+      if (sg.dataset.segmentado === 'visao') visao = v;
+      else if (sg.dataset.segmentado === 'situacao') filtro.situacao = v;
+      else if (sg.dataset.segmentado === 'ano') ano = +v;
+      return desenhar();
+    }
     const b = ev.target.closest('[data-acao]');
     if (!b || b.disabled) return;
     const acao = b.dataset.acao;
     const id = b.closest('.fin-item[data-id]')?.dataset.id;
     if (acao !== 'arquivar' && acao !== 'efetivar') armado = null;
-    if (acao === 'visao') { visao = b.dataset.v; return desenhar(); }
-    if (acao === 'situacao') { filtro.situacao = b.dataset.v; return desenhar(); }
     if (acao === 'limpar') { filtro.q = ''; filtro.situacao = 'ativas'; return desenhar(); }
-    if (acao === 'ano') { ano = +b.dataset.ano; return desenhar(); }
     if (acao === 'pessoal') { pessoalAberto = !pessoalAberto; return desenhar(); }
     if (acao === 'recolher') {
       const k = b.dataset.bloco;

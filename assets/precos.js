@@ -8,7 +8,7 @@
 // (contratos, 10 por página) → Registro (concursos) → notas. Abre na hora com a última cópia (memoria.js).
 
 import { lerCopia, gravarCopia, igual } from './memoria.js';
-import { numeros } from '../base/v2/componentes.js';
+import { numeros, segmentado } from '../base/v2/componentes.js';
 
 const COPIA = 'precos';
 const POR_PAGINA = 10;
@@ -70,14 +70,14 @@ export function criarPrecos({ esc, api }) {
     });
   }
 
-  const seletor = (nome, opcoes, atual) => `<div class="pre-seletor" role="group" data-seletor="${nome}">${opcoes.map(([v, r]) =>
-    `<button type="button" data-valor="${esc(v)}"${v === atual ? ' class="ativo" aria-pressed="true"' : ' aria-pressed="false"'}>${esc(r)}</button>`).join('')}</div>`;
+  // filtros no Segmentado da v2 (Escopo, Ordem)
+  const seletor = (nome, opcoes, atual, rotulo) => segmentado(opcoes.map(([id, r]) => ({ id, rotulo: r })), atual, nome, rotulo);
 
   function filtros() {
     const ufs = [...new Set((dados?.contratos || []).map((c) => c.uf).filter(Boolean))].sort();
     return `<div class="pre-filtros">
         <input class="pre-busca" type="search" placeholder="Buscar no objeto, órgão, cidade ou contratada" value="${esc(f.busca)}" aria-label="Buscar">
-        ${seletor('escopo', ESCOPOS, f.escopo)}
+        ${seletor('escopo', ESCOPOS, f.escopo, 'Escopo')}
         <select class="pre-regiao" aria-label="Região">
           <option value="">Todo o Brasil</option>
           <option value="NE"${f.regiao === 'NE' ? ' selected' : ''}>Nordeste</option>
@@ -166,7 +166,7 @@ export function criarPrecos({ esc, api }) {
         <div class="pre-sec__cab">
           <h2 class="pre-sec__titulo">Contratos <span>${lista.length}</span></h2>
           <div class="pre-sec__lado">
-            ${seletor('ordem', ORDENS, f.ordem)}
+            ${seletor('ordem', ORDENS, f.ordem, 'Ordem')}
             <span class="pre-pag">${ord.length ? `${ini + 1}–${ini + vis.length} de ${ord.length}` : '0'}</span>
             <button type="button" class="pre-caixa" data-acao="antes" aria-label="Anteriores"${f.pagina === 0 ? ' disabled' : ''}>${SVG.esq}</button>
             <button type="button" class="pre-caixa" data-acao="depois" aria-label="Seguintes"${f.pagina >= paginas - 1 ? ' disabled' : ''}>${SVG.dir}</button>
@@ -256,11 +256,8 @@ export function criarPrecos({ esc, api }) {
       if (ev.target.matches('.pre-regiao')) { f.regiao = ev.target.value; f.pagina = 0; desenhar(); }
     });
     raiz.addEventListener('click', (ev) => {
-      const opc = ev.target.closest('[data-seletor] button');
-      if (opc) {
-        const nome = opc.parentElement.dataset.seletor;
-        f[nome] = opc.dataset.valor; f.pagina = 0; desenhar(); return;
-      }
+      const opc = ev.target.closest('[data-segmentado]');
+      if (opc) { f[opc.dataset.segmentado] = opc.dataset.valor; f.pagina = 0; desenhar(); return; }
       const acao = ev.target.closest('[data-acao]')?.dataset.acao;
       if (acao === 'limpar') { Object.assign(f, { busca: '', escopo: '', regiao: '', pagina: 0 }); desenhar(); return; }
       if (acao === 'antes') { f.pagina = Math.max(0, f.pagina - 1); desenhar(); raiz.querySelector('.pre-sec')?.scrollIntoView({ block: 'start' }); return; }

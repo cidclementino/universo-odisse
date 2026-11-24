@@ -1,19 +1,19 @@
 // KPIs (#/kpis; Cid, 19/11) — seção própria no menu principal, com atalho em Ferramentas › Gestão.
-// Duas subpáginas, com as Abas em caixa (nome da seção à esquerda) acima do título:
-//   Painel (#/kpis)        disposição Boletim: um Bloco por tema (Comercial, Redes sociais, Site); em cada um,
-//                          a Régua e uma linha por indicador com o valor do mês, a régua das faixas da meta
+// Duas subpáginas, com as Abas da v2 acima do Cabeçalho (desde 24/11/2026, peças da base/v2):
+//   Painel (#/kpis)        Números (quantos indicadores em cada faixa), Segmentado dos meses e uma Seção por
+//                          tema (Comercial, Redes sociais, Site, Trimestrais) com a Lista: uma linha por indicador
+//                          com o valor do mês, a régua das faixas da meta
 //                          (com o marcador no valor; no mês corrente, na projeção do mês), a variação sobre o mês
 //                          anterior, os últimos 12 meses em barras e, nos canais, o número de ontem. Embaixo,
 //                          a leitura do mês e a expectativa; nas notas, o que ainda não tem dados.
-//   Metas (#/kpis/metas)   Ficha: um Bloco por tema, três colunas (mínimo, adequado, excelente); Barra de salvar.
+//   Metas (#/kpis/metas)   uma Seção por tema com a Lista de três campos (mínimo, adequado, excelente); Barra de salvar.
 // Uma leitura só (GET /api/kpis?mes=, worker/kpis.js). Balanço do mês: o servidor fecha sozinho no dia 1º e
 // congela os números; o PDF é desenhado deles pelo desenhista da Marca (folha Coluna), sempre igual.
 
 import { lerCopia, gravarCopia, igual } from './memoria.js';
-import { abas as abasV2 } from '../base/v2/componentes.js';
+import { abas as abasV2, cabecalho as cabV2, numeros, segmentado, secao, bandeja, lista, nome, etiqueta, quando, acao, link } from '../base/v2/componentes.js';
 
 const COPIA = 'kpis';
-const LEMBRAR = 'universo:kpis:';
 const MARCA = 'https://marca.odisse.com.br/v1/documentos/';
 const JSPDF = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
 const FONTES = '/vendas/fonts-inter.js';
@@ -227,22 +227,15 @@ export function criarKpis({ esc, api, toque }) {
   let mesPedido = null;
   let dados = lerCopia(COPIA);
   let editando = null;
-  const fechados = (() => { try { return new Set(JSON.parse(localStorage.getItem(LEMBRAR + 'fechados') || '[]')); } catch { return new Set(); } })();
-  const lembrarFechados = () => { try { localStorage.setItem(LEMBRAR + 'fechados', JSON.stringify([...fechados])); } catch {} };
 
   // ---- comum
   const abas = () => abasV2('KPIs', [['painel', 'Painel', '#/kpis'], ['metas', 'Metas', '#/kpis/metas']].map(([id, rotulo, href]) => ({ href, rotulo, ativa: id === sub })));
-  const cabecalho = (titulo, lado = '') => `${abas()}<div class="cab"><h1 class="u-titulo">${esc(titulo)}</h1>${lado ? `<div class="lado u-apoio">${lado}</div>` : ''}</div>`;
-  const seta = (aberto) => `<span class="bol-seta${aberto ? ' aberta' : ''}" aria-hidden="true">${SVG.seta}</span>`;
-  const cabBloco = (id, titulo, onde, link, extra = '') => {
-    const aberto = !fechados.has(sub + ':' + id);
-    return `<div class="bol-cab">
-        <button type="button" class="bol-titulo" data-recolher="${id}" aria-expanded="${aberto}"><h2>${esc(titulo)}</h2>${extra}</button>
-        ${link ? `<a class="bol-fonte" href="${esc(link)}" target="_blank" rel="noopener">${esc(onde)}<i>${SVG.fora}</i></a>` : onde ? `<span class="bol-fonte">${esc(onde)}</span>` : ''}
-        <button type="button" class="bol-caixa" data-recolher="${id}" aria-label="${aberto ? 'Recolher' : 'Abrir'} ${esc(titulo)}">${seta(aberto)}</button>
-      </div>`;
-  };
-  const aberto = (id) => !fechados.has(sub + ':' + id);
+  const cabecalho = (titulo, dado = '', lado = '') => abas() + cabV2(titulo, dado, lado);
+  const fonte = (g) => (g.link ? `<a class="ui-link" href="${esc(g.link)}" target="_blank" rel="noopener">${esc(g.onde)}<i class="kpi-fora">${SVG.fora}</i></a>` : '');
+  const medicao = (m) => etiqueta(m);
+  // colunas da Lista do Painel: indicador · valor · faixa · sobre o anterior · barras · ontem
+  const COLUNAS = 'minmax(150px,1.3fr) minmax(110px,.8fr) minmax(170px,1.3fr) 96px 136px 104px';
+  const COLUNAS_CELULAR = 'minmax(0,1fr) auto';
 
   // ---- Painel (Boletim)
   const fracaoDoMes = (d) => {
@@ -263,6 +256,14 @@ export function criarKpis({ esc, api, toque }) {
     }[id];
     return m && m[0] != null ? m : null;
   }
+  // valor do indicador no período escolhido (trimestre acumulado, se trimestral) e a projeção do mês corrente
+  function leitura(ind, d) {
+    const t = tri(ind) ? d.mes.trimestre : null;
+    const v = t ? t.valores?.[ind.id] ?? null : d.mes.valores[ind.id];
+    const fr = fracaoDoMes(d);
+    const ritmo = !t && d.mes.parcial && SOMA.has(ind.id) && v != null && fr < 1 ? v / fr : null;
+    return { t, v, ritmo };
+  }
   const delta = (p, bom, titulo = '') => (p == null ? '<span class="bol-nada">—</span>'
     : p === 0 ? `<span class="bol-delta" title="${esc(titulo)}">=</span>`
       : `<span class="bol-delta ${bom ? 'bom' : 'ruim'}" title="${esc(titulo)}">${p > 0 ? SVG.sobe : SVG.desce}${Math.abs(p)}%</span>`);
@@ -280,26 +281,30 @@ export function criarKpis({ esc, api, toque }) {
       </span>`;
   }
 
+  const nomeInd = (ind) => nome(ind.nome, { contexto: ind.sentido === -1 ? 'menos é melhor' : '' });
   function linha(ind, d, g) {
-    const t = tri(ind) ? d.mes.trimestre : null;
-    const v = t ? t.valores?.[ind.id] ?? null : d.mes.valores[ind.id];
+    const { t, v, ritmo } = leitura(ind, d);
     const mesAnt = somarMeses(d.mes.mes, -1);
     const ant = d.historico.find((h) => h.mes === mesAnt)?.valores?.[ind.id];
-    const fr = fracaoDoMes(d);
-    const ritmo = !t && d.mes.parcial && SOMA.has(ind.id) && v != null && fr < 1 ? v / fr : null;
     const p = d.mes.parcial || t ? null : varPct(v, ant);
     const bom = p != null && (p > 0) === (ind.sentido !== -1);
     const on = g.ontem ? ontemDe(ind.id, d.ontem) : null;
     const pOn = on ? varPct(on[0], on[1]) : null;
-    return `<div class="bol-linha" role="row">
-        <span class="bol-nome" role="cell"><b>${esc(ind.nome)}</b>${ind.sentido === -1 ? '<small>menos é melhor</small>' : ''}</span>
-        <span class="bol-valor" role="cell">${esc(formatar(ind.formato, v, true))}${ritmo != null ? `<small>projeção ${esc(formatar(ind.formato, ritmo))}</small>` : t ? `<small>${esc(nomeTri(t))}</small>` : ''}</span>
-        <span role="cell">${regua(ind, v, d.metas, ritmo)}</span>
-        <span class="bol-var" role="cell">${delta(p, bom, ant != null ? `${Maius(nomeMes(mesAnt))}: ${formatar(ind.formato, ant, true)}` : '')}</span>
-        <span role="cell">${barras(d.historico, ind)}</span>
-        ${g.ontem ? `<span class="bol-ontem" role="cell">${on ? `<b>${esc(formatar(ind.formato, on[0]))}</b>${delta(pOn, (pOn > 0) === (ind.sentido !== -1), 'Anteontem')}` : '<span class="bol-nada">—</span>'}</span>` : '<span role="cell"></span>'}
-      </div>`;
+    return { celulas: [
+      { html: nomeInd(ind) },
+      { html: `<span class="bol-valor">${esc(formatar(ind.formato, v, true))}${ritmo != null ? `<small>projeção ${esc(formatar(ind.formato, ritmo))}</small>` : t ? `<small>${esc(nomeTri(t))}</small>` : ''}</span>` },
+      { html: regua(ind, v, d.metas, ritmo), celular: false },
+      { html: delta(p, bom, ant != null ? `${Maius(nomeMes(mesAnt))}: ${formatar(ind.formato, ant, true)}` : ''), celular: false },
+      { html: barras(d.historico, ind), celular: false },
+      { html: g.ontem ? (on ? `<span class="bol-ontem"><b>${esc(formatar(ind.formato, on[0]))}</b>${delta(pOn, (pOn > 0) === (ind.sentido !== -1), 'Anteontem')}</span>` : '<span class="bol-nada">—</span>') : '', celular: false },
+    ] };
   }
+  // [['sub', nome] | ['ind', indicador]] → grupos da Lista (um por rede ou por tema; sem subtítulo, um grupo só)
+  const gruposDe = (pares, fazer) => pares.reduce((gs, [t, x]) => {
+    if (t === 'sub') gs.push({ nome: x, linhas: [] });
+    else { if (!gs.length) gs.push({ nome: '', linhas: [] }); gs.at(-1).linhas.push(fazer(x)); }
+    return gs;
+  }, []);
 
   function barras(hist, ind) {
     const vals = hist.map((h) => h.valores?.[ind.id] ?? null);
@@ -317,25 +322,24 @@ export function criarKpis({ esc, api, toque }) {
     const comMeta = inds.filter((i) => d.metas.faixas?.[i.id]).length;
     const cob = d.mes.cobertura || {};
     const dias = g.id === 'instagram' ? cob.instagram : g.id === 'site' ? cob.site : null;
-    const extra = `<span class="bol-medicao">mensal</span><span class="bol-conta">${comMeta}/${inds.length} com meta${dias != null && cob.dias && dias < cob.dias && !d.mes.parcial ? ` · ${dias} de ${cob.dias} dias` : ''}</span>`;
-    const ab = aberto(g.id);
+    const nomeCol = Maius(nomeMes(d.mes.mes));
     let origem = '';
     if (g.id === 'comercial') {
       const o = Object.entries(d.mes.origens || {}).sort((a, b) => b[1] - a[1]);
       const tot = o.reduce((s, [, n]) => s + n, 0);
-      origem = `<div class="bol-linha bol-origem" role="row"><span class="bol-nome" role="cell"><b>Origem dos leads</b></span>
-          <span class="bol-origem__lista" role="cell">${tot ? o.map(([k, n]) => `<span><b>${n}</b> ${esc(ORIGENS[k] || k)}</span>`).join('') : '<span class="bol-nada">sem leads no mês</span>'}</span></div>`;
+      origem = `<p class="kpi-origem"><b>Origem dos leads</b>${tot ? o.map(([k, n]) => `<span><b>${n}</b> ${esc(ORIGENS[k] || k)}</span>`).join('') : '<span>sem leads no mês</span>'}</p>`;
     }
-    const nomeCol = Maius(nomeMes(d.mes.mes));
-    return `<section class="bol-bloco${ab ? '' : ' fechado'}">
-        ${cabBloco(g.id, g.nome, g.onde, g.link, extra)}
-        ${ab ? `<div class="bol-tabela" role="table" aria-label="${esc(g.nome)}">
-          <div class="bol-regua-cab" role="row"><span role="columnheader">Indicador</span><span role="columnheader">${esc(nomeCol)}${d.mes.parcial ? ' até agora' : ''}</span>
-            <span role="columnheader">Faixa${d.mes.parcial ? ' pela projeção' : ''}</span><span role="columnheader">Sobre ${esc(nomeMes(somarMeses(d.mes.mes, -1)))}</span>
-            <span role="columnheader">12 meses</span><span role="columnheader">${g.ontem ? 'Ontem' : ''}</span></div>
-          ${porRede(inds).map(([t, x]) => (t === 'sub' ? `<div class="bol-sub" role="row"><span role="cell">${esc(x)}</span></div>` : linha(x, d, g))).join('')}${origem}
-        </div>` : ''}
-      </section>`;
+    const corpo = lista({
+      colunas: COLUNAS, colunasCelular: COLUNAS_CELULAR,
+      regua: [{ texto: 'Indicador' }, { texto: `${nomeCol}${d.mes.parcial ? ' até agora' : ''}` }, { texto: `Faixa${d.mes.parcial ? ' pela projeção' : ''}`, celular: false },
+        { texto: `Sobre ${nomeMes(somarMeses(d.mes.mes, -1))}`, celular: false }, { texto: '12 meses', celular: false }, { texto: g.ontem ? 'Ontem' : '', celular: false }],
+      grupos: gruposDe(porRede(inds), (i) => linha(i, d, g)),
+      vazio: 'Nenhum indicador neste tema.',
+    });
+    return secao({
+      titulo: g.nome, n: `${comMeta}/${inds.length} com meta${dias != null && cob.dias && dias < cob.dias && !d.mes.parcial ? ` · ${dias} de ${cob.dias} dias` : ''}`,
+      lado: medicao('mensal') + fonte(g), corpo: bandeja(corpo + origem),
+    });
   }
 
   // Bloco Trimestrais: o trimestre do mês escolhido (acumulado até ele), o anterior e os últimos 4.
@@ -355,14 +359,14 @@ export function criarKpis({ esc, api, toque }) {
     const v = t?.valores?.[ind.id] ?? null, va = ta?.valores?.[ind.id] ?? null;
     const p = varPct(v, va);
     const bom = p != null && (p > 0) === (ind.sentido !== -1);
-    return `<div class="bol-linha" role="row">
-        <span class="bol-nome" role="cell"><b>${esc(ind.nome)}</b>${ind.sentido === -1 ? '<small>menos é melhor</small>' : ''}</span>
-        <span class="bol-valor" role="cell">${esc(formatar(ind.formato, v, true))}<small>${esc(t ? periodoTri(t) : '')}</small></span>
-        <span role="cell">${regua(ind, v, d.metas, null)}</span>
-        <span class="bol-var" role="cell">${delta(p, bom, ta ? `${ta.numero}º trimestre (${periodoTri(ta)}): ${formatar(ind.formato, va, true)}` : '')}</span>
-        <span role="cell">${barrasTri(trs, ind)}</span>
-        <span role="cell"></span>
-      </div>`;
+    return { celulas: [
+      { html: nomeInd(ind) },
+      { html: `<span class="bol-valor">${esc(formatar(ind.formato, v, true))}<small>${esc(t ? periodoTri(t) : '')}</small></span>` },
+      { html: regua(ind, v, d.metas, null), celular: false },
+      { html: delta(p, bom, ta ? `${ta.numero}º trimestre (${periodoTri(ta)}): ${formatar(ind.formato, va, true)}` : ''), celular: false },
+      { html: barrasTri(trs, ind), celular: false },
+      { html: '', celular: false },
+    ] };
   }
   function blocoTrimestral(d) {
     const inds = d.indicadores.filter(tri);
@@ -370,48 +374,56 @@ export function criarKpis({ esc, api, toque }) {
     if (!inds.length || !trs.length) return '';
     const t = trs.at(-1), ta = trs.at(-2);
     const comMeta = inds.filter((i) => d.metas.faixas?.[i.id]).length;
-    const ab = aberto('trimestrais');
-    const linhas = porTema(inds).map(([t, x]) => (t === 'sub' ? `<div class="bol-sub" role="row"><span role="cell">${esc(x)}</span></div>` : linhaTri(x, d))).join('');
-    return `<section class="bol-bloco${ab ? '' : ' fechado'}">
-        ${cabBloco('trimestrais', 'Trimestrais', '', '', `<span class="bol-medicao tri">trimestral</span><span class="bol-conta">${comMeta}/${inds.length} com meta</span>`)}
-        ${ab ? `<div class="bol-tabela" role="table" aria-label="Trimestrais">
-          <div class="bol-regua-cab" role="row"><span role="columnheader">Indicador</span><span role="columnheader">${t.numero}º trimestre${t.parcial ? ' até agora' : ''}</span>
-            <span role="columnheader">Faixa</span><span role="columnheader">${ta ? `Sobre o ${ta.numero}º trimestre` : ''}</span>
-            <span role="columnheader">4 trimestres</span><span role="columnheader"></span></div>
-          ${linhas}
-        </div>` : ''}
-      </section>`;
+    const corpo = lista({
+      colunas: COLUNAS, colunasCelular: COLUNAS_CELULAR,
+      regua: [{ texto: 'Indicador' }, { texto: `${t.numero}º trimestre${t.parcial ? ' até agora' : ''}` }, { texto: 'Faixa', celular: false },
+        { texto: ta ? `Sobre o ${ta.numero}º tri` : '', celular: false }, { texto: '4 trimestres', celular: false }, { texto: '', celular: false }],
+      grupos: gruposDe(porTema(inds), (i) => linhaTri(i, d)),
+    });
+    return secao({ titulo: 'Trimestrais', n: `${comMeta}/${inds.length} com meta`, lado: medicao('trimestral'), corpo: bandeja(corpo) });
+  }
+
+  // Números do topo: quantos indicadores (com meta) caíram em cada faixa no período escolhido
+  function contagem(d) {
+    const c = { boa: 0, minimo: 0, abaixo: 0, sem: 0 };
+    for (const ind of d.indicadores) {
+      if (!d.metas.faixas?.[ind.id]) { c.sem += 1; continue; }
+      const { v, ritmo } = leitura(ind, d);
+      const fx = faixaDe(ind, ritmo != null ? ritmo : v, d.metas);
+      if (fx === 'excelente' || fx === 'adequado') c.boa += 1; else if (fx === 'minimo') c.minimo += 1; else if (fx === 'abaixo') c.abaixo += 1; else c.sem += 1;
+    }
+    return numeros([
+      { rotulo: 'Na meta', valor: c.boa, apoio: 'adequado ou excelente' },
+      { rotulo: 'No mínimo', valor: c.minimo, apoio: 'acima do mínimo, abaixo do adequado' },
+      { rotulo: 'Abaixo do mínimo', valor: c.abaixo, tom: c.abaixo ? 'problema' : '', apoio: d.mes.parcial ? 'pela projeção do mês' : 'no mês fechado' },
+      { rotulo: 'Sem meta ou sem dado', valor: c.sem, href: '#/kpis/metas', apoio: 'definir em Metas' },
+    ], { estatico: true });
   }
 
   function painel(d) {
     const fechado = !!d.balanco;
     const estado = fechado
-      ? `<span class="ini-etq ok">balanço feito em ${esc(new Date(d.balanco.feito_em).toLocaleDateString('pt-BR'))}</span>`
-      : d.mes.parcial ? `<span class="ini-etq opcional">parcial · fecha em 1º de ${esc(nomeMes(somarMeses(d.mes.mes, 1)))}</span>` : '<span class="ini-etq opcional">sem balanço</span>';
-    const acoes = fechado
-      ? '<button type="button" class="u-botao" data-pdf="ver">Ver balanço</button><button type="button" class="u-botao forte" data-pdf="baixar">Baixar balanço em PDF</button>'
-      : '<button type="button" class="u-botao" data-pdf="previa">Prévia do balanço</button>';
-    const meses = `<div class="pas-seletor kpi-meses" role="group" aria-label="Mês">${d.meses.map((m) => {
-      const ativo = m.mes === d.mes.mes;
-      const rot = Maius(nomeMes(m.mes)) + (m.mes.slice(0, 4) !== d.hoje.slice(0, 4) ? ` ${m.mes.slice(0, 4)}` : '');
-      return `<button type="button" data-mes="${m.mes}" aria-pressed="${ativo}"${ativo ? ' class="ativo"' : ''}>${esc(rot)}</button>`;
-    }).join('')}</div>`;
+      ? quando(`balanço feito em ${new Date(d.balanco.feito_em).toLocaleDateString('pt-BR')}`, 'ok')
+      : d.mes.parcial ? quando(`parcial · fecha em 1º de ${nomeMes(somarMeses(d.mes.mes, 1))}`, 'atencao') : quando('sem balanço');
+    const acoes = `<div class="kpi-acoes">${fechado
+      ? acao('Ver balanço', { dados: { pdf: 'ver' } }) + acao('Baixar balanço em PDF', { principal: true, dados: { pdf: 'baixar' } })
+      : acao('Prévia do balanço', { dados: { pdf: 'previa' } })}</div>`;
+    const meses = segmentado(d.meses.map((m) => ({ id: m.mes, rotulo: Maius(nomeMes(m.mes)) + (m.mes.slice(0, 4) !== d.hoje.slice(0, 4) ? ` ${m.mes.slice(0, 4)}` : '') })), d.mes.mes, 'mes', 'Mês');
     const exp = d.expectativa;
-    const lado = d.em ? `atualizado às ${new Date(d.em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}` : '';
-    return cabecalho('Painel', esc(lado)) + `
-      <div class="bol-filtros">${meses}${estado}<span class="bol-acoes">${acoes}</span></div>
+    const dado = `${esc(Maius(nomeMes(d.mes.mes, true)))}${d.em ? ` · atualizado às ${new Date(d.em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}` : ''}`;
+    const texto = (titulo, frases, vazio) => secao({ titulo, corpo: bandeja(frases.length ? `<ul class="kpi-frases">${frases.map((f) => `<li>${esc(f)}</li>`).join('')}</ul>` : `<p class="kpi-vazio">${esc(vazio)}</p>`) });
+    const pe = [d.mes.parcial ? '' : texto('Leitura do mês', d.frases, 'Ainda sem números neste mês.'), exp ? texto(`Expectativa para ${nomeMes(exp.mes)}`, exp.frases, '') : ''].filter(Boolean);
+    return cabecalho('Painel', dado, acoes) + `
+      <div class="kpi-filtros"><span class="kpi-meses">${meses}</span>${estado}</div>
+      ${contagem(d)}
       ${GRUPOS.map((g) => blocoTema(g, d)).join('')}
       ${blocoTrimestral(d)}
-      <div class="bol-pe">
-        ${d.mes.parcial ? '' : `<section class="bol-bloco bol-texto"><h2>Leitura do mês</h2>
-          ${d.frases.length ? `<ul>${d.frases.map((f) => `<li>${esc(f)}</li>`).join('')}</ul>` : '<p class="u-apoio">Ainda sem números neste mês.</p>'}</section>`}
-        ${exp ? `<section class="bol-bloco bol-texto"><h2>Expectativa para ${esc(nomeMes(exp.mes))}</h2><ul>${exp.frases.map((f) => `<li>${esc(f)}</li>`).join('')}</ul></section>` : ''}
-      </div>
+      ${pe.length ? `<div class="ui-secao ui-metades">${pe.join('')}</div>` : ''}
       <section class="pas-notas">
         <div><h3 class="u-rotulo">Como ler</h3>
           <p><b>Faixa</b>: a régua tem as quatro faixas da meta (abaixo do mínimo, mínimo, adequado, excelente) e o traço marca onde o valor caiu. No mês corrente, as somas são lidas pela <b>projeção</b>: o que já entrou, no mesmo passo, levado ao mês inteiro.</p>
           <p><b>Sobre o mês anterior</b> aparece só nos meses fechados: comparar meio mês com um mês inteiro engana. <b>12 meses</b>: o mês escolhido é a barra escura.</p>
-          <p><b>Trimestrais</b>: no Bloco próprio, as metas que valem para o trimestre (jan–mar, abr–jun, jul–set, out–dez). O valor e a faixa são do acumulado do trimestre até o mês escolhido, comparado com o trimestre anterior; as barras são os últimos 4 trimestres.</p></div>
+          <p><b>Trimestrais</b>: na Seção própria, as metas que valem para o trimestre (jan–mar, abr–jun, jul–set, out–dez). O valor e a faixa são do acumulado do trimestre até o mês escolhido, comparado com o trimestre anterior; as barras são os últimos 4 trimestres.</p></div>
         <div><h3 class="u-rotulo">Ainda sem dados</h3><ul>${d.em_breve.map((b) => `<li><b>${esc(NOME_BREVE[b.grupo] || b.grupo)}</b>: ${esc(b.nomes.join(', '))}. Falta ${esc(b.falta)}.</li>`).join('')}</ul></div>
         <div><h3 class="u-rotulo">Fechamento</h3>
           <p>Todo dia, às 06h47, o Universo guarda os números de ontem do Instagram e do site. No dia 1º fecha o mês anterior: congela os números, as faixas das metas e as frases, e avisa na Início. O PDF é desenhado desse retrato, então sai sempre igual.</p></div>
@@ -433,28 +445,27 @@ export function criarKpis({ esc, api, toque }) {
   function metas(d) {
     comecarEdicao();
     const n = Object.keys(d.metas.faixas || {}).length;
-    const blocoMetas = (id, titulo, inds, medicao) => {
-      const ab = aberto(id);
-      const comMeta = inds.filter((i) => ['minimo', 'adequado', 'excelente'].every((k) => String(editando[i.id][k]).trim() !== '')).length;
-      return `<section class="bol-bloco met-bloco${ab ? '' : ' fechado'}">
-          ${cabBloco(id, titulo, '', '', `<span class="bol-medicao${medicao === 'trimestral' ? ' tri' : ''}">${medicao}</span><span class="bol-conta">${comMeta}/${inds.length} com meta</span>`)}
-          ${ab ? `<div class="met-tabela" role="table">
-            <div class="bol-regua-cab met-cols" role="row"><span role="columnheader">Indicador</span><span role="columnheader">Mínimo</span><span role="columnheader">Adequado</span><span role="columnheader">Excelente</span></div>
-            ${(medicao === 'trimestral' ? porTema(inds) : porRede(inds)).map(([t, i]) => t === 'sub' ? `<div class="bol-sub" role="row"><span role="cell">${esc(i)}</span></div>` : `<div class="met-linha met-cols" role="row">
-              <span class="bol-nome" role="cell"><b>${esc(i.nome)}</b><small>${esc(i.nota)}${i.sentido === -1 ? ' · menos é melhor' : ''}</small></span>
-              ${['minimo', 'adequado', 'excelente'].map((k) => `<span role="cell">${campo(i, k)}</span>`).join('')}
-            </div>`).join('')}
-          </div>` : ''}
-        </section>`;
+    const K = ['minimo', 'adequado', 'excelente'];
+    const secaoMetas = (titulo, inds, med) => {
+      const comMeta = inds.filter((i) => K.every((k) => String(editando[i.id][k]).trim() !== '')).length;
+      const corpo = lista({
+        colunas: 'minmax(180px,1fr) repeat(3, minmax(104px,140px))', colunasCelular: 'minmax(0,1fr) repeat(3, 76px)',
+        regua: [{ texto: 'Indicador' }, { texto: 'Mínimo' }, { texto: 'Adequado' }, { texto: 'Excelente' }],
+        grupos: gruposDe(med === 'trimestral' ? porTema(inds) : porRede(inds), (i) => ({ celulas: [
+          { html: nome(i.nome, { contexto: `${i.nota || ''}${i.sentido === -1 ? `${i.nota ? ' · ' : ''}menos é melhor` : ''}` }) },
+          ...K.map((k) => ({ html: campo(i, k) })),
+        ] })),
+      });
+      return secao({ titulo, n: `${comMeta}/${inds.length} com meta`, lado: medicao(med), corpo: bandeja(corpo) });
     };
-    const blocos = GRUPOS.map((g) => blocoMetas(g.id, g.nome, d.indicadores.filter((i) => i.grupo === g.id && !tri(i)), 'mensal')).join('')
-      + blocoMetas('trimestrais', 'Trimestrais', d.indicadores.filter(tri), 'trimestral');
-    const lado = n ? `${n} de ${d.indicadores.length} indicadores com faixas` : 'nenhuma faixa definida ainda';
-    return cabecalho('Metas', esc(lado)) + `<div class="blocos-fluxo" style="--bloco-larg:700px">${blocos}</div>` + `
+    const secoes = GRUPOS.map((g) => secaoMetas(g.nome, d.indicadores.filter((i) => i.grupo === g.id && !tri(i)), 'mensal')).join('')
+      + secaoMetas('Trimestrais', d.indicadores.filter(tri), 'trimestral');
+    const dado = n ? `${n} de ${d.indicadores.length} indicadores com faixas` : 'nenhuma faixa definida ainda';
+    return cabecalho('Metas', esc(dado)) + secoes + `
       <section class="pas-notas">
         <div><h3 class="u-rotulo">Como preencher</h3>
           <p>Três números por indicador: o <b>mínimo</b> aceitável, o <b>adequado</b> e o <b>excelente</b>. Porcentagens como número cheio (28 = 28%); reais sem o R$. Em tempo de decisão, menos é melhor: o mínimo é o maior número. Linha em branco fica sem faixa.</p>
-          <p><b>Mensais</b> nos Blocos de cada tema; <b>trimestrais</b> no Bloco Trimestrais, valendo para o trimestre inteiro (jan–mar, abr–jun, jul–set, out–dez), como na planilha.</p></div>
+          <p><b>Mensais</b> nas Seções de cada tema; <b>trimestrais</b> na Seção Trimestrais, valendo para o trimestre inteiro (jan–mar, abr–jun, jul–set, out–dez), como na planilha.</p></div>
         <div><h3 class="u-rotulo">Onde valem</h3>
           <p>As faixas aparecem no Painel na hora em que forem salvas. Cada balanço congela as faixas do dia do fechamento: mudar uma meta não muda um mês já fechado.</p></div>
       </section>
@@ -467,7 +478,7 @@ export function criarKpis({ esc, api, toque }) {
   // ---- desenho e dados
   function desenhar() {
     if (!raiz) return;
-    if (!dados) { raiz.innerHTML = cabecalho(sub === 'metas' ? 'Metas' : 'Painel') + '<p class="u-apoio kpi-carregando">Carregando os indicadores…</p>'; return; }
+    if (!dados) { raiz.innerHTML = cabecalho(sub === 'metas' ? 'Metas' : 'Painel') + '<p class="ui-carregando kpi-carregando">Carregando os indicadores…</p>'; return; }
     raiz.innerHTML = sub === 'metas' ? metas(dados) : painel(dados);
     barraSalvar();
   }
@@ -524,24 +535,15 @@ export function criarKpis({ esc, api, toque }) {
   }
 
   function aoClicar(ev) {
-    const m = ev.target.closest('[data-mes]');
+    const m = ev.target.closest('[data-segmentado="mes"]');
     if (m) {
-      mesPedido = m.dataset.mes === dados?.meses?.[0]?.mes ? null : m.dataset.mes;
+      mesPedido = m.dataset.valor === dados?.meses?.[0]?.mes ? null : m.dataset.valor;
       history.replaceState(null, '', '#/kpis' + (mesPedido ? `?mes=${mesPedido}` : ''));
       buscar();
       return;
     }
     const p = ev.target.closest('[data-pdf]');
     if (p) { pdf(p.dataset.pdf, p); return; }
-    const r = ev.target.closest('[data-recolher]');
-    if (r) {
-      const k = sub + ':' + r.dataset.recolher;
-      fechados.has(k) ? fechados.delete(k) : fechados.add(k);
-      lembrarFechados();
-      desenhar();
-      raiz.querySelector(`.bol-caixa[data-recolher="${r.dataset.recolher}"]`)?.focus();
-      return;
-    }
     const a = ev.target.closest('[data-acao]')?.dataset.acao;
     if (a === 'descartar') { editando = null; desenhar(); }
     if (a === 'salvar') salvar();

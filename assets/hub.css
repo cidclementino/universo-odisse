@@ -522,12 +522,7 @@ li.eq-item.alvo-depois { box-shadow: 0 3px 0 var(--odisse-ocre, #BB8248); }
 .pre-busca { flex: 1 1 280px; max-width: 420px; }
 .pre-busca:focus, .pre-regiao:focus { outline: 2px solid var(--u-foco); outline-offset: 0; }
 .pre-limpar { font: inherit; font-size: 12.5px; background: none; border: 0; padding: 4px 2px; color: var(--u-tinta-2); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
-.pre-seletor { display: inline-flex; border: 1px solid var(--u-linha-forte); border-radius: var(--u-raio-p, 6px); overflow: hidden; background: var(--u-elevada, #fff); }
-.pre-seletor button { font: inherit; font-size: 12.5px; font-weight: 500; padding: 7px 11px; min-height: 32px; border: 0; background: none; color: var(--u-tinta); cursor: pointer; }
-.pre-seletor button + button { border-left: 1px solid var(--u-linha); }
-.pre-seletor button:hover { background: rgba(63,75,87,.05); }
-.pre-seletor button.ativo { background: var(--u-tinta); color: var(--u-superficie); font-weight: 600; }
-.pre-seletor button:focus-visible, .pre-caixa:focus-visible, .pre-linha:focus-visible { outline: 2px solid var(--u-foco); outline-offset: 1px; }
+.pre-caixa:focus-visible, .pre-linha:focus-visible { outline: 2px solid var(--u-foco); outline-offset: 1px; }
 
 
 .pre-duas { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 8px; margin-top: 8px; align-items: start; }
@@ -609,9 +604,7 @@ li.eq-item.alvo-depois { box-shadow: 0 3px 0 var(--odisse-ocre, #BB8248); }
   .pre-linha--conc .pre-linha__valor { grid-row: auto; grid-column: 1 / -1; text-align: left; }
 }
 @media (max-width: 640px) {
-  .pre-seletor { max-width: 100%; overflow-x: auto; }
   .pre-barra { grid-template-columns: 104px minmax(0, 1fr) 30px; }
-  .pre-sec__lado .pre-seletor { order: 2; }
 }
 @media (prefers-reduced-motion: reduce) { .pre-linha { transition: none; } .pre-linha.clicavel:hover { transform: none; } }
 
@@ -1190,3 +1183,16 @@ span.bol-fonte + .bol-caixa, .bol-titulo + .bol-caixa { margin-left: auto; }
 .fin-mes .fin-campo::placeholder { color: #B5BCC3; }
 @media (max-width: 1100px) { .fin-meses { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
 @media (max-width: 640px) { .fin-meses { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+/* ---- KPIs na v2 (assets/kpis.js, desde 24/11/2026): Cabeçalho, Números, Segmentado, Seções com Lista. A régua das
+   faixas, a variação e as barras (bol-*) seguem as mesmas; aqui só o que é novo em volta delas. */
+.kpi-acoes { display: flex; flex-wrap: wrap; gap: 8px; }
+.kpi-filtros { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin: 18px 0 16px; }
+.kpi-meses { max-width: 100%; overflow-x: auto; }
+.kpi-fora { display: inline-grid; width: 12px; height: 12px; } .kpi-fora svg { width: 12px; height: 12px; }
+.kpi-origem { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 18px; margin: 0; padding: 12px 12px 4px; border-top: 1px solid var(--ui-linha, #E7EBEF); font-size: 13px; color: var(--ui-texto-2, #5B6773); }
+.kpi-origem > b { color: var(--ui-texto, #2E3036); font-weight: 600; margin-right: 6px; }
+.kpi-origem span b { color: var(--ui-texto, #2E3036); font-weight: 650; }
+.kpi-frases { margin: 0; padding: 4px 4px 4px 22px; font-size: 13px; line-height: 1.55; } .kpi-frases li + li { margin-top: 6px; }
+.kpi-vazio { margin: 0; padding: 4px; font-size: 13px; color: var(--ui-texto-3, #8A939C); }
+.ui-painel .bol-valor { font-size: 17px; }
