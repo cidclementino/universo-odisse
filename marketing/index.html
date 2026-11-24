@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Universo · Marketing</title>
+  <link rel="icon" href="https://marca.odisse.com.br/favicon/favicon.svg" type="image/svg+xml">
+  <!-- VERSOES (gerado por tools/versionar.py — não editar à mão) -->
+  <script type="importmap">
+  {
+    "imports": {
+      "./assets/js/app.js": "./assets/js/app.js?v=0b5dd21a68",
+      "./assets/js/grade.js": "./assets/js/grade.js?v=378c1d585b",
+      "./assets/js/imaging.js": "./assets/js/imaging.js?v=0055923bbd",
+      "./assets/js/marca.js": "./assets/js/marca.js?v=b107903fe5",
+      "./assets/js/marks.js": "./assets/js/marks.js?v=9eb5609f68",
+      "./assets/js/metricas/graficos.js": "./assets/js/metricas/graficos.js?v=afa4f6157a",
+      "./assets/js/metricas/leituras.js": "./assets/js/metricas/leituras.js?v=3f3f18ecbe",
+      "./assets/js/metricas/modelo.js": "./assets/js/metricas/modelo.js?v=1708260e9e",
+      "./assets/js/metricas/paginas.js": "./assets/js/metricas/paginas.js?v=53de141b7c",
+      "./assets/js/nucleos.js": "./assets/js/nucleos.js?v=dde87f2eb3",
+      "./assets/js/nuvem.js": "./assets/js/nuvem.js?v=ff0b54d06d",
+      "./assets/js/padroes.js": "./assets/js/padroes.js?v=b0b7f6886a",
+      "./assets/js/pagina-calendario.js": "./assets/js/pagina-calendario.js?v=27acd741f2",
+      "./assets/js/pagina-estrategia.js": "./assets/js/pagina-estrategia.js?v=32456b8191",
+      "./assets/js/pagina-metricas.js": "./assets/js/pagina-metricas.js?v=e3cdd5a3de",
+      "./assets/js/pagina-padroes.js": "./assets/js/pagina-padroes.js?v=6ef5f16288",
+      "./assets/js/pinterest.js": "./assets/js/pinterest.js?v=24eb256430",
+      "./assets/js/plano.js": "./assets/js/plano.js?v=23eba5d663",
+      "./assets/js/pool.js": "./assets/js/pool.js?v=fa632acf0d",
+      "./assets/js/store.js": "./assets/js/store.js?v=a4c6d728d8",
+      "./assets/js/templates.js": "./assets/js/templates.js?v=b2a2a9d2c1"
+    }
+  }
+  </script>
+  <!-- /VERSOES -->
+  <link rel="stylesheet" href="assets/css/card.css?v=03e46c1ae1">
+  <!-- Casca do Universo: desde 24/11/2026 o Marketing mora em /marketing/ -->
+  <script src="/base/v2/casca.js" data-classe="ferramenta-marketing"></script>
+  <link rel="stylesheet" href="assets/css/app.css?v=8c8061840b">
+</head>
+<body class="vista-inicio">
+  <!-- Abas do Marketing (desenho das Abas da v2). O menu lateral, o "Ir para" e o painel vêm da casca do Universo. -->
+  <nav class="ui-abas abas-marketing" id="abasMarketing" aria-label="Marketing">
+    <span class="ui-abas__rot">Marketing</span>
+    <span class="ui-abas__caixa">
+      <a href="#/publicacoes" data-secao="publicacoes" aria-current="page">Publicações</a>
+      <a href="#/calendario" data-secao="calendario">Calendário editorial</a>
+      <a href="#/estrategia" data-secao="estrategia">Estratégia</a>
+      <a href="#/metricas" data-secao="metricas">Métricas</a>
+    </span>
+  </nav>
+
+  <!-- ===================== INÍCIO: criar + arquivo ===================== -->
+  <main class="inicio" id="inicio">
+    <!-- Subpáginas de Publicações: uma por formato de arquivo -->
+    <nav class="met-nav pub-nav" id="pubNav" aria-label="Formatos de publicação"></nav>
+    <section class="criar">
+      <div class="sec-cab linha">
+        <h1><span id="criarTit">Nova publicação</span> <span class="info" tabindex="0" id="criarInfo" data-info="Escolha o núcleo. O carrossel já começa com o repertório de modelos dele.">i</span></h1>
+        <a class="bt-padroes" href="#/padroes">Padrões de texto e espaçamento</a>
+      </div>
+      <div class="nucleo-tiles" id="tiles"></div>
+    </section>
+
+    <section class="arquivo">
+      <div class="sec-cab linha">
+        <div>
+          <h2>Arquivo</h2>
+          <p id="arquivoInfo"></p>
+        </div>
+        <div class="filtros">
+          <div class="chips" id="filtros"></div>
+          <input type="search" id="busca" placeholder="Buscar publicação" aria-label="Buscar publicação">
+        </div>
+      </div>
+      <div class="lista-pubs" id="listaPubs"></div>
+    </section>
+
+    <!-- Só nos pins: pastas do perfil do Pinterest (comuns a todos os computadores) -->
+    <section class="pastas" id="pastasSec" hidden></section>
+  </main>
+
+  <!-- ===================== PADRÕES ===================== -->
+  <main class="padroes" id="padroes"></main>
+
+  <!-- ===================== CALENDÁRIO (pool de mídias) ===================== -->
+  <main class="calendario" id="calendario"></main>
+
+  <!-- ===================== ESTRATÉGIA (plano de publicação) ===================== -->
+  <main class="estrategia" id="estrategia"></main>
+
+  <!-- ===================== MÉTRICAS ===================== -->
+  <main class="metricas" id="metricas"></main>
+
+  <!-- ===================== EDITOR ===================== -->
+  <div class="pub-barra" id="pubBarra">
+    <a class="voltar" id="btVoltar" href="#/publicacoes">← Publicações</a>
+    <div class="pub-id">
+      <span class="chip" id="pubChip"></span>
+      <span class="pub-nucleo" id="pubNucleo"></span>
+      <input id="pubTitulo" class="pub-titulo" type="text" placeholder="Título da publicação" aria-label="Título da publicação">
+    </div>
+    <div class="pub-salvar">
+      <span class="sinc" id="sinc" data-estado="pronto"><span class="ponto"></span><span id="sincTxt"></span></span>
+      <button id="btSalvar" title="Salvar na nuvem (Ctrl+S)">Salvar</button>
+    </div>
+  </div>
+
+  <main class="editor" id="editor">
+    <aside class="lado esq">
+      <div class="lado-corpo" id="globais">
+        <details class="macro" data-macro="publicacao" open>
+          <summary><h2>Dados da publicação</h2></summary>
+          <div class="macro-corpo" id="globaisPub"></div>
+        </details>
+        <details class="macro" data-macro="card" open>
+          <summary><h2><span id="cardRot">Dados do card</span> <span class="card-tag" id="cardTag"></span></h2></summary>
+          <div class="macro-corpo">
+            <div class="secao opcoes" id="opcoes" hidden></div>
+            <div class="secao textos" id="textos" hidden></div>
+            <div class="secao ficha-painel" id="ficha" hidden></div>
+            <div class="secao imagens" id="imagens"></div>
+            <div class="secao pinterest" id="pinterest" hidden></div>
+          </div>
+        </details>
+      </div>
+    </aside>
+
+    <section class="palco" id="palco">
+      <div class="barra">
+        <div class="barra-g">
+          <span class="posicao" id="posicao"></span>
+          <span class="modelo-atual" id="modeloAtual"></span>
+        </div>
+        <div class="acoes-card" id="acoesCard">
+          <button class="txt" id="btDuplicar" title="Duplicar card">Duplicar</button>
+          <button class="txt perigo" id="btExcluir" title="Excluir card">Excluir</button>
+        </div>
+        <div class="seg" role="group" aria-label="Visualização" id="modos">
+          <button data-modo="3" title="Card ativo com os vizinhos">3</button>
+          <button data-modo="todos" title="Todos em linha, como carrossel">Todos</button>
+        </div>
+      </div>
+      <div class="trilho-wrap" id="trilhoWrap">
+        <button class="nav-seta esq" id="navEsq" aria-label="Card anterior">‹</button>
+        <div class="trilho" id="trilho"></div>
+        <button class="nav-seta dir" id="navDir" aria-label="Próximo card">›</button>
+      </div>
+      <div class="rodape">
+        <div class="seg guias-bt" role="group" aria-label="Guias de composição" id="guias"></div>
+        <div class="paginacao">
+          <button class="ico" id="btMoverEsq" title="Mover o card para a esquerda">←</button>
+          <div class="pontos" id="pontos"></div>
+          <button class="ico" id="btMoverDir" title="Mover o card para a direita">→</button>
+        </div>
+        <div class="exportar">
+          <button class="txt" id="btPool" title="Envia as mídias prontas ao pool de mídias, para agendar no Calendário">Enviar ao pool</button>
+          <button class="txt" id="btExportarCard">Exportar card</button>
+          <button class="txt forte" id="btExportarTudo">Exportar carrossel</button>
+        </div>
+      </div>
+    </section>
+
+    <aside class="lado dir">
+      <div class="lado-cab">
+        <h2>Modelos <span class="info" tabindex="0" data-info="Clique num modelo para aplicá-lo ao card selecionado.">i</span></h2>
+      </div>
+      <div class="lado-corpo">
+        <div id="modelos"></div>
+      </div>
+    </aside>
+  </main>
+
+  <div id="exportador" aria-hidden="true"></div>
+  <input type="file" id="arquivo" accept="image/*" hidden>
+  <div class="aviso" id="aviso" role="status"></div>
+  <div class="dica-flut" id="dicaFlut" role="tooltip"></div>
+
+  <script src="vendor/html-to-image.js?v=ad74ac1e13"></script>
+  <script src="vendor/jszip.min.js?v=978d62b574"></script>
+  <script type="module" src="assets/js/app.js?v=0b5dd21a68"></script>
+</body>
+</html>

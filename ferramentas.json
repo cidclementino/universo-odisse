@@ -116,9 +116,9 @@
       "secao": "ferramentas",
       "ramo": "marketing",
       "descricao": "Monta posts 3:4 e pins 2:3 por núcleo",
-      "url": "https://marketing.odisse.com.br/#/publicacoes",
+      "url": "https://universo.odisse.com.br/marketing/#/publicacoes",
       "hosts": [
-        "marketing.odisse.com.br"
+        "universo.odisse.com.br/marketing"
       ],
       "acesso": "interna",
       "status": "no-ar"
@@ -129,7 +129,7 @@
       "secao": "ferramentas",
       "ramo": "marketing",
       "descricao": "Agenda as publicações a partir do pool de mídias",
-      "url": "https://marketing.odisse.com.br/#/calendario",
+      "url": "https://universo.odisse.com.br/marketing/#/calendario",
       "acesso": "interna",
       "status": "no-ar"
     },
@@ -377,7 +377,7 @@
       "secao": "biblioteca",
       "grupo": "acervo",
       "descricao": "Estilos de texto, espaçamentos e panorama dos modelos 3:4",
-      "url": "https://marketing.odisse.com.br/#/padroes",
+      "url": "https://universo.odisse.com.br/marketing/#/padroes",
       "acesso": "interna",
       "status": "no-ar"
     },
@@ -550,7 +550,7 @@
             "id": "estrategia",
             "nome": "Estratégia",
             "icone": "estrategia",
-            "url": "https://marketing.odisse.com.br/#/estrategia"
+            "url": "https://universo.odisse.com.br/marketing/#/estrategia"
           },
           {
             "id": "calendario",

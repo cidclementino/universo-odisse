@@ -6,7 +6,8 @@
 //   document.head.appendChild(s);
 // Aqui: carrega o CSS da v2 (e a ponte v1 → v2), põe o conteúdo da página num contêiner (que fica no documento,
 // porque as páginas procuram os elementos por id) e monta a casca em volta dele (base/v2/componentes.js).
-// O "Sair" do pé do menu apaga a senha do Universo e volta à entrada.
+// O "Sair" do pé do menu apaga a senha do Universo e volta à entrada. A casca montada fica em window.universoCasca
+// (marcar, contar, arvore), avisada pelo evento 'universo:casca'.
 (() => {
   const eu = document.currentScript;
   const item = eu?.dataset.item || '';
@@ -23,11 +24,14 @@
     [...document.body.childNodes].filter((n) => !(n.nodeType === 1 && n.tagName === 'SCRIPT')).forEach((n) => conteudo.appendChild(n));
     document.body.prepend(conteudo);
     const { montarCasca } = await import('/base/v2/componentes.js');
-    await montarCasca({
+    const casca = await montarCasca({
       conteudo,
       atual: item,
       aoSair: () => { try { localStorage.removeItem('universo:senha'); } catch (_) { /* segue */ } location.href = '/#/'; },
     });
+    // para a ferramenta que troca de item do menu conforme a rota (ex.: Marketing: Publicações, Calendário, Estratégia)
+    window.universoCasca = casca;
+    window.dispatchEvent(new Event('universo:casca'));
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', montar); else montar();
 })();
