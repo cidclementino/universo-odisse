@@ -21,7 +21,7 @@ import { cabecalho, numeros, segmentado, recorte, secao, bandeja, lista, nome, e
 const COPIA = 'inicio';
 const INTERVALO = 2 * 3600 * 1000;
 const RADAR = '/radar';
-const CALENDARIO = 'https://marketing.odisse.com.br/#/calendario';
+const CALENDARIO = '/marketing/#/calendario';
 const VENDAS = '/vendas/';
 const PROJETO = '/projetos/projeto.html#';
 const FOLLOW_UP = 7; // dias sem resposta para a proposta pedir follow-up (sugestão do Claude, 24/11; a confirmar)

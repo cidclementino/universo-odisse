@@ -17,7 +17,7 @@ const LEMBRAR = 'universo:kpis:';
 const MARCA = 'https://marca.odisse.com.br/v1/documentos/';
 const JSPDF = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
 const FONTES = '/vendas/fonts-inter.js';
-const METRICAS = 'https://marketing.odisse.com.br/#/metricas';
+const METRICAS = '/marketing/#/metricas';
 const SITE_PAINEL = 'https://www.odisse.com.br/admin/';
 const FUNIL = '/vendas/crm.html';
 

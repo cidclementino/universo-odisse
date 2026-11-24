@@ -1,0 +1,169 @@
+/* Card 3:4 — 1080 × 1440 px. Valores do Manual do sistema Odisse (seções 03–05). */
+
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-display: block;
+  font-weight: 100 900;
+  src: url('../fonts/inter-latin-opsz-normal.woff2') format('woff2-variations');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-display: block;
+  font-weight: 100 900;
+  src: url('../fonts/inter-latin-ext-opsz-normal.woff2') format('woff2-variations');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+.card {
+  position: relative;
+  width: 1080px;
+  height: 1440px;
+  overflow: hidden;
+  background: #FAFAF7;
+  color: #3F4B57;
+  font-family: 'Inter', sans-serif;
+  font-optical-sizing: auto;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: geometricPrecision;
+  font-feature-settings: 'ss01' 0, 'cv11' 1;
+}
+.card * { box-sizing: border-box; }
+/* Pin 2:3 — desenhado em 1080 × 1620 e exportado em 1000 × 1500 */
+.card.pin { height: 1620px; }
+
+.card .bloco,
+.card .slot,
+.card .cab,
+.card .selo,
+.card .fluxo,
+.card .legenda { position: absolute; }
+
+.card .bloco { pointer-events: none; }
+
+/* Imagens */
+.card .slot { overflow: hidden; }
+.card .slot img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  user-select: none;
+}
+.card .slot.contain img { object-fit: contain; }
+
+/* Carimbo do cabeçalho — caixa tripartida (núcleo · tema · contagem), estilo Rótulo.
+   Centrada na linha dos pontos. As laterais têm a largura do texto mais o respiro; o tema ocupa
+   o resto, à esquerda. Cor e fundo do carimbo inteiro (sem partição): colorirPontos. */
+.card .carimbo {
+  position: absolute; z-index: 3;
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto;
+  white-space: nowrap;
+}
+.card .carimbo .cel {
+  display: flex; align-items: center; min-width: 0;
+  padding: 0 var(--e-proximo);
+  border: 1.5px solid currentColor; border-left-width: 0;
+  overflow: hidden;
+}
+.card .carimbo .cel.esq { border-left-width: 1.5px; }
+.card .carimbo .cel.meio { justify-content: flex-start; text-align: left; }
+.card .carimbo .cel.dir { justify-content: flex-end; gap: var(--e-proximo); }
+.card .carimbo .seta { display: block; flex: none; }
+
+/* Pontos laterais — 3 de cada lado (cor calculada em colorirPontos) */
+.card .ponto { position: absolute; border-radius: 50%; z-index: 4; pointer-events: none; background: #3F4B57; }
+
+/* Linha de contexto da capa: uma linha só */
+/* linha de contexto das capas: até 5 linhas, na largura inteira do bloco */
+.card .linha:not(:empty) { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 5; overflow: hidden; }
+
+/* Linha de contexto vazia não ocupa espaço (no editor, só o aviso aparece por cima) */
+.card .linha:empty { height: 0; margin-top: 0 !important; overflow: visible; }
+.card .t-capa + .linha:empty::before { display: block; padding-top: var(--e-proximo); }
+
+/* Legenda no topo: à direita, logo abaixo do carimbo */
+.card .legenda-topo { position: absolute; z-index: 3; text-align: right; max-width: 460px; display: flex; flex-direction: column; align-items: flex-end; }
+
+/* Selo — rodapé central, faixa y 1340–1408 */
+.card .selo { left: 0; right: 0; display: flex; justify-content: center; z-index: 3; }
+.card .mark { display: block; }
+
+/* Blocos de texto em fluxo */
+.card .fluxo { display: flex; flex-direction: column; z-index: 2; pointer-events: none; }
+.card .fluxo > * { pointer-events: auto; }
+.card .fluxo.fim { justify-content: flex-end; }
+/* Texto desligado não deixa espaço: o primeiro elemento do bloco não carrega o respiro de quem saiu */
+.card .fluxo > [data-txt]:first-child,
+.card .fluxo.fim > :first-child { margin-top: 0 !important; }
+.card .fluxo.meio { justify-content: center; }
+
+/* Tipografia — uma família, contraste extremo. Corpo, peso, entrelinha e tracking
+   vêm de padroes.js (TEXTO), gerados em <style id="padroes-css">. */
+.card .t-citacao b, .card .t-texto b, .card .t-legenda b { font-weight: 700; }
+.card .t-capa, .card .t-titulo, .card .t-chamada, .card .t-texto, .card .t-legenda, .card .t-citacao, .card .t-rotulo {
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+
+.card .carimbo .cab-txt { display: inline; }
+.card .ficha-linha.empilhada { grid-template-columns: 1fr; gap: var(--e-justo); }
+.card .ficha.distribuir .ficha-linha { padding: var(--e-filete) 0 var(--e-bloco); }
+.card .ficha-r { padding-right: 20px; }
+
+/* Assinatura de capa */
+.card .assinatura {
+  display: flex; align-items: center; gap: var(--e-proximo);
+}
+
+/* Ficha — rótulo na coluna 1, valor na coluna 5 */
+.card .ficha { border-top: 1.5px solid; }
+.card .ficha-linha {
+  display: grid;
+  grid-template-columns: 330.67px 1fr;
+  align-items: baseline;
+  padding: var(--e-filete) 0;
+  border-bottom: 1.5px solid;
+}
+
+/* Legenda de imagem — pé, à esquerda */
+.card .legenda {
+  left: var(--e-margem); bottom: 34px; width: 380px; z-index: 3;
+  display: flex; flex-direction: column; gap: var(--e-justo);
+}
+
+.card .contatos { display: flex; flex-direction: column; }
+.card .lockup { display: flex; align-items: center; gap: var(--e-proximo); }
+
+/* ---- Somente no editor ------------------------------------------------ */
+.card.editar [contenteditable] { outline: none; cursor: text; border-radius: 2px; }
+.card.editar [contenteditable]:empty::before {
+  content: attr(data-ph);
+  opacity: .42;
+}
+.card.editar [contenteditable]:hover { box-shadow: 0 0 0 2px rgba(127, 140, 152, .35); }
+.card.editar [contenteditable]:focus { box-shadow: 0 0 0 3px rgba(60, 130, 220, .75); }
+.card.editar [data-global] { cursor: pointer; }
+.card.editar [data-global]:hover { box-shadow: 0 0 0 2px rgba(187, 130, 72, .55); }
+.card.editar .slot { cursor: grab; }
+.card.editar .slot:active { cursor: grabbing; }
+.card .slot[data-vazio] {
+  cursor: pointer;
+  background-color: #E6E8EB;
+  background-image: repeating-linear-gradient(-45deg, rgba(63,75,87,.07) 0 2px, transparent 2px 22px);
+  display: flex; align-items: center; justify-content: center;
+}
+.card .slot-vazio {
+  font: 600 26px/1 'Inter', sans-serif;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: #3F4B57;
+  background: rgba(250,250,247,.9);
+  padding: 18px 26px;
+  border-radius: 999px;
+}
+.card .slot-vazio b { font-size: 34px; margin-right: 6px; }
+.card .slot.alvo { box-shadow: inset 0 0 0 6px rgba(60,130,220,.9); }
+.card .fluxo.meio { justify-content: center; }

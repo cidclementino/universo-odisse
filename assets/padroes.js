@@ -17,7 +17,7 @@ const H = 'https://universo.odisse.com.br/';
 const V = 'https://universo.odisse.com.br/vendas/';
 const P = 'https://universo.odisse.com.br/projetos/';
 const R = 'https://universo.odisse.com.br/radar/';
-const M = 'https://marketing.odisse.com.br/';
+const M = '/marketing/';
 const S = 'https://www.odisse.com.br/admin/';
 const SV = '/catalogo/';
 
