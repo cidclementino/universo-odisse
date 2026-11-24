@@ -19,7 +19,7 @@ const P = 'https://universo.odisse.com.br/projetos/';
 const R = 'https://universo.odisse.com.br/radar/';
 const M = 'https://marketing.odisse.com.br/';
 const S = 'https://www.odisse.com.br/admin/';
-const SV = 'https://servicos.odisse.com.br/painel/';
+const SV = '/catalogo/';
 
 // lugares (nome, ferramenta, endereço)
 const L = {
