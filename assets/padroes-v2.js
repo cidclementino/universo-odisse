@@ -1,4 +1,4 @@
-// Biblioteca › Padrões de interface — o padrão novo, VIVO (Cid, 24/11).
+// Biblioteca › Padrões de interface — o padrão novo, VIVO.
 // Diferente do catálogo v1 (cópias .pi-*), aqui as amostras são as próprias peças da base/v2: o que se vê é o que as
 // páginas usam. Mudou a peça em base/v2/componentes.js ou base/v2/universo.css, muda aqui e em todas as páginas.
 

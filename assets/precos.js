@@ -1,4 +1,4 @@
-// Mapa de preços (#/precos) — quanto o mercado público paga por projetos (Cid, 19/11).
+// Mapa de preços (#/precos) — quanto o mercado público paga por projetos.
 //
 // Uma leitura só (GET /api/precos → Radar, ponto de entrada Universo, precos()):
 //   contratos  contratos só de projeto assinados (PNCP, Brasil inteiro), com os links do contrato e do

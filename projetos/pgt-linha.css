@@ -160,7 +160,7 @@ body.ln-modal-aberto { overflow: hidden; }
 
 
 /* ==========================================================================
-   Motor comum (linha-nos.js, 20/11/2026): a linha ocupa a largura da janela e desce até a base;
+   Motor comum (linha-nos.js): a linha ocupa a largura da janela e desce até a base;
    a régua e os nomes das camadas ficam presos; dois modos (compacto e extenso).
    ========================================================================== */
 .lnn { --gatilho: #2F6FD0; --susp: #9A6B12; --lnn-fundo: var(--u-superficie, #FAFAF7); }
@@ -270,7 +270,7 @@ body.ln-modal-aberto { overflow: hidden; }
 .ln-comp__rot { position: absolute; transform: translateX(-50%); font-size: 11px; font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
 
 /* ==========================================================================
-   Linha que cabe na tela (ajustar; Escopo, 20/11/2026): faixas Estúdio 1,5 · Cliente 1 · Terceiros 1,
+   Linha que cabe na tela (ajustar; Escopo): faixas Estúdio 1,5 · Cliente 1 · Terceiros 1,
    cartões em três níveis (inteiro, nome em até 2 linhas, só código e datas), rolagem própria de cada faixa.
    ========================================================================== */
 .lnn--ajustada .lnn-rolo { overflow-y: hidden; }

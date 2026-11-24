@@ -33,7 +33,7 @@
 <script src="escopo.js?v=20261121b"></script>
 <script>
 // Projeto: projeto.html#prj_… (Ficha) · #prj_…/escopo (o escopo em Linha ou Cartões; #prj_…/pgt continua valendo) · #prj_…/alteracoes (Alterações de escopo)
-// (Cid, 20/11/2026) O PGT do projeto é a ferramenta de gestão do projeto ativo.
+// O PGT do projeto é a ferramenta de gestão do projeto ativo.
 let F = null; // resposta de producao/projetos/:id
 const id = () => location.hash.slice(1).split('/')[0];
 const sub = () => ({ pgt: 'pgt', escopo: 'pgt', alteracoes: 'alteracoes' }[location.hash.slice(1).split('/')[1]] || 'ficha');

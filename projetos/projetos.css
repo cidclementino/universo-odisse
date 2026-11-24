@@ -284,7 +284,7 @@
 .plano .card--ent.is-junto { margin-top: -4px; border-top-left-radius: 0; border-top-right-radius: 0; }
 .junto { width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--linha-forte); border-radius: 4px; background: var(--elevada); color: var(--linha-forte); cursor: pointer; padding: 0; }
 .junto svg { width: 14px; height: 14px; }
-/* cabeça do grupo (a primeira entrega) no tom forte; as ligadas abaixo no tom sutil (Cid, 20/11) */
+/* cabeça do grupo (a primeira entrega) no tom forte; as ligadas abaixo no tom sutil */
 .junto.is-cabeca { background: var(--destaque, #BB8248); border-color: var(--destaque, #BB8248); color: var(--superficie); }
 .junto.is-on { background: color-mix(in srgb, var(--destaque, #BB8248) 16%, var(--elevada, #fff)); border-color: color-mix(in srgb, var(--destaque, #BB8248) 55%, var(--elevada, #fff)); color: var(--destaque, #BB8248); }
 .junto[aria-disabled="true"] { cursor: default; }

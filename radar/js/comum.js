@@ -34,7 +34,7 @@ if (/\.html$/.test(location.pathname)) {
 }
 
 (function montarBarra() {
-  // Desde 24/11/2026 o Radar mora no Universo (/radar/): o menu lateral, o "Ir para" e o painel vêm da casca
+  // O Radar mora no Universo (/radar/): o menu lateral, o "Ir para" e o painel vêm da casca
   // (/base/v2/casca.js); aqui ficam só as Abas do Radar (Concursos · Terrenos · Licitações), no desenho das Abas da v2.
   const raiz = document.querySelector('header.topo');
   if (!raiz) return;

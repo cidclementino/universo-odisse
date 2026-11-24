@@ -582,7 +582,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 }
 
 /* ==========================================================================
-   Dentro da casca do Universo (24/11/2026: o Projetos mora em universo.odisse.com.br/projetos/)
+   Dentro da casca do Universo (o Projetos mora em universo.odisse.com.br/projetos/)
    ========================================================================== */
 .ferramenta-projetos {
   --fundo: var(--ui-bandeja); --superficie: #FFFFFF; --elevada: #FFFFFF;

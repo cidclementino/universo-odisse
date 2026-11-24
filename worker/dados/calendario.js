@@ -1,4 +1,4 @@
-// Calendário do Escopo do Projeto, no servidor (Cid, 24/11/2026: Início v3).
+// Calendário do Escopo do Projeto, no servidor (para a Início).
 //
 // Mesma conta da tela do escopo (projetos-odisse/escopo.js, escCalendario): início + durações em sequência, em dias
 // úteis (seg–sex), os que correm juntos no mesmo intervalo, `folga` como hiato (ou paralelo, se negativa), suspensões

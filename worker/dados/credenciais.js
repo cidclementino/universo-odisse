@@ -1,4 +1,4 @@
-// Credenciais (0021; Cid, 19/11): os documentos que editais, termos de referência e concursos pedem ao estúdio.
+// Credenciais (0021): os documentos que editais, termos de referência e concursos pedem ao estúdio.
 //
 // Cada documento mora com o seu dono e aparece numa página só:
 //   Empresa      constituição e registros, sede                     (dono emp_odisse)
@@ -12,7 +12,7 @@
 //   POST credenciais { dono_id, tipo, …, substitui_id? }  -> registra; com substitui_id, arquiva o anterior no mesmo lote
 //   PATCH / arquivar / restaurar: rotas comuns da API.
 //
-// Regras (Cid, 19/11): documento com validade indica quando vence; vencido gera aviso na Início, que só sai quando
+// Regras: documento com validade indica quando vence; vencido gera aviso na Início, que só sai quando
 // o documento é substituído (ou arquivado, se deixou de ser preciso). A validade de um documento vencido não se
 // edita: substitui-se.
 

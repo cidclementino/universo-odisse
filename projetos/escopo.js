@@ -1,5 +1,5 @@
 // ==========================================================================
-// Escopo do Projeto — calendário, Linha, Cartões e Alterações (Cid, 20/11/2026).
+// Escopo do Projeto — calendário, Linha, Cartões e Alterações.
 //
 //   * O escopo é a lista de etapas, entregas e eventos contratados (cópia do PGT), cada cartão com a sua duração.
 //   * Calendário: início + durações em sequência, em dias úteis (seg–sex; sem feriados por ora); os que correm

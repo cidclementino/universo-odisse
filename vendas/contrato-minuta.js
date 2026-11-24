@@ -1,5 +1,5 @@
 // ==========================================================================
-// Minuta do contrato (Cid, 21/11/2026; etapa 1 do emissor de contratos).
+// Minuta do contrato (etapa 1 do emissor de contratos).
 // As 15 seções do contrato e, em cada uma, os LUGARES DOS DADOS que vêm de outras ferramentas. O texto redigido
 // (cláusulas gerais) mora no Gestor de cláusulas (tabela vendas_clausulas, grupo 'geral', migração 0027); as
 // cláusulas dos eventos vêm do PGT, escolhidas na proposta. O emissor (etapa 2) monta o contrato assim, seção a seção:
@@ -8,7 +8,7 @@
 //
 // Condições das cláusulas gerais (campo condicao): entram sozinhas quando o contrato pede.
 // Marcas no texto: {proposta} = nº da proposta; {etapa_aprovada} = campo do contrato (padrão: Concepção Básica).
-// Tratamento sempre no masculino ("o CONTRATANTE"), qualificação em forma neutra; sem testemunhas (Cid, 21/11).
+// Tratamento sempre no masculino ("o CONTRATANTE"), qualificação em forma neutra; sem testemunhas.
 // ==========================================================================
 const ContratoMinuta = (() => {
   const SECOES = [

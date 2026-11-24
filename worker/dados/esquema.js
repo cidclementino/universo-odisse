@@ -101,7 +101,7 @@ const TODOS_E = { hub: 'E', vendas: 'E', projetos: 'E', fornecedores: 'E', marke
 // Acervo (0020): casa no hub (Biblioteca); o Projetos e o marketing também editam; o vendas lê.
 // O site não entra aqui: tem rotas próprias (acervo/site/…, ver acervo.js), só com as imagens públicas.
 const ACERVO = { hub: 'E', vendas: 'L', projetos: 'E', marketing: 'E', maquina: 'E' };
-// o marketing só enxerga as mídias públicas (Cid, 19/11: as restritas não aparecem no Construtor)
+// o marketing só enxerga as mídias públicas (as restritas não aparecem no Construtor)
 const SO_PUBLICAS = "(t.categoria NOT IN ('imagem', 'video') OR t.publica = 1)";
 
 // Empresa sem os dados bancários (0027): o que marketing e site enxergam.
@@ -243,7 +243,7 @@ export const TABELAS = {
     },
     imutaveis: ['pessoa_id'],
     padroes: { ativo: 1, socio: 0, publico: 0 },
-    // A página da equipe saiu do Projetos (18/11): ele lê tudo e só muda o custo por hora.
+    // A página da equipe saiu do Projetos: ele lê tudo e só muda o custo por hora.
     permissoes: { hub: 'E', projetos: 'L', vendas: 'L', fornecedores: 'L', marketing: 'L', maquina: 'E' },
     editaveis_por: { projetos: ['custo_hora'] },
     campos_restritos: { vendas: EQUIPE_LEITURA, fornecedores: EQUIPE_LEITURA, marketing: EQUIPE_LEITURA },
@@ -411,7 +411,7 @@ export const TABELAS = {
   },
 
   // imagem ↔ projeto, objeto ou coleção (uma imagem pode estar em vários)
-  // Credenciais (0021; Cid, 19/11): documentos que editais e concursos pedem; o tipo vem do catálogo em credenciais.js
+  // Credenciais (0021): documentos que editais e concursos pedem; o tipo vem do catálogo em credenciais.js
   credenciais: {
     prefixo: 'cre',
     campos: {
@@ -431,7 +431,7 @@ export const TABELAS = {
     filtros: ['dono_id', 'tipo'],
     ordem: 'vence_em, criado_em',
   },
-  // Financeiro › Despesas fixas (0025; Cid, 20/11): só o hub. A leitura juntada e o lote ficam em financeiro.js;
+  // Financeiro › Despesas fixas (0025): só o hub. A leitura juntada e o lote ficam em financeiro.js;
   // os valores ao longo do tempo (despesas_fixas_valores) são gravados pela regra, no mesmo lote.
   // historico_sem_valores: o histórico guarda só o nome dos campos mudados (há pró-labore e salários aqui).
   despesas_fixas: {

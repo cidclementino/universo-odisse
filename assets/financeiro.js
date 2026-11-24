@@ -1,4 +1,4 @@
-// Financeiro (#/financeiro; Cid, 20/11): seção própria do menu principal, com atalho em Ferramentas › Gestão.
+// Financeiro (#/financeiro): seção própria do menu principal.
 // Primeira parte: Despesas fixas, com a previsão de custos do ano. Um CNPJ só: sem rateio por núcleo.
 //
 // Página (Registro com edição na linha; design.md § 0):
@@ -9,9 +9,9 @@
 //     linhas de uma planilha abre a prévia), grupos por categoria com o total do mês, e cada despesa editada na
 //     própria linha (grava ao sair do campo; Esc desfaz). Detalhes recolhidos na linha (chevron à direita).
 //   Pessoal: seção própria, sempre começa recolhida; fora da cópia do navegador.
-//   Valor que varia (Cid, 20/11): marcado nos detalhes; o valor da linha vira a estimativa e uma grade dos 12 meses
+//   Valor que varia: marcado nos detalhes; o valor da linha vira a estimativa e uma grade dos 12 meses
 //     recebe o real de cada mês (POST financeiro/despesas/:id/meses). Sem o real, vale a estimativa, com *.
-//   Simulações (Cid, 20/11): despesas que não entram nas contas reais, para dimensionar o impacto no orçamento.
+//   Simulações: despesas que não entram nas contas reais, para dimensionar o impacto no orçamento.
 //     Seção própria com linha de criar; Efetivar passa a contar (com confirmação), Descartar arquiva.
 //     O Seletor Real | Com simulações (nos Filtros) leva as simulações ao Placar e à previsão, com o acréscimo.
 //   Previsão de custos do ano: Seletor do ano, Gráfico dos 12 meses e Matriz categoria × mês.

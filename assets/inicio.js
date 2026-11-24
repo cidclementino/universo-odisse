@@ -1,4 +1,4 @@
-// Início (#/) — v3 (Cid, 23–24/11): uma coluna larga, no padrão novo (base/v2/componentes.js).
+// Início (#/) — v3: uma coluna larga, no padrão novo (base/v2/componentes.js).
 //
 // Uma leitura só (GET /api/inicio, worker/inicio.js). De cima para baixo:
 //   1. Números lado a lado: Pedem você hoje · Propostas aguardando (recorte) · Entregas da semana (recorte) · Fora da meta (→ KPIs)

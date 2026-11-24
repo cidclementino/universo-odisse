@@ -1,5 +1,5 @@
-// Lista de cartões por grupo (hoje só Perfil › Canais; a página Ferramentas saiu em 24/11/2026, o menu lateral faz o papel dela),
-// no desenho dos cartões do PGT (Cid, 19/11):
+// Lista de cartões por grupo (hoje só Perfil › Canais),
+// no desenho dos cartões do PGT:
 //   - uma faixa de título por ramo, recolhível (seta › em SVG que gira; aberto/fechado lembrado neste computador);
 //   - cor do ramo da paleta da Marca: bloco com fundo no tom claro, faixa de título no tom forte, cartões brancos; SEM barra à esquerda;
 //   - a linha inteira leva à ferramenta, exceto o lápis e o texto em edição;
@@ -158,7 +158,7 @@ export function criarFerramentas({ esc, api, toque, lerMapa, config }) {
       if (ev.target.closest('.is-editando, a')) return; // o link do nome segue sozinho (e com Ctrl/⌘ abre em outra aba)
       const card = ev.target.closest('.ferr[data-url]');
       if (!card || getSelection().toString()) return;
-      // ferramentas e canais abrem em outra aba; o Universo continua aberto (Cid, 19/11)
+      // ferramentas e canais abrem em outra aba; o Universo continua aberto
       if (fora(card.dataset.url) || ev.ctrlKey || ev.metaKey) window.open(card.dataset.url, '_blank', 'noopener'); else location.href = card.dataset.url;
     });
     // confere por baixo: só redesenha se o servidor tiver textos diferentes da cópia

@@ -1,4 +1,4 @@
-// Universo — componentes da interface v2 (Cid, 24/11/2026).
+// Universo — componentes da interface v2.
 //
 // Um código só por padrão: as páginas chamam estas funções e não desenham as peças de novo. Mudou aqui (ou no
 // base/v2/universo.css), mudou em todas as páginas que usam. Variação é opção da função, nunca CSS da página.

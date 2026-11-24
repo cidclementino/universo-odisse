@@ -1,5 +1,5 @@
 // ==========================================================================
-// Proposta na folha da Marca (19/11). Monta o conteúdo da proposta no formato do montador de documentos
+// Proposta na folha da Marca. Monta o conteúdo da proposta no formato do montador de documentos
 // da Marca (marca.odisse.com.br/v1/documentos): o desenho (Coluna, Ficha e os que vierem) é todo de lá.
 //   PropostaDoc.doc(state, data, { modelo, numero, rubricas, previa })  → doc do montador
 //   PropostaDoc.modelos()      → folhas disponíveis (lidas da Marca)

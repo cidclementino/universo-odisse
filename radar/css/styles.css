@@ -605,7 +605,7 @@ select.situacao--descartado { color: var(--tinta-2); }
 .tabela .licitacao__links .detalhe__link { margin: 0; }
 
 /* ---------------------------------------------------------------- dentro da casca do Universo
-   (24/11/2026: o Radar mora em universo.odisse.com.br/radar/) */
+   (o Radar mora em universo.odisse.com.br/radar/) */
 .ferramenta-radar {
   --fundo: var(--ui-bandeja); --superficie: #FFFFFF; --elevada: #FFFFFF;
   --linha: var(--ui-linha); --linha-forte: var(--ui-linha-forte);

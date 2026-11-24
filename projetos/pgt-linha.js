@@ -1,6 +1,6 @@
 // ==========================================================================
 // Plano Geral de Trabalho — aba "Linha": o PGT como sistema de nós sobre uma régua de datas
-// (desenho em universo-visualizacao-nos.md, ensaios 3 a 7; primeira implementação, 16/11/2026).
+// (desenho em universo-visualizacao-nos.md, ensaios 3 a 7).
 //
 //   * Nós = entregas e eventos do serviço escolhido, na sequência do PGT (fases do fluxo, etapas, passos).
 //   * Datas de referência: começa no primeiro dia útil de 1º de janeiro do ano corrente.
@@ -18,7 +18,7 @@
 //     o que os libera concretiza-os. ↺ desfaz.
 //   * Recolher etapa ou fase (clique na faixa de cima), fios destacados ao selecionar, minimapa,
 //     ver como cliente. Duplo clique leva ao cartão na aba de edição.
-//   * 20/11/2026: o desenho (escala compacta ou extensa, pistas, fios, régua, seleção, laço, + no fio, minimapa)
+//   * o desenho (escala compacta ou extensa, pistas, fios, régua, seleção, laço, + no fio, minimapa)
 //     passou para o motor comum linha-nos.js, que também desenha a Linha do Escopo do projeto. Aqui ficam o
 //     modelo do PGT, o miolo dos cartões (pertinência, prazo, materiais, cadeado), o popup e a barra de seleção.
 // Usa as globais da página: D, ENC, ehEnt, escHtml, nomeDe, TIPOS_EVT, irAoCartao, materiaisDe, fmtPrazo; e LinhaNos.
@@ -487,7 +487,7 @@ async function lnSelAplicar(acao, valor) {
       : acao === 'juntas' ? 'Só correm juntas entregas seguidas na mesma etapa, todas selecionadas.' : 'Nada a separar.');
   }
   if (acao === 'inverter') {
-    // dois cartões da mesma etapa trocam de lugar na sequência; o código acompanha a posição (Cid, 21/11)
+    // dois cartões da mesma etapa trocam de lugar na sequência; o código acompanha a posição
     const [a, b] = ids.map((id) => entDe(id) || evtDe(id));
     if (ids.length !== 2 || !a || !b) return aviso('Selecione exatamente dois cartões.');
     if (a.encerramento || b.encerramento) return aviso('O Encerramento não muda de lugar.');

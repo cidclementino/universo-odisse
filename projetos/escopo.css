@@ -1,4 +1,4 @@
-/* Escopo do Projeto — Ficha (Hoje, Suspensão), PGT (Linha e Cartões) e Alterações de escopo (Cid, 20/11/2026).
+/* Escopo do Projeto — Ficha (Hoje, Suspensão), PGT (Linha e Cartões) e Alterações de escopo.
    Sem barras coloridas à esquerda: a fase vem na borda inteira do cartão (como na Linha do PGT). */
 
 .esc-cab { margin-top: 4px; border-bottom: 0 !important; padding-bottom: 0 !important; margin-bottom: 16px !important; }
@@ -147,7 +147,7 @@ body.escm-aberto { overflow: hidden; }
 .escm .u-botao { display: inline-flex; align-items: center; gap: 6px; }
 .escm .esc-ctl .pg-caixa { width: 30px; height: 32px; border-radius: 6px; }
 
-/* ---------------------------------------------------------------- Escopo: tela de trabalho (Cid, 20/11/2026)
+/* ---------------------------------------------------------------- Escopo: tela de trabalho
    abas + uma faixa só (projeto, vista, filtros, datas, situação); a linha ocupa o resto, sem rolar a página */
 body.esc-tela .ficha { max-width: none; padding: 14px 24px 0; }
 body.esc-cabe { overflow: hidden; }

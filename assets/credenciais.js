@@ -1,4 +1,4 @@
-// O Estúdio › Credenciais (#/credenciais; Cid, 19/11) e a lista de documentos comum às páginas Empresa e Equipe.
+// O Estúdio › Credenciais (#/credenciais) e a lista de documentos comum às páginas Empresa e Equipe.
 //
 // Cada documento mora com o seu dono (worker/dados/credenciais.js, catálogo e regras):
 //   Empresa      Constituição e registros, Sede          → montar(el, 'constituicao' | 'sede', 'emp_odisse')

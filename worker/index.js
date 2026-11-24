@@ -175,19 +175,19 @@ export default {
       if (pathname === '/api/estado') return json({ ok: true, marca: !!env.MARCA_GITHUB_TOKEN });
 
       if (pathname === '/api/inicio' && request.method === 'GET') return json(await inicio(env));
-      // Mapa de preços (Cid, 19/11): contratos só de projeto e concursos, lidos do Radar Worker a Worker
+      // Mapa de preços: contratos só de projeto e concursos, lidos do Radar Worker a Worker
       if (pathname === '/api/precos' && request.method === 'GET') {
         if (!env.RADAR) return erro('Radar: ligação não configurada', 503);
         return json(await env.RADAR.precos());
       }
-      // Biblioteca › Estrutura de pastas (Cid, 19/11): norma + retrato do Drive, guardados no R2 (worker/pastas.js)
+      // Biblioteca › Estrutura de pastas: norma + retrato do Drive, guardados no R2 (worker/pastas.js)
       if (pathname === '/api/pastas') {
         const r = request.method === 'GET' ? await lerPastas(env)
           : request.method === 'PUT' ? await gravarPastas(env, await request.text())
           : { status: 405, erro: 'método não aceito' };
         return r.dados ? json(r.dados) : erro(r.erro, r.status);
       }
-      // KPIs (Cid, 19/11): seção do menu principal; dados no R2 e no D1 (worker/kpis.js)
+      // KPIs: seção do menu principal; dados no R2 e no D1 (worker/kpis.js)
       if (pathname.startsWith('/api/kpis')) {
         const r = pathname === '/api/kpis' && request.method === 'GET' ? await lerKpis(env, url.searchParams.get('mes'))
           : pathname === '/api/kpis/balanco' && request.method === 'GET' ? await lerBalanco(env, url.searchParams.get('mes'))

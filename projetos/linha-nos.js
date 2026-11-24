@@ -1,6 +1,6 @@
 // ==========================================================================
 // Linha em nós — o motor comum da Linha do PGT (Plano do fluxo e das ilhas) e da Linha do Escopo do projeto
-// (Cid, 20/11/2026: "a Linha do Escopo é a do PGT, com o que é do projeto por cima").
+// ("a Linha do Escopo é a do PGT, com o que é do projeto por cima").
 //
 //   Quem chama monta os NÓS (entregas e eventos com datas) e o miolo de cada cartão; o motor faz o resto:
 //   * dois modos: COMPACTO (cada data com marco tem a mesma largura; um passo em sequência ocupa uma coluna)
@@ -17,7 +17,7 @@
 //   * a linha ocupa a largura da janela e desce até a base; a régua e os nomes das camadas ficam presos;
 //   * seleção (destaca os fios e os vizinhos), Ctrl/Shift + clique e laço para vários, + sobre o fio, minimapa.
 //
-//   * ajustar (Escopo, 20/11/2026): a linha cabe na tela, sem rolar a página. O que sobra abaixo da cabeça da
+//   * ajustar (Escopo): a linha cabe na tela, sem rolar a página. O que sobra abaixo da cabeça da
 //     linha se divide entre Estúdio 1,5×, Cliente 1× e Terceiros 1×. Em cada faixa o cartão vai do texto inteiro
 //     ao nome em até 2 linhas e, por fim, só ao código com as datas e os controles; se nem assim couber, a faixa
 //     rola sozinha (barra na borda direita). Os fios e os cartões sobre as linhas acompanham. Legenda numa linha.

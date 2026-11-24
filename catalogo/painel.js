@@ -1,4 +1,4 @@
-// Catálogo de serviços — painel do servicos.odisse.com.br, desde 24/11/2026 dentro do Universo
+// Catálogo de serviços — painel das landing pages do servicos.odisse.com.br, dentro do Universo
 // (universo.odisse.com.br/catalogo/). O site público e a biblioteca de módulos continuam em servicos.odisse.com.br:
 // os módulos vêm de lá (SITE + /assets/lp/blocos.js) e as miniaturas e prévias são desenhadas com o endereço de lá.
 // Senha: a do Universo (localStorage 'universo:senha'); sem senha, volta ao Início para entrar.
@@ -22,7 +22,7 @@ import {
 const LOCAL = /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
 const API = LOCAL ? `http://${location.hostname}:8787` : 'https://servicos-odisse.reservaprojectbasework.workers.dev';
 const SITE = 'https://servicos.odisse.com.br';
-const CHAVE_SENHA = 'universo:senha'; // a senha do Universo (login único desde 24/11/2026), guardada como texto
+const CHAVE_SENHA = 'universo:senha'; // a senha do Universo (login único), guardada como texto
 const CHAVE_COPIA = 'servicos-painel-catalogo';
 const CHAVE_PAGINAS = 'servicos-painel-paginas';
 const CHAVE_FILTROS = 'servicos-painel-filtros';
@@ -121,7 +121,7 @@ async function gravarCatalogo(produtos, mensagemOk) {
   }
 }
 
-// Serviços do Plano Geral de Trabalho (Universo), para ligar cada produto a um serviço (20/11/2026)
+// Serviços do Plano Geral de Trabalho (Universo), para ligar cada produto a um serviço
 let servicosPgt = ler(CHAVE_SRV_PGT, []);
 async function carregarServicosPgt() {
   try {

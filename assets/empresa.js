@@ -1,14 +1,14 @@
-// O Estúdio › Empresa (#/empresa; Cid, 19/11): dados da empresa para contratos e documentos, e os textos de
+// O Estúdio › Empresa (#/empresa): dados da empresa para contratos e documentos, e os textos de
 // apresentação do escritório em três tamanhos (curto, médio, longo), em português e inglês.
 //
 // Onde mora: banco do Universo (tabela `empresa`, registro emp_odisse, migração 0018) — é daí que o contrato lê.
 // Ao salvar, a parte pública (nome, contato, endereço, textos) é copiada para o odisse.json da Marca, que o site
 // e as ferramentas continuam lendo; razão social, CNPJ e demais dados jurídicos ficam só no banco.
 // Desenho: o sistema de caixas da ficha da Equipe (eq-ficha, eq-sec, eq-tres) e a barra de salvar presa ao pé.
-// Constituição e registros (0021; Cid, 19/11): os dados jurídicos e, embaixo, os documentos de constituição e do CAU
+// Constituição e registros (0021): os dados jurídicos e, embaixo, os documentos de constituição e do CAU
 // da PJ; a caixa Contato e sede leva os documentos da sede. Os documentos gravam sozinhos (Gaveta, assets/credenciais.js);
 // os campos, pela Barra de salvar.
-// Dados bancários (0027; Cid, 21/11): banco, agência, conta e PIX para o pagamento dos contratos. Só no banco do Universo
+// Dados bancários (0027): banco, agência, conta e PIX para o pagamento dos contratos. Só no banco do Universo
 // (fora da cópia pública; marketing e site não enxergam). Enquanto faltar algum, o Bloco mostra o aviso "a preencher".
 
 import { lerCopia, gravarCopia } from './memoria.js';
