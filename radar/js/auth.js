@@ -6,7 +6,7 @@
 // ==========================================================================
 
 const AUTH_NAME_KEY = 'odisse-auth-nome';
-const AUTH_SENHA_KEY = 'universo:senha'; // a mesma senha do Universo (login único desde 24/11/2026)
+const AUTH_SENHA_KEY = 'universo:senha'; // a mesma senha do Universo (login único)
 
 function getSenha() {
   try { return localStorage.getItem(AUTH_SENHA_KEY) || ''; } catch (_) { return ''; }

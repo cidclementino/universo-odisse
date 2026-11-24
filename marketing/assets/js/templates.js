@@ -1115,7 +1115,7 @@ export const SEQUENCIA_PIN = ['p01'];
 
 /**
  * Códigos de referência fixos: sigla do núcleo + número. A ordem destas listas é a numeração
- * original (04/11); modelo retirado deixa o número vago (OA-04, Abertura do projeto, saiu em 13/11)
+ * original; modelo retirado deixa o número vago (OA-04, Abertura do projeto, saiu em 13/11)
  * e modelo novo recebe o próximo número.
  */
 const NUMERACAO = {

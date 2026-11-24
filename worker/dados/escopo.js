@@ -1,4 +1,4 @@
-// Universo — Escopo do Projeto (0023; Cid, 20/11/2026).
+// Universo — Escopo do Projeto (0023).
 //
 // O escopo é a lista de etapas, entregas e eventos contratados de um projeto (cópia do PGT), cada cartão com a sua
 // duração em dias úteis. O calendário é calculado na tela (projetos.odisse, escopo.js): início + durações em

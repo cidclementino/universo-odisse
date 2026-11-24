@@ -883,7 +883,7 @@ button.hon-total__n::after { content: ' ajustar'; font-size: 10px; font-weight: 
 .hon-notas var { font-style: normal; font-weight: 600; }
 
 /* ==========================================================================
-   Propostas — ajustes do design.md § 0 (19/11)
+   Propostas — ajustes do design.md § 0
    ========================================================================== */
 /* Seletor quadrado (filtros do histórico) */
 .seletor { display: inline-flex; border: 1px solid var(--linha-forte); border-radius: var(--raio-p); overflow: hidden; background: var(--elevada); }
@@ -1126,7 +1126,7 @@ button.hon-total__n::after { content: ' ajustar'; font-size: 10px; font-weight: 
 @media (max-width: 640px) { .orc-emitir { flex-wrap: wrap; } .orc-emitir__estado { flex-basis: 100%; } .orc-emitir__salvo { display: none; } }
 .aviso--ok { background: var(--ok-fundo); color: var(--ok); }
 
-/* ---- Gestor › Cláusulas do contrato (0027, 21/11) ---- */
+/* ---- Gestor › Cláusulas do contrato (0027) ---- */
 .ct-secao { border-radius: var(--raio); background: color-mix(in srgb, var(--odisse-nevoa, #E6E8EB) 45%, #fff); margin-bottom: 8px; }
 .ct-secao__cab { all: unset; box-sizing: border-box; width: 100%; cursor: pointer; display: flex; align-items: center; gap: 10px; padding: 10px 14px;
   border-radius: var(--raio); background: var(--nevoa); transition: background .15s; }
@@ -1168,7 +1168,7 @@ button.hon-total__n::after { content: ' ajustar'; font-size: 10px; font-weight: 
 }
 
 /* ==========================================================================
-   Dentro da casca do Universo (24/11/2026: o vendas mora em universo.odisse.com.br/vendas/)
+   Dentro da casca do Universo (o vendas mora em universo.odisse.com.br/vendas/)
    O painel da casca já dá a margem e a largura; as cores do vendas passam a valer os tons da base/v2;
    sem linha entre o título e o conteúdo (padrão novo).
    ========================================================================== */

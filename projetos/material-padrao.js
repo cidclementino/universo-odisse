@@ -1,5 +1,5 @@
 // ==========================================================================
-// Padrão de material — as duas vistas de um mesmo padrão (Cid, 20/11/2026):
+// Padrão de material — as duas vistas de um mesmo padrão:
 //   * FORMULÁRIO digital, em Blocos (é o que se preenche no cartão do projeto, no dia a dia);
 //   * FOLHA (o PDF), montada pelo montador da Marca: vazia por padrão, ou com o que foi preenchido.
 // Usado pelo editor do PGT (pgt-materiais.js) e, depois, pelo cartão do Escopo. Sem dependências da página.

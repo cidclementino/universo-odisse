@@ -1,4 +1,4 @@
-// Biblioteca › Estrutura de pastas (Cid, 19/11): a norma de cada estrutura de pastas do Drive (template de
+// Biblioteca › Estrutura de pastas: a norma de cada estrutura de pastas do Drive (template de
 // projeto, [Imagem], [Administração]) e o retrato do Drive tirado num dia, para conferir uma contra a outra.
 //
 // Os repositórios são públicos e há nomes de clientes nas pastas: o arquivo fica no R2 privado

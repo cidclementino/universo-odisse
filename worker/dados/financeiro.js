@@ -1,4 +1,4 @@
-// Financeiro › Despesas fixas (0025; Cid, 20/11). Primeira parte do Financeiro, seção própria do menu principal.
+// Financeiro › Despesas fixas (0025). Primeira parte do Financeiro, seção própria do menu principal.
 //
 //   GET  financeiro/despesas        -> { hoje, mes, cotacao, despesas, categorias } numa leitura só
 //                                      (cada despesa com os seus valores ao longo do tempo)
@@ -6,7 +6,7 @@
 //   POST financeiro/despesas/lote { itens: [{ nome, valor, dia, … }] }  -> várias de uma vez (colar de uma planilha)
 //   POST / PATCH / arquivar / restaurar: rotas comuns (despesas-fixas).
 //
-// Regras (Cid, 20/11):
+// Regras:
 //   * cadastro o mais rápido possível: nome, valor e dia bastam; mensal e em reais vêm prontos;
 //   * a moeda pode ser dólar: o valor fica em US$; nas somas da página vira real pela cotação do dia, com *;
 //   * mudou o valor (ou a moeda), o antigo fica guardado em despesas_fixas_valores, com o mês desde quando vale;

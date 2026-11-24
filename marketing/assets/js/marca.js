@@ -5,7 +5,7 @@
 const URL_MARCA = 'https://marca.odisse.com.br/odisse.json';
 const CHAVE_CACHE = 'universo-marca';
 
-// Reserva: cópia do odisse.json (11/11/2026), só com o que os cards usam.
+// Reserva: cópia do odisse.json, só com o que os cards usam.
 const RESERVA = {
   contato: { email: 'contato@odisse.com.br', telefone: '+55 83 99122-3088' },
   sites: {

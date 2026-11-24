@@ -6,7 +6,7 @@ export const URL_PADRAO = (() => {
   try { return localStorage.getItem('universo-api') || 'https://universo-odisse.reservaprojectbasework.workers.dev'; } catch { return 'https://universo-odisse.reservaprojectbasework.workers.dev'; }
 })();
 
-// Desde 24/11/2026 o Marketing mora no Universo (universo.odisse.com.br/marketing/) e a senha é a do Universo
+// O Marketing mora no Universo (universo.odisse.com.br/marketing/) e a senha é a do Universo
 // (localStorage 'universo:senha', a mesma do Worker). Aqui fica só o endereço da API, se alguém o trocou.
 const CHAVE_SENHA = 'universo:senha';
 const lerSenha = () => { try { return localStorage.getItem(CHAVE_SENHA) || ''; } catch { return ''; } };

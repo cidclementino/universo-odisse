@@ -1,4 +1,4 @@
-// Início do Universo — o panorama do dia numa leitura só (Cid, 19/11).
+// Início do Universo — o panorama do dia numa leitura só.
 //
 //   GET  /api/inicio            -> { hoje, em, credenciais, radar, publicacoes, balanco }
 // Desde 19/11 (Cid) a Início traz só ações: as métricas de canal (Instagram e site de ontem) foram para a
@@ -11,7 +11,7 @@
 //                                              que entraram hoje (primeira coleta, Brasília)
 //   marketing   (MARKETING → universo-odisse)  resumo(hoje): publicações de hoje e atrasadas
 //   balanco     (R2, kpis/ultimo.json)         último balanço mensal, nos 10 dias seguintes ao fechamento
-//   credenciais (D1)                           documentos vencidos e não substituídos (Cid, 19/11): o aviso
+//   credenciais (D1)                           documentos vencidos e não substituídos: o aviso
 //                                              fica até a substituição
 // Desde 24/11 (Cid: Início v3, uma coluna, lista "Hoje" e quatro números), também:
 //   propostas   (D1)   emitidas e ainda sem resposta (enviadas, sem contrato, oportunidade em aberto), com os dias desde

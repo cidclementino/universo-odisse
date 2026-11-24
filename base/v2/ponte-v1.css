@@ -1,5 +1,5 @@
 /*
-  Universo — ponte v1 → v2 (Cid, 24/11/2026).
+  Universo — ponte v1 → v2.
 
   Enquanto uma página ainda está no desenho anterior (classes .u-* da base/v1 e as próprias), ela aparece dentro da
   casca v2 com a cara do padrão novo: as variáveis da v1 passam a valer os tons da v2 e as peças comuns da v1 (botão,
@@ -32,7 +32,7 @@
 .ui-painel .u-rotulo { font-size: 11px; font-weight: 600; letter-spacing: .05em; color: var(--ui-texto-2); }
 .ui-painel .u-trilha { font-size: 11px; letter-spacing: .06em; color: var(--ui-texto-3); }
 
-/* botões: ação principal em grafite; o ocre fica como acento (v3, 23/11) */
+/* botões: ação principal em grafite; o ocre fica como acento */
 .ui-painel .u-botao, .u-gaveta .u-botao { min-height: 30px; padding: 0 12px; border-radius: var(--ui-raio-p); border: 1px solid #E1E1DC; background: #FFFFFF;
   font-size: 12.5px; font-weight: 600; color: var(--ui-texto); box-sizing: border-box; }
 .ui-painel .u-botao:hover, .u-gaveta .u-botao:hover { border-color: #8A939C; }

@@ -1,4 +1,4 @@
-// Regra da base/v2 (Cid, 24/11): as páginas não redesenham as peças `ui-*` no próprio CSS. Variação é opção do
+// Regra da base/v2: as páginas não redesenham as peças `ui-*` no próprio CSS. Variação é opção do
 // componente (base/v2/componentes.js); assim, mexer no padrão mexe em todas as páginas. Este teste barra o deploy
 // se algum CSS fora da base/v2 tiver uma regra cujo alvo final seja uma classe `ui-`.
 // Rodar: node --no-warnings worker/testes/v2-sem-sobrescrita.test.mjs

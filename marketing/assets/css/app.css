@@ -25,7 +25,7 @@
 html, body { margin: 0; }
 body { -webkit-font-smoothing: antialiased; }
 
-/* ---- Casca do Universo (desde 24/11/2026 o Marketing mora em universo.odisse.com.br/marketing/) ----------
+/* ---- Casca do Universo (o Marketing mora em universo.odisse.com.br/marketing/) ----------
    O contêiner da ferramenta faz o papel que era do <body>: ocupa o painel inteiro (sem a margem do painel) e
    divide a altura em Abas + vista (+ barra da publicação no editor); cada vista rola por dentro. */
 .ferramenta-marketing {

@@ -1,193 +1,188 @@
-# Dados do Universo — decisões e porquês
+# Dados do Universo — como é e por quê
 
-Este documento registra **por que** a estrutura de dados é como é, no espírito do `PRICING.md` (vendas) e do `RADAR.md` (Radar). O desenho completo, tabela por tabela, está no doc "Universo — estrutura geral de dados" do projeto (v1.4, 11/11/2026). As migrações ficam em `dados/migracoes/` e são o contrato entre as ferramentas.
+Retrato da estrutura de dados **como ela é hoje**, por assunto. O histórico (quando e em que ordem cada coisa entrou)
+fica no git e nas migrações (`dados/migracoes/`, o contrato entre as ferramentas). O desenho tabela por tabela está no
+doc "dados" do projeto.
 
 ## Onde cada coisa mora
 
 | O quê | Onde | Por quê |
 |---|---|---|
-| Registros e vínculos | D1 `universo` (um banco só) | As ligações cruzam ferramentas (cotação ↔ projeto ↔ cliente ↔ publicação) e são editadas de qualquer lado. O D1 não cruza dados entre bancos; vários bancos virariam sincronização. |
-| Arquivos | R2 privado `universo-arquivos`, chave `arq/<id>[-m\|-s]` | O caminho não diz a quem o arquivo pertence: reatrelar uma cotação a outro projeto não move nada. |
+| Registros e vínculos | D1 `universo` (um banco só) | As ligações cruzam ferramentas (proposta ↔ projeto ↔ cliente ↔ publicação) e são editadas de qualquer lado. O D1 não cruza bancos; vários bancos virariam sincronização. |
+| Arquivos | R2 privado `universo-arquivos`, chave `arq/<id>[-m\|-s]` | O caminho não diz a quem o arquivo pertence: reatrelar não move nada. |
 | Cópias do banco | R2 privado `universo-copias`, `d1/AAAA-MM-DD.sql.gz` | Os repositórios são públicos: cópia nunca vai para o git. |
 | Métricas coletadas, sessões, cache | KV | Rápido e descartável. |
-| Tabelas normativas (CUB, tipologias, normas) | git, versionadas, nas ferramentas | Públicas, mudam por versão; a proposta registra qual versão usou. |
+| Tabelas normativas (CUB, normas) | git, versionadas | Públicas, mudam por versão; a proposta registra qual versão usou. |
 
 ## Porta única
 
 O Worker `universo-hub` é a única porta do D1 e do R2 (`/api/v1`). Validação, permissões e histórico ficam num lugar só.
 
-- O hub, pelo navegador, entra com a senha da equipe (`UNIVERSO_SENHA`).
-- Rotinas do GitHub Actions entram com um token de máquina (`MAQUINA_TOKEN`), separado de senha de pessoa (padrão do `COLLECT_SECRET` do Radar).
-- As outras ferramentas falam Worker a Worker, por service binding com ponto de entrada nomeado (`Vendas`, `Projetos`, `Fornecedores`, `Marketing`). Esses pontos de entrada não são acessíveis pela internet, então não precisam de senha; cada um tem as permissões da sua ferramenta (`worker/dados/esquema.js`).
+- As telas (todas em universo.odisse.com.br) entram com a senha da equipe (`UNIVERSO_SENHA`), a mesma em todos os Workers.
+- Rotinas do GitHub Actions entram com um token de máquina (`MAQUINA_TOKEN`), separado de senha de pessoa.
+- Os Workers das ferramentas falam com o hub por service binding com ponto de entrada nomeado (`Vendas`, `Projetos`,
+  `Radar`, `Site`, `Marketing`, `Fornecedores`). Esses pontos não são acessíveis pela internet; cada um tem as
+  permissões da sua ferramenta (`worker/dados/esquema.js`, `editaveis_por`, `linhas_restritas`).
 
-Compromissos aceitos: o hub é ponto único de falha para os dados comuns; mudança de estrutura passa sempre por este repositório; rotas versionadas (`/api/v1`).
+Compromissos aceitos: o hub é ponto único de falha para os dados comuns; mudança de estrutura passa sempre por este
+repositório; rotas versionadas.
 
 ## Convenções
 
-- **id = prefixo do tipo + ULID** (`org_01…`). Único no Universo inteiro; o prefixo diz a tabela, o que permite referências "a qualquer tipo" (vínculos, sínteses, interações) e a rota `registros/:id`.
-- **Nada se apaga**: `arquivado_em`. Regras de "único" valem só entre ativos (índices únicos parciais), senão um registro arquivado impediria recriar.
-- **`versao` em todo registro**: salvar com versão velha dá 409 em vez de sobrescrever o que outra pessoa salvou.
-- **Ausência = NULL**, nunca um valor padrão que pareça dado (padrão do Radar).
-- **Dinheiro em centavos** (inteiro), **dias em AAAA-MM-DD no fuso de Brasília**, instantes em UTC.
+- **id = prefixo do tipo + ULID** (`org_01…`): único no Universo inteiro; o prefixo diz a tabela, o que permite
+  referências "a qualquer tipo" (vínculos, interações) e a rota `registros/:id`. Sementes usam ids legíveis (`srv_ne`).
+- **Nada se apaga**: `arquivado_em`. "Único" vale só entre ativos (índices únicos parciais).
+- **`versao` em todo registro**: salvar com versão velha dá 409 em vez de sobrescrever.
+- **Ausência = NULL**, nunca um valor padrão que pareça dado.
+- **Dinheiro em centavos**, **dias em AAAA-MM-DD no fuso de Brasília**, instantes em UTC.
 - **Relação que define o registro = coluna** com chave estrangeira; **relação que só acrescenta = `vinculos`**.
+- **Sequências no D1** (propostas, contratos, projetos, documentos), incrementadas dentro do banco.
+- **Códigos com o ano antes do número**: projeto `OA-AAAA-NNN` (recomeça a cada ano), proposta `PC-AAAA-NNNN` e
+  contrato `CT-AAAA-NNNN` (número único que não recomeça). Códigos já impressos em PDF ficam como saíram.
 
 ## Escolhas que não são óbvias
 
-- **Sem FTS5.** O D1 aceita busca de texto (FTS5), mas não exporta bancos que tenham tabelas virtuais, e a cópia semanal depende da exportação. A busca usa a tabela `busca` (texto sem acento, em minúsculas, `LIKE` por termo). Para o volume do Odisse, é rápido; se um dia não for, criar o FTS5 e trocar a cópia por outra estratégia.
-- **Histórico × versões × revisões.** Histórico = auditoria campo a campo (quem mudou o quê). Versões = retrato completo restaurável, só para conteúdo rico (sínteses; depois publicações e propostas), agrupando edições de 10 minutos e guardando 10 por registro (padrão do painel do site). Revisões = decisão humana pendente (padrão de dedup do Radar).
-- **Duplicados de contatos.** Ao criar organização ou pessoa, cada campo (nome normalizado, CNPJ, e-mail, telefone) é classificado em bate / ausente / conflito em relação aos existentes. Algo bate e nada conflita → 409 `possivel_duplicado` (a tela oferece usar o existente; para criar mesmo assim, reenviar com `confirmar_novo: true`). Algo bate mas há conflito → cria e abre uma revisão.
-- **Dados sensíveis** (`pessoas_sensiveis`: CPF, RG, nascimento, endereço residencial) ficam numa tabela à parte, só para o vendas, lidos um a um. O histórico registra só o nome dos campos mudados, nunca o valor, e cada leitura vira um registro `ler_sensivel`. Nunca entram na busca.
-- **Arquivos imutáveis.** Cada variante (`g` 2400 px, `m` 1200 px, `s` 960 px — mesmo sistema do odisse.com.br) sobe uma vez só; trocar = arquivo novo. É isso que permite cache de um ano no navegador. Mídia repetida (mesmo sha256) não entra duas vezes no acervo.
-- **Autoria**: por ora só os dois sócios usam; `criado_por`/`atualizado_por`/`historico.por` gravam a ferramenta. O seletor de pessoa entra com o login único.
-- **Sequências** (números de proposta, contrato, projeto) no D1, incrementadas dentro do banco. No KV, duas propostas simultâneas podiam receber o mesmo número.
+- **Sem FTS5**: o D1 não exporta bancos com tabelas virtuais, e a cópia depende da exportação. A busca usa a tabela
+  `busca` (texto sem acento, `LIKE` por termo).
+- **Histórico × versões × revisões**: histórico = auditoria campo a campo; versões = retrato restaurável de conteúdo
+  rico (10 por registro, edições de 10 min agrupadas); revisões = decisão humana pendente (duplicados).
+- **Duplicados de contatos**: cada campo (nome normalizado, CNPJ, e-mail, telefone) é classificado em bate / ausente /
+  conflito. Bate sem conflito → 409 `possivel_duplicado` (a tela oferece usar o existente; `confirmar_novo: true`
+  cria mesmo assim). Bate com conflito → cria e abre uma revisão. "É o mesmo" junta os dois: o escolhido fica, recebe
+  tudo o que apontava para o outro, e o outro é arquivado.
+- **Dados sensíveis** (`pessoas_sensiveis`: CPF, RG, nascimento, endereço residencial, qualificação para contrato)
+  numa tabela à parte, lida um a um, só pelo vendas e pelo hub. O histórico registra o nome dos campos, nunca o valor;
+  cada leitura vira `ler_sensivel`. Nunca entram na busca.
+- **Arquivos imutáveis**: cada variante (`g` 2400 px, `m` 1200 px, `s` 960 px) sobe uma vez; trocar = arquivo novo
+  (cache de um ano). Mesmo sha256 não entra duas vezes. Arquivo `protegido` (assinaturas) não sai pela rota comum.
+- **Autoria**: só os sócios usam, com a senha da equipe; `criado_por`/`historico.por` gravam a ferramenta.
+- **O SQLite não muda CHECK nem tira NOT NULL** de coluna existente: quando isso é preciso, a migração refaz a tabela
+  com os mesmos dados.
 
-## Comercial (migração 0002, casa: vendas.odisse)
+## Comercial (casa: /vendas/)
 
-- **Oportunidade é o centro do funil**; proposta e interação penduram nela. O cliente titular é organização ou pessoa (`cliente_id`); a pessoa com quem se fala fica em `contato_pessoa_id`. `etapa_desde` e `fechada_em` são gravados pela API quando a etapa muda (dá para medir tempo por etapa sem ler o histórico).
-- **Numeração das propostas continua do vendas antigo.** A sequência `propostas` só passa a existir quando a migração (ou `POST propostas/numeracao`) a ajusta ao último número do KV; até lá, criar proposta nova dá 409 `numeracao_nao_ajustada`. Sem essa trava, o Universo começaria do 1 e repetiria números que já foram para clientes. Números nunca se repetem, nem entre arquivadas (índice único sem filtro).
-- **Revisão = mesmo número, revisão seguinte** (`PC-0007-2026-R1`), criada com `revisao_de`. As revisões anteriores ainda em rascunho ou enviadas passam a "substituída" no mesmo lote.
-- **PDF congelado.** O PDF que vai para o cliente é guardado no R2 no momento em que é gerado (`arquivo_pdf_id`, categoria `pdf_proposta`, dono = a proposta). Daí em diante título, data, valor, validade, cálculo e referências travam (409 `proposta_congelada`), e restaurar versão também é recusado: mudou, é revisão. Remontar o PDF a partir dos dados continua possível, mas o congelado é o documento de valor.
-- **Referências do cálculo**: cada proposta grava a região e a competência do CUB e a impressão digital (SHA-256, 12 caracteres) de cada tabela de `data/` do vendas. As propostas importadas do KV dizem explicitamente que essas versões não foram registradas na época, e o PDF delas é remontado com o modelo atual (marcado assim na legenda do arquivo).
-- **Importação** (`importada_de: 'kv:<código>'`, só vendas e máquina): mantém número e código originais e leva a sequência até eles. Índice único em `importada_de` torna a migração segura para rodar de novo.
-- **Endereço do orçamento é do imóvel**, não do cliente: fica no retrato do cálculo (e irá para `projetos_local`), nunca em `pessoas_sensiveis`. Do orçamento, só o CPF vai para os dados sensíveis, e só se ainda não houver.
-- **O vendas chega ao Universo pelo próprio Worker**: o navegador chama `/u/v1/…` no Worker do vendas (com a senha do vendas), que repassa pelo service binding `Vendas`. A senha do hub nunca vai para o vendas.
-- `GET comercial/painel` monta a tela do funil numa chamada só (oportunidades abertas e fechadas nos últimos 90 dias, com nome do cliente, contato, última proposta e a interação mais recente). A "próxima ação" é a da interação mais recente: registrar uma interação sem próxima ação limpa a pendência.
-- Códigos de origem no texto pronto do WhatsApp: `[LP-<página>]` (landing pages, projetos-odisse/analytics.js) e `[Herma <lote>]` (herma-odisse). O funil reconhece o código ao colar a mensagem.
+- **Oportunidade é o centro do funil**; proposta e interação penduram nela. Titular = organização ou pessoa
+  (`cliente_id`); quem fala com o estúdio = `contato_pessoa_id`. `etapa_desde` e `fechada_em` são gravados pela API.
+- **Co-clientes** (casal, sócios) em `vinculos` (papel `cliente`); "tornar titular" troca o `cliente_id` e inverte os
+  vínculos. Oportunidades de um contato = titular, co-cliente ou pessoa de contato.
+- **Atuações** (pessoa ↔ organização): "encerrar" grava `ate`; "tirar" arquiva. Papel `corretor` para o Radar.
+- **Próxima ação** = a da interação mais recente; interação sem próxima ação limpa a pendência.
+- **Revisão de proposta** = mesmo número, revisão seguinte (`-R1`); as anteriores abertas passam a "substituída".
+- **PDF congelado**: o PDF enviado fica no R2 (`arquivo_pdf_id`); daí em diante título, valor, cálculo e referências
+  travam (409 `proposta_congelada`). Mudou, é revisão.
+- **Referências do cálculo**: cada proposta grava os números dos retratos publicados (Bases, PGT, Honorários) e a
+  região e competência do CUB. As importadas do vendas antigo dizem que essas versões não foram registradas.
+- **Simulação** (`propostas.simulacao = 1`): orçamento sem cliente nem oportunidade (CHECK no banco); consome número
+  como qualquer proposta; não entra no funil; o PDF sai marcado "Simulação".
+- **Endereço do orçamento é do imóvel** (vai para `projetos_local`), nunca dos dados sensíveis.
+- **Contrato**: 15 seções fixas; dados vêm das outras ferramentas na hora de emitir (`vendas/contrato-minuta.js`),
+  cláusulas dos eventos do PGT ficam em `pgt_eventos.clausula`, cláusulas gerais e despesas reembolsáveis no Gestor de
+  cláusulas (`clausulas`, grupos `geral` e `despesa`). Evento marcado sem texto = cláusula a redigir.
+- Códigos de origem no texto do WhatsApp: `[LP-<página>]` e `[Herma <lote>]`; o funil reconhece ao colar.
 
-## Simulações e duplicados (migração 0003)
+## Radar (casa: /radar/, Worker radar-odisse)
 
-- **Simulação** (`propostas.simulacao = 1`): orçamento sem cliente, para testar a ferramenta ou estimar o custo de um serviço. Consome número da sequência como qualquer proposta (decisão do Cid: testes também contam na numeração), não tem oportunidade (CHECK no banco: simulação ⇔ sem oportunidade), não entra no funil, e o PDF sai com "Simulação de Honorários", um aviso em caixa na primeira página e "SIMULAÇÃO · NÃO É PROPOSTA COMERCIAL" no cabeçalho de todas. Revisão de simulação continua simulação; simulação reaberta como proposta de verdade ganha número próprio. A 0003 refez `propostas` (e `contratos`, que aponta para ela) porque o SQLite não tira NOT NULL de coluna existente.
-- **Duplicados**: `POST revisoes/:id/resolver`. "São diferentes" só registra. "É o mesmo": o cadastro escolhido fica, é completado com o que só o outro tinha (observações somadas), recebe tudo que apontava para o outro (oportunidades, interações, atuações, equipe, vínculos, documentos e, para pessoas, os dados sensíveis que faltavam) e o outro é arquivado com a nota "Juntado a …". Pendências sobre o mesmo par seguem a mesma decisão; pendências que passam a repetir um par já perguntado são arquivadas. Tela: Contatos → "Possíveis duplicados" (no vendas).
-- O ano do código (`PC-NNNN-AAAA`) vem da data da proposta; o número é uma sequência única que não recomeça a cada ano (como no vendas antigo).
+- O Radar leva corretores aos Contatos (papel `corretor`, imobiliária como organização). **Uma oportunidade por
+  terreno, com o corretor como titular** (`origem = radar`); quando rende um cliente, abre-se a oportunidade do cliente,
+  ligada à do corretor por `vinculos` papel `derivada_de`.
+- O ponto `Radar` cria e lê pessoas, organizações, atuações e oportunidades; não vê propostas, contratos, interações
+  nem dados sensíveis.
 
-## Contatos e co-clientes (sem migração nova, nov/2026)
+## Projetos, equipe e horas (casa: /projetos/)
 
-- **Tela de Contatos** (vendas.odisse.com.br/contatos.html) lê duas rotas de leitura juntada, sem SQL novo no banco:
-  - `GET comercial/contatos[?arquivados=1]`: pessoas e organizações, cada uma com as ligações ativas (atuações sem `ate`) e a contagem de oportunidades (total e em aberto). O próprio Odisse (`org_odisse`) fica de fora.
-  - `GET comercial/contatos/:id`: ficha com o registro, as atuações (com o nome do outro lado), as oportunidades e as interações (sobre o contato ou com ele).
-  - Permissão: quem lê oportunidades e pessoas (hub, vendas, projetos, máquina). O marketing não vê.
-- **Oportunidades de um contato** = em que ele é titular (`cliente_id`), co-cliente (vínculo `papel = 'cliente'`) ou pessoa de contato (`contato_pessoa_id`). A ficha diz qual.
-- **Co-clientes** (um casal, sócios) usam `vinculos` (de_id = oportunidade, para_id = pessoa ou organização, papel `cliente`), como o desenho previa; não há coluna nova. "Tornar titular" troca o `cliente_id` e inverte os vínculos. O painel do funil devolve `coclientes` (nomes) para o cartão mostrar "Ana Lins + Rafael Lins".
-- **Ligações pessoa ↔ organização** (atuações): "encerrar" grava `ate` (a pessoa saiu; a ligação fica no histórico); "tirar" arquiva (ligação feita por engano).
-- **Dados pessoais** continuam só no vendas, abertos sob pedido na ficha ("Mostrar dados pessoais"), e cada leitura entra no histórico.
+- **Projeto nasce da assinatura do contrato principal**: no mesmo lote, cria o projeto, o escopo, o local do imóvel e os
+  co-clientes, marca a proposta como aceita e a oportunidade como ganha. Índice único em `projetos.contrato_id`.
+  Aditivo aponta para um projeto que existe. Cadastro manual (projetos anteriores ao Universo) aceita o código antigo;
+  a sequência do ano sobe até ele.
+- **Local do imóvel** (`projetos_local`): endereço exato, só vendas e Projetos. Bairro, cidade e UF ficam no projeto.
+- **Horas**: a etapa precisa ser do mesmo projeto (API e gatilho no banco).
+- **Marketing** vê do projeto só o que é público e muda só o `nome_publico`.
+- **Suspensão** do projeto (`projetos.suspensoes`) congela o calendário do escopo.
 
-## Projetos, etapas e horas (migração 0004, casa: ferramenta Projetos)
+## PGT, Serviços e Honorários (casa: /projetos/ e /vendas/)
 
-- **Código AAAA-NNN, recomeçando a cada ano** (decisão do Cid): sequência `projetos-<ano>` em `sequencias`. Os códigos de 2026 já tinham ido até 051 fora do Universo (pastas e contratos), então a 0004 deixa `projetos-2026` em 51 e o primeiro projeto do Universo é 2026-052. Em 2027 a sequência nasce sozinha e começa do 001. O ano é o da assinatura do contrato (ou o do início, no cadastro manual). Códigos nunca se repetem, nem entre arquivados.
-- **Projeto nasce da assinatura do contrato principal**: `contratos` com `situacao = 'assinado'` (na criação ou num PATCH) cria, no mesmo lote, o projeto, as etapas, o local do imóvel e os co-clientes, marca a proposta como aceita e a oportunidade como ganha. Cliente, núcleo e co-clientes vêm da oportunidade; o vendas manda em `projeto` o que só ele sabe ler do cálculo (nomes e semanas das etapas, endereço do imóvel, tipologia, área). Cada comando do lote se guarda pela versão nova do contrato: se outra pessoa salvou antes (409), nada é criado. Índice único em `projetos.contrato_id` impede dois projetos para o mesmo contrato. Aditivo assinado não cria projeto: aponta para um que existe. `projeto_existente` liga o contrato a um projeto já cadastrado à mão.
-- **Cadastro manual** (só a ferramenta Projetos e a máquina): para projetos anteriores ao Universo, com o código que já tinham (`codigo: '2026-031'`); a sequência do ano sobe até ele, então o próximo automático nunca repete um código antigo.
-- **Prazos das etapas** seguem o cronograma da proposta: dias corridos, `semanas × 7`, cada etapa começa no dia em que a anterior termina. `percentual_pagamento` fica nulo por ora: a proposta cobra entrada + parcelas, não por etapa (entra com o financeiro).
-- **Local do imóvel** (`projetos_local`, mesmo id do projeto): endereço exato, só vendas e Projetos. Bairro, cidade e UF ficam no projeto (aparecem em listas e no site). O endereço da etapa 1 do orçamento vai para cá na assinatura.
-- **Horas**: a etapa precisa ser do mesmo projeto, conferido pela API e por gatilho no banco (`horas_etapa_do_projeto_*`). A exportação do D1 leva os gatilhos (conferido).
-- **Equipe**: `POST producao/equipe { nome, email, papel }` usa a pessoa que já existe (algo bate e nada conflita) ou cria a pessoa; a ferramenta Projetos só lê contatos, então essa é a única pessoa que ela cria.
-- **Marketing** vê do projeto só o que é público (código, nome, nome público, núcleo, tipologia, área, bairro, cidade, situação, datas, publicável) e só muda o `nome_publico` (`editaveis_por` no esquema).
-- **Telas por leitura juntada** (`producao.js`): `producao/painel` (projetos com cliente, co-clientes, etapa atual, horas totais e dos últimos 30 dias, e a equipe), `producao/projetos/:id` (ficha completa) e `producao/horas?de=&ate=`. Exigem leitura de projetos e do comercial (o marketing não vê clientes). O painel do funil passou a devolver o `projeto` de cada oportunidade.
+- **Cadeia Serviços → PGT → Escopo**: os Serviços dizem o que forma o preço (categoria e uso da tipologia, CUB, fator do
+  CAU, índice de complexidade); o PGT diz o que se faz (fases › etapas › entregas e eventos, materiais); o Escopo é a
+  cópia contratada para um projeto. Vocabulário da NBR 16636 (fase › etapa), com sigla e nome do Odisse e a
+  correspondência na NBR.
+- **Serviço em fluxo ou em ilha**: em fluxo, entra no plano comum e marca P/O/— em cada cartão; em ilha, tem plano
+  próprio (`pgt_etapas.servico_id`). Trocar a dinâmica não apaga nada. Em fluxo, o serviço pede tipologia.
+- **Índice de complexidade**: padrão por serviço (`ic_padrao`); em fluxo, cada categoria pode ter o seu (`bases_ic`).
+- **Pertinência**: P (vem marcado), O (opcional), sem linha (não se aplica); nos eventos, também S (perpétuo). A
+  pertinência da etapa é calculada das entregas.
+- **Tipologia = uso dentro de uma categoria** (o uso tem CUB e fator do CAU).
+- **Prazo vem das entregas**: duração em turnos (1 turno = 4 h; 1 semana = 10 turnos), pessoas e prazo fixo; a etapa
+  soma as entregas que valem (o grupo que corre junto conta a mais longa) e os eventos com tempo do estúdio.
+- **Eventos** (`pgt_eventos`): tipo, se o cliente e terceiros participam, de quem é o tempo, duração, cláusula.
+  **Decisão** = 2 a 4 resultados, cada um libera cartões suspensos. **Encerramento** = registro único, ativado na
+  última etapa contratada.
+- **Sequência**: entregas e eventos dividem a `ordem` dentro da etapa; `junto_anterior` = corre junto com o anterior.
+  O código do cartão (CE-03) não é gravado: sai da sigla da etapa + posição.
+- **Materiais**: link ou **padrão** (formulário, checklist ou modelo feito no Universo, `pgt_modelos`), ligado a
+  quantos cartões for preciso; mudou o padrão, mudou em todos.
+- **Projetos = estrutura, vendas = custo**: preço dos serviços, pesos das fases, fatores das etapas, entrada e
+  cláusulas formam o retrato `honorarios`, editado só no vendas. O Projetos lê.
+- **Preço por fase e etapa**: cada fase tem peso por serviço (`pgt_fases_servicos`, fases do fluxo somam 100); a etapa
+  tem fator 1 ou 2 e leva fator ÷ soma dos fatores das etapas contratadas da fase. Fase de acréscimo (Obra) vai além
+  dos 100%. **"Só tal fase"**: as fases do fluxo não contratadas antes de uma contratada somam uma lacuna, e uma fração
+  dela (`acrescimo_lacuna`, padrão 0,5) entra como acréscimo. Ilhas têm preço único.
+- **Rascunho × publicado**: as tabelas são o rascunho vivo; publicar grava um retrato numerado em `pgt_publicacoes`
+  (tipos `bases`, `pgt`, `honorarios`), que é o que o vendas lê. "Pendente" compara a assinatura SHA-256 do rascunho
+  com a do último retrato; publicar sem mudança dá 409.
 
-## Bases e Plano Geral de Trabalho (migração 0005, casa: ferramenta Projetos)
+## Escopo do projeto (casa: /projetos/)
 
-- **Cadeia Bases → PGT → Projetos** (decisão do Cid): as **Bases** dizem o que forma o preço (serviço, categoria e uso da tipologia, CUB, fator do CAU, índice de complexidade); o **Plano Geral de Trabalho (PGT)** diz o que se faz (fases, etapas, entregáveis, materiais) e para quais serviços; o **Escopo do Projeto** (migração futura) será a cópia do PGT contratada para um projeto. Desenho completo nos docs `universo-pgt.md` e `universo-pgt-entregaveis.md` do projeto do Claude.
-- **Vocabulário da NBR 16636**: fase › etapa (não "subetapa"). As etapas têm sigla e nome do Odisse (Concepção Esquemática, CE) e guardam a correspondência na NBR (Estudo Preliminar, EP-ARQ) para o (i) das telas.
-- **Arquitetura e interiores usam as mesmas etapas**; o que muda são os entregáveis, filtrados pela pertinência ao serviço. Por isso os entregáveis são um **pool comum** com pertinência por serviço (P = vem marcado, O = opcional, sem linha = não se aplica) e restrição opcional por **categoria** de tipologia (sem linha = todas).
-- **Tipologia = uso dentro de uma categoria** (Hotéis de luxo, em Hospedagem), não só o grupo (Comercial): é o uso que tem CUB, fator de adequação e categoria do fator percentual do CAU. As quatro "Nova Edificação" do vendas viraram um serviço só; a diferença foi para a tipologia. O preset do índice de complexidade passou para a categoria; o serviço só ajusta alguns critérios (`ic_ajustes`).
-- **Pesos das etapas ficam na matriz etapa × serviço**, não na etapa: interiores e arquitetura repartem o honorário de jeitos diferentes nas mesmas etapas (pesos copiados de `data/pesos-etapas.json`). Etapas novas (LV, EV, AS, AB) começam sem peso.
-- **Etapas-ilha** (fase Ilhas: Consultoria Remota e Laudos): fora do encadeamento de prazos e das parcelas.
-- **Rascunho × publicado**: as tabelas são o rascunho vivo, editado nas páginas Bases e PGT. Publicar grava um retrato completo e numerado em `pgt_publicacoes`; é o retrato que o vendas vai ler (`GET publicacoes/ultima?tipo=…`) e a proposta vai registrar o número usado (substitui as impressões digitais dos `data/*.json`). "Pendente" compara a assinatura SHA-256 do rascunho com a do último retrato; publicar sem mudança dá 409. O retrato do PGT leva o número das Bases publicadas na hora.
-- **Código do entregável (CE-03) não é gravado**: sai da sigla da etapa + posição. Reordenar ou mudar de etapa muda o código; o id não muda, e é o id que as propostas vão guardar.
-- **Matrizes sem colunas comuns** (`pgt_etapas_servicos`, `pgt_entregaveis_servicos`, `pgt_entregaveis_categorias`): são ligações, editadas por rotas próprias (`pgt/etapas-servicos`, `pgt/entregaveis-servicos` em massa, `pgt/entregaveis-categorias`). Cada mudança entra no histórico do entregável ou da etapa (`servico:<id>`: antes/depois).
-- **Sementes com ids legíveis** (srv_ne, tca_hospedagem, pet_ce, pen_ce_03), geradas a partir dos `data/*.json` do vendas e do pool aprovado em 12/11/2026. Registros criados depois usam ULID.
-- **Materiais**: nesta migração só estrutura e link; envio de arquivos e criação de formulários e checklists vêm depois.
-- **Códigos com o ano antes do número** (decisão do Cid, 12/11): projeto `OA-AAAA-NNN`, proposta `PC-AAAA-NNNN`, contrato `CT-AAAA-NNNN`. A 0005 renomeou os projetos que já existiam (`2026-052` → `OA-2026-052`, com histórico e busca), porque o código do projeto é interno (pastas e arquivos). Propostas e contratos já emitidos ficam com o código antigo: ele está impresso no PDF que o cliente recebeu. Revisão de uma proposta antiga continua no formato antigo (mesmo número). O cadastro manual aceita `OA-2026-031` ou `2026-031`.
+- Lista de etapas, entregas e eventos contratados, copiada do PGT publicado, cada cartão com a sua duração.
+- **Calendário calculado**: início + durações em dias úteis, os que correm juntos no mesmo intervalo; nenhum estado
+  gravado no cartão. Fica em dia mudando a duração ou movendo (`folga`: hiato; negativa = paralelo).
+- **Andamento**: cartões da etapa em paralelo (`junto_anterior`, também entre eventos e camadas) ou em sequência;
+  seleção com buracos reorganiza a pilha; `trocar` inverte dois cartões.
+- **Alterações** (`escopo_alteracoes`) guardam tudo o que muda: natureza `aditivo`, `prazo` ou `extra`. Base dos aditivos.
+- **Materiais do cartão**: os do PGT vêm sozinhos; `escopo_cartoes.materiais` acrescenta ou tira; material novo criado
+  no cartão entra no banco do PGT. Mexer em materiais não entra nas Alterações. (A confirmar com o Cid.)
+- O calendário tem uma cópia no hub (`worker/dados/calendario.js`) para a Início: mudou em `projetos/escopo.js`, mude lá.
 
-## Honorários (migração 0006, casa: vendas)
+## Estúdio: Empresa, Equipe, Credenciais, Documentos (casa: hub)
 
-- **Projetos = estrutura, vendas = custo** (decisão do Cid, 12/11): preço dos serviços (`modificador`, `com_preco`, `preco_por_etapa`), parcela de cada fase, pesos das etapas na matriz etapa × serviço e parcela de entrada saíram das páginas Bases e PGT e dos retratos `bases` e `pgt`. Continuam nas mesmas tabelas, mas formam o retrato **`honorarios`**, editado e publicado pela página Honorários do vendas. O CUB vigente e a base de honorários (CUB × fator) também só aparecem no vendas; nas Bases fica o código do CUB de cada uso.
-- **Permissões**: o vendas muda só os campos de custo (`editaveis_por` em `bases_servicos` e `pgt_fases`) e os pesos (`POST honorarios/pesos`, só onde a etapa vale para o serviço); o Projetos lê os honorários e não os edita. Alternar a pertinência no PGT mantém o peso que havia (`pgt/etapas-servicos` só grava o peso se ele vier no pedido).
-- O retrato dos honorários leva os números das Bases e do PGT publicados na hora (`bases_numero`, `pgt_numero`), fora da assinatura. A proposta vai registrar as três versões.
-- A 0006 refaz `pgt_publicacoes` para aceitar o tipo `honorarios` (o CHECK do SQLite não se altera), mantendo os retratos já publicados. Como os retratos de Bases e PGT mudaram de forma, as duas páginas aparecem "pendentes" uma vez depois desta mudança.
+- **Empresa** (`emp_odisse`, um registro): identidade jurídica, contato, endereço, textos de apresentação, dados
+  bancários, responsável técnico (aponta para a Equipe). Ao salvar, o hub copia a parte pública para o `odisse.json` da
+  Marca, que o site lê.
+- **Equipe**, cadastro comum que todas as ferramentas leem. **Sócio é estado, cargo é opção**: `socio` decide custo por
+  hora e representação legal; cargo e título vêm das listas `cargos` e `titulos` (forma masculina, feminina, inglesa),
+  e o `tratamento` escolhe a forma. **Quem assina o quê** (`assina`): RRT exige registro no conselho (com UF:
+  "CAU/PB A123456-7"); contrato exige sócio. `papel` só para leitura antiga.
+- **Assinatura manuscrita**: PNG no R2, arquivo `protegido`, só por `equipe/:id/assinatura` num uso permitido, sem
+  cache, cada leitura no histórico; entra só na emissão.
+- **Site**: o ponto `Site` lê `equipe/publica` e as fotos; mudou a equipe, o hub pede a regeneração das páginas.
+- **Credenciais** (`credenciais`): cada documento mora com o dono (empresa, pessoa da equipe, projeto). Catálogo de
+  tipos no código (`worker/dados/credenciais.js`), sem CHECK. Vencido gera aviso na Início até ser substituído
+  (`substitui_id`, uma vez só). Senhas de portais nunca entram.
+- **Documentos** (carta, ofício, declaração, memorando): o banco guarda só o conteúdo; a folha é desenhada pela Marca.
+  Ofício é opção da carta. Numeração por sigla e ano (`CA-2026-0001`). Só a marca-mãe no timbrado. Folhas em branco
+  não viram registro.
+- **Textos dos Canais** (`ferramentas_textos`): descrição editada por cima do `ferramentas.json`.
 
-## Preço por fase e etapa (migração 0015, casa: vendas)
+## Acervo de imagens (casa: hub)
 
-- **Decisão do Cid (18/11)**: a % de cada etapa é **fórmula**, não peso fixo. Cada **fase** tem um peso por serviço (% do honorário do projeto, `pgt_fases_servicos`); as fases do fluxo somam 100. Dentro da fase, a etapa tem **fator 1 ou 2** (`pgt_etapas_servicos.peso`, nulo = 1) e leva fator ÷ soma dos fatores das etapas **contratadas** da fase: a não contratada redistribui o valor da fase entre as que ficaram. A conta é feita no vendas (proposta) e mostrada na página Honorários (% na fase · % no projeto).
-- **Fase de acréscimo** (`pgt_fases.acrescimo`, Obra): o peso dela vai além dos 100% e é escolhido à parte; o vendas liga ou desliga a marca. Fase-ilha não tem peso (os serviços dela têm preço único).
-- Peso por serviço (e não global) porque os serviços repartem diferente (Interiores sem a fase Legal, por exemplo).
-- **"Só tal fase" (0016)**: volta a regra da lacuna do PRICING.md do vendas, agora por fase: as fases do fluxo não contratadas que vêm antes de uma contratada somam a lacuna, e uma fração dela (`bases_parametros.acrescimo_lacuna`, padrão 0,5, editável em Honorários) entra como acréscimo. NE 40 · 20 · 40: só Legal 40%, Legal + Executiva 80%, Conceitual + Executiva 90%. Obra (acréscimo) e ilhas fora da conta.
-- A 0015 converte os pesos antigos: peso da fase = soma dos pesos antigos das etapas; fator = peso antigo ÷ menor peso da fase, arredondado, 1 a 2 (conta sobre uma cópia, para o menor não mudar no meio). `pgt_fases.parcela` fica sem uso: o pagamento de referência é a entrada + o peso das fases contratadas. O vendas lê também retratos publicados antes da 0015, convertendo do mesmo jeito, até a próxima publicação.
+- **Um banco só**: imagens de projetos, objetos e coleções; `galeria` liga cada imagem a um ou mais alvos. Mídias com
+  dono (fotos da equipe, PDFs) ficam fora da lista.
+- **`publica`**, ligado à mão: toda imagem nasce restrita e só fica pública com `direitos = 'livre'` (API e gatilho).
+- O marketing e o site só enxergam as públicas. O site serve `/img/a-<arq>` pedindo ao hub (1 dia na borda).
+- Imagem enviada pelo editor do site entra pública e ligada ao projeto. (A confirmar com o Cid.)
 
-## Eventos, sequência da etapa e Encerramento (migração 0008, casa: Projetos)
+## Financeiro (casa: hub)
 
-- **Eventos** (`pgt_eventos`, `pev_`): marcos de controle do fluxo, ao lado das entregas. Têm tipo, se o cliente participa (`cliente`, base da futura plataforma do cliente), de quem é o tempo (`estudio` conta no prazo; `cliente`, `terceiros` e `pontual` não), duração, quantidade incluída e uma **cláusula** opcional. Não vão para o contrato como itens: o vendas vai ofertar a cláusula conforme a pertinência (P obrigatória e travada, O check disponível, sem marca não ofertável).
-- **4º estado de pertinência, `S` (perpétuo)**: só em eventos (`pgt_eventos_servicos`); vale sempre e não se desmarca. A pertinência da etapa continua vindo **só das entregas** (os eventos não fazem uma etapa valer para um serviço; o Encerramento, perpétuo em tudo, faria todas valerem).
-- **Encerramento**: um registro só (`encerramento = 1`, índice único), com `instancias` (JSON das etapas onde o serviço pode terminar). `etapa_id` é a instância ativa (padrão: PE). Não se arquiva, não muda de tipo, só fica numa instância e sua pertinência não muda por `pgt/eventos-servicos`. No projeto (Escopo, próxima implementação), ativa-se a instância da última etapa contratada.
-- **Sequência**: entregas e eventos dividem a coluna `ordem` dentro da etapa (`POST pgt/sequencia`). Item novo, ou que muda de etapa sem dizer a ordem, vai para o fim da sequência (antes do Encerramento). Desempate: entrega antes de evento, depois a data de criação.
-- **Cluster** = `junto_anterior` na entrega: corre junto com a entrega válida anterior. Guardado como marca na entrega, e não como grupo à parte, para sobreviver a filtros por serviço (cluster com uma só entrega válida vira entrega).
-- **Prazo da etapa** (`prazosDaEtapa` em `pgt.js`, com cópia na tela do PGT): soma das entregas P (cluster conta a mais longa) + duração dos eventos que valem (P ou S) e são tempo do estúdio.
-- **Faixas de prazo por área** (`bases_parametros.faixas_prazo`, no retrato das Bases, `POST bases/faixas-prazo`): estrutura, não custo; o retrato dos honorários passa a levar só os parâmetros de custo conhecidos.
-- A 0008 arquiva seis entregas que viraram eventos (PL-08, AS-01, CR-01, PX-01, PX-02, LR-05) e põe as entregas de cada etapa em 10, 20, 30… para os eventos semeados entrarem antes e depois.
-
-## Decisões e terceiros nos eventos (migração 0009, casa: Projetos)
-
-- **Evento de decisão** (`pgt_eventos.decisao`, JSON): 2 a 4 resultados `{ id, nome, libera: [pen_/pev_…] }`; o primeiro é o caminho esperado. Os cartões citados em `libera` são **relacionados**: ficam suspensos até a decisão e só entram se sair o resultado que os libera; com outro resultado, somem. Um cartão só pode estar num resultado; nem o próprio evento nem o Encerramento entram. Guardado no evento (e não no cartão suspenso) porque é na decisão que se "marcam os relacionados".
-- Upgrade dos eventos que já funcionavam como decisão: CE-M05 e CB-M07 (Aprovada · Segunda rodada → libera a 2ª rodada), PL-M06 (Aprovado · Com exigências → libera o atendimento de exigências), LR-M03 (idem), EV-M03 (Seguir · Ajustar · Parar) e CB-M09 (Premiado · Não premiado), estes dois ainda sem relacionados. A aprovação passou para antes do que ela libera (troca de posição na sequência; os códigos CE-M04/M05 etc. se invertem, os ids não).
-- **Terceiros** (`pgt_eventos.terceiros`): fornecedores, complementares, órgãos, construtora ou júri participam. Com `cliente`, diz o ator na linha do tempo: pontual com o cliente = 1ª linha; com terceiros = 2ª linha; com os dois = os três atores.
-- O prazo da etapa não mudou: um cartão suspenso que vale (P) continua somando, por precaução.
+- **Despesas fixas** (`despesas_fixas`): grupo `geral` ou `pessoal`; moeda `brl` ou `usd` (dólar convertido pela PTAX
+  do dia nas somas, marcado como previsão); periodicidade mensal, trimestral, semestral ou anual.
+- **Valor vigente + histórico** (`despesas_fixas_valores`, com o mês desde quando vale): a previsão de meses passados
+  usa o valor da época. **Valor que varia**: o cadastrado é a estimativa; o real do mês fica em `despesas_fixas_meses`.
+- **Simulação**: fica fora das contas reais até ser efetivada; uma conta real não volta a ser simulação.
+- Encerrar = `fim`; arquivar = cadastrada por engano.
 
 ## Como mudar a estrutura
 
 1. Nova migração em `dados/migracoes/NNNN_nome.sql` (nunca editar uma já aplicada).
 2. Atualizar `worker/dados/esquema.js` (campos, permissões, prefixos).
-3. Testar localmente: `cd worker && npx wrangler d1 migrations apply universo --local && npx wrangler dev --local` (com `.dev.vars` contendo `UNIVERSO_SENHA=…`).
-4. Atualizar este documento e o doc do projeto.
+3. Testar: `cd worker && node --test testes/*.test.mjs` (o banco dos testes nasce das migrações).
+4. Atualizar este documento (o estado novo, não o histórico) e o doc "dados" do projeto.
 5. Push em `main`: o workflow aplica a migração e publica.
-
-## Documentos do estúdio (migração 0010, casa: Universo)
-
-- **Grupo 1 (identidade e correspondência) mora no Universo**: carta, ofício, declaração e memorando (decisão do Cid, 17/11). Comercial e financeiro vão para o vendas; levantamento, projeto e obra, para o Projetos; jurídico e marketing, para a ferramenta de cada um. Todas usam a mesma folha.
-- **Formatação separada do conteúdo.** O banco guarda só o conteúdo (`documentos`); a folha (Coluna ou Ficha) é desenhada pela Marca (`marca.odisse.com.br/v1/documentos/documentos.js`). O tipo do documento decide os campos; o modelo decide a folha. Por isso não há "modelo de carta", "modelo de ofício" etc.: o hub converte o registro em `{ campos, paragrafos, assinaturas… }` (`paraMontador`, em `assets/documentos.js`) e a Marca monta.
-- **Ofício é uma opção da carta** (`oficio = 1`), com referência e anexos; usa a numeração da carta. Declaração e memorando nunca são ofício (a API zera).
-- **Numeração por sigla e por ano**: `CA-2026-0001` (carta e ofício), `DE-…` (declaração), `MI-…` (memorando), sequências `documentos-<sigla>-<ano>` em `sequencias`, recomeçando a cada ano. O ano é o da data do documento; mudar a data para outro ano é recusado (409): crie um documento novo.
-- **Só a marca-mãe** no timbrado (decisão de 17/11): sem variação por núcleo.
-- **PDF pela janela de impressão** do navegador (vetor, texto selecionável, fonte embutida). Ainda não fica congelado no R2, como o das propostas: entra quando houver necessidade (ex.: ofícios protocolados).
-- **Folhas em branco** (Coluna, Ficha, Levantamento com pontos) não viram registro: saem direto da página, sem número. O .docx da folha em branco fica na pasta de template do Drive.
-
-## Equipe como cadastro comum (migração 0011, casa: Universo)
-
-- **A equipe sai da ferramenta Projetos e vira página própria do hub**, item próprio da barra, separado da Marca (decisão do Cid, 18/11: "são coisas completamente distintas"). Todas as ferramentas leem dela: seletor de quem assina (propostas, contratos, documentos, RRT), banco de horas, responsáveis, site e créditos do marketing. A página saiu do Projetos no mesmo dia (`equipe.html` lá só redireciona): ele passa a ler a equipe e só muda o custo por hora (`editaveis_por`).
-- **Sócio é estado, cargo é opção.** `socio` (sim/não) decide custo por hora, quem é representante legal e quem cuida das assinaturas. O cargo (Coordenador criativo, Coordenadora executiva, Arquiteto(a)…) e o título profissional (Arquiteto(a) e urbanista…) vêm das listas editáveis `cargos` e `titulos`, com forma masculina, feminina e inglesa; o `tratamento` (m/f) escolhe a forma. Assim some o "Arquiteto(a)" dos documentos.
-- **`papel` (0001) fica só para quem ainda o lê**: a API o deriva de `socio` + cargo; uma tela antiga que mande só `papel` vira sócio + cargo. Sai quando nenhuma ferramenta usar.
-- **Quem assina o quê** (`assina`: proposta, contrato, documento, rrt): RRT exige conselho e registro (estagiário, sem registro, não é responsável técnico); contrato exige sócio (representante legal). Registro gravado sem a sigla do conselho ("A123456-7"); formatado na leitura ("CAU A123456-7").
-- **Assinatura manuscrita** (decisões de 18/11): PNG com fundo transparente, até 2 MB, no R2 privado. O arquivo é marcado `protegido` (coluna nova em `arquivos`) e **não sai pela rota comum de arquivos**: só por `GET equipe/:id/assinatura?uso=…&registro=…`, para hub, vendas e Projetos, só num uso que a pessoa pode assinar, sem cache, com cada leitura no histórico (`ler_sensivel`, com o uso e o documento). Só o hub sobe, troca ou tira (até o login único, "só os sócios" = só quem tem a senha do Universo); a anterior é arquivada, nunca apagada. Na prévia, as telas mostram só a caixa do lugar da assinatura; o PNG entra só na emissão. A foto não pode apontar para um arquivo protegido (a foto é pública no site).
-- **Coluna `protegido` em vez de categoria nova**: mudar o CHECK de `categoria` exigiria refazer a tabela `arquivos`, que tem chaves estrangeiras de propostas, contratos e materiais. Uma coluna nova resolve sem mexer nos dados.
-- **Site** (`site`, ferramenta nova, ponto de entrada `Site`; ligado em 18/11): o Worker site-odisse troca a equipe da página Sobre pela do Universo e serve as fotos em `/img/u-<eqp>-<arq>` (cache longo: o id da foto está no endereço). Se o Universo não responder, fica a cópia antiga do painel do site; quem ainda não tem foto no Universo fica com a foto antiga. Quando equipe, cargos ou títulos mudam (ou o nome da pessoa, pelo hub), o hub chama o ponto de entrada `Universo` do site (`gerar`), que pede a regeneração das páginas estáticas. Enxerga só `equipe/publica` (quem está ativo e "aparece no site": nome, cargo PT/EN, bios, foto) e `equipe/:id/foto` dessas pessoas. Sem bio em inglês, a página /en mostra a pessoa sem bio, em vez do texto em português.
-- **Cid e Nathalia** entraram pela migração com cargo, título, bio e "aparece no site" vindos de odisse.com.br › Sobre › Equipe. Se já estavam na equipe (cadastrados pelo Projetos) ou nos contatos, o cadastro foi aproveitado. O registro no CAU fica para eles preencherem; por isso o RRT ainda não está entre o que assinam. As fotos entram pela página Equipe.
-
-## Radar: corretor como contato e titular (migração 0014, casa: vendas)
-- **Papel `corretor`** nas atuações (pessoa ↔ organização). O Radar (radar.odisse) descobre corretores de imóveis e os leva aos Contatos com esse papel; a imobiliária entra como organização.
-- **Uma oportunidade por terreno, com o corretor como titular** (`cliente_id` = a pessoa do corretor, `origem = radar`, `origem_detalhe` = item do Radar, fonte e nível). O objetivo dessa oportunidade é a conversa com o corretor sobre o terreno; ela é ganha quando rende um cliente. Assim o contato do corretor é reaproveitado em vários terrenos, e o que a coleta não captura de um terreno se completa com ele.
-- **O cliente vem depois, numa oportunidade própria**: quando a conversa com o corretor rende interesse, o vendas abre a oportunidade do cliente (titular = cliente) e a liga à do corretor em `vinculos` com papel `derivada_de` (de = a nova, para = a do corretor). A origem continua `radar`.
-- **Ponto de entrada `Radar`** (ferramenta `radar`): cria e lê pessoas, organizações, atuações e oportunidades. Não vê propostas, contratos, interações nem `pessoas_sensiveis`. Duplicados seguem a regra comum (409 `possivel_duplicado` com os candidatos → o Radar oferece "usar este").
-- O SQLite não muda CHECK de coluna existente: `atuacoes` é refeita com os mesmos dados (nenhuma tabela aponta para ela).
-
-## Acervo: banco único de imagens (migração 0020, casa: Universo)
-- **Um banco só** (decisões do Cid, 19/11): as imagens de projetos, objetos e coleções ficam no Acervo, gerido na Biblioteca do hub (`#/acervo`). `galeria` liga cada imagem a um ou mais alvos (`prj_`, `obj_`, `col_`); tirar de um projeto = arquivar a ligação. Mídias com dono (fotos da equipe, PDFs) ficam fora da lista do acervo.
-- **Os projetos vêm do Universo**: os do site entram como cadastro manual, concluídos, só a ficha (sem contrato, etapas ou horas). O site guarda no projeto dele o `universo` (= `prj_…`).
-- **Marcador `publica`** em `arquivos`, ligado à mão: ligado = disponível para o site e afins; desligado = restrita ao projeto. **Toda imagem nasce desligada.** Só liga com `direitos = 'livre'` (regra na API e gatilho no banco); mudar os direitos para outra coisa desliga o marcador.
-- **"Afins" inclui o marketing**: o marketing só enxerga as mídias públicas (`linhas_restritas` em `arquivos`, valendo na lista, na leitura, na edição e no conteúdo). A escolha dele é livre entre as públicas de qualquer projeto; o projeto é só filtro.
-- **Site** (rotas `acervo/site/…`, ponto de entrada `Site`): lista os projetos, lê as imagens **públicas** de um projeto, sobe imagem nova e muda só o `texto_alternativo` das públicas. As metadescrições são da imagem (valem no site, no marketing e no hub). O Worker do site serve `/img/a-<arq>[-m|-s]` pedindo ao hub, que só entrega imagem pública; na borda fica 1 dia, para que restringir tire a imagem do site em até um dia.
-- **Imagem enviada pelo editor do site entra pública** (com direitos livres) e ligada ao projeto: quem sobe ali está escolhendo-a para o site. Se a mesma imagem já estiver no acervo como restrita, o site recebe 409 e quem libera é o Acervo. (Sugestão do Claude na implementação, a confirmar com o Cid.)
-- **Porta do Projeto** (imagem como parte de uma entrega, pelo projetos.odisse) espera o Escopo do Projeto (Cid, 19/11).
-- `objetos` e `colecoes` com o mínimo de campos do desenho aprovado; `galeria` sem legenda própria (a descrição é da imagem). Conversão comum das imagens em `base/v1/imagens.js`.
-
-## Credenciais: documentos para editais e concursos (migração 0021, casa: Universo)
-- **Nome "Credenciais"** (Cid, 19/11), quinta aba de O Estúdio. **Cada documento mora com o seu dono** (Cid, 19/11): constituição e registros e a sede na Empresa; registro no conselho, CATs, diploma, currículo, vínculo, procuração e identidade na ficha da Equipe; o que é da empresa mas vence ou depende de fora (regularidade fiscal, social e trabalhista; econômico-financeira; cadastros e acessos) na página Credenciais. Atestados e RRTs são do projeto (`dono_id = prj_…`); por ora se registram na página Credenciais, até a ficha do projeto no projetos.odisse ganhar o Bloco.
-- **Fronteiras** (sugestão do Claude aceita pelo Cid, 19/11): responsável técnico da PJ na Empresa (`empresa.responsavel_tecnico_id`, apontando para a Equipe); procuração na pessoa; e-CNPJ na página Credenciais.
-- **Uma tabela, catálogo no código.** `credenciais` guarda dono, tipo, detalhe, número, emissão, validade, arquivo e observação. O tipo vem de `worker/dados/credenciais.js` (`CATALOGO`): onde aparece, se vence (sim, opcional, não), se aceita vários e se é exigido. Sem CHECK no tipo, para o catálogo crescer sem migração.
-- **Validade e aviso** (Cid, 19/11): documento com validade mostra até quando vale (e "vence em N dias" nos últimos 30); vencido gera aviso na Início, que **só sai quando o documento é substituído** (ou arquivado, se deixou de ser preciso). Substituir = registro novo com `substitui_id`, que arquiva o anterior no mesmo lote; cada documento só é substituído uma vez (índice único). A validade de um documento vencido não se edita. Pessoa desligada não gera aviso.
-- **Faltando** conta só os exigidos; na equipe, só para quem tem registro no conselho.
-- **Arquivos**: PDF ou imagem em `arquivos` (categoria `outro`), com `dono_id` = o documento (`cre_`), gravado no mesmo lote. Só o hub vê a tabela por ora. A cópia local da página não guarda o número dos documentos de identidade. Senhas de portais nunca entram.
-- **Empresa**: campos novos `inscricao_estadual`, `capital_social` (centavos) e `responsavel_tecnico_id`, na caixa nova **Constituição e registros**.
-
-## Escopo: andamento e materiais do cartão (migração 0028, casa: Projetos)
-- **Andamento** (Cid, 21/11): na Barra de seleção do Escopo, os cartões de uma etapa correm **ao mesmo tempo** (`junto_anterior`, agora também para eventos, inclusive entre camadas: o estúdio trabalha enquanto corre o tempo do cliente) ou **em sequência** (desfaz o grupo e o paralelo parcial). Ação `andamento` em `escopo/:prj/acao`, registrada como `tipo = 'andamento'`, natureza `prazo` (a tabela de alterações foi refeita para o CHECK novo).
-- **Seleção com buracos** (Cid, 21/11): os selecionados passam à frente dos do meio, como quem reorganiza a pilha, e os códigos da etapa acompanham a nova ordem (PP-04 vira PP-03). Os números existentes de entregas e de eventos são redistribuídos; o registro diz a troca.
-- **Inverter a ordem** (Cid, 21/11): com dois cartões da mesma etapa selecionados, ação `trocar`: trocam de lugar e de código; o lugar (correr junto com o anterior, hiato, paralelo) fica onde estava. Registro `andamento`, natureza `prazo`. Na Linha do PGT, o mesmo comando troca os dois na sequência da etapa (vai para a fila de salvar).
-- **Materiais do cartão**: os do PGT publicado ligados ao cartão (ou à etapa) vêm sozinhos; `escopo_cartoes.materiais` = `{ mais, menos }` acrescenta do banco de materiais do PGT (`GET escopo/materiais`, rascunho vivo) ou tira do cartão. Material novo criado no cartão entra **na hora** em `pgt_materiais`, ligado à entrega/evento de origem (ou à etapa, num cartão acrescentado), com a descrição "Criado no escopo de OA-…"; a ligação vale nos escopos novos depois de publicar o PGT. O cartão **aponta para o banco** (link vivo). Mexer em materiais **não entra nas Alterações**. (Estes três pontos são sugestões do Claude aplicadas em 21/11, a confirmar com o Cid.)

@@ -1,5 +1,5 @@
-// KPIs (#/kpis; Cid, 19/11) — seção própria no menu principal, com atalho em Ferramentas › Gestão.
-// Duas subpáginas, com as Abas da v2 acima do Cabeçalho (desde 24/11/2026, peças da base/v2):
+// KPIs (#/kpis) — seção própria no menu principal.
+// Duas subpáginas, com as Abas da v2 acima do Cabeçalho (peças da base/v2):
 //   Painel (#/kpis)        Números (quantos indicadores em cada faixa), Segmentado dos meses e uma Seção por
 //                          tema (Comercial, Redes sociais, Site, Trimestrais) com a Lista: uma linha por indicador
 //                          com o valor do mês, a régua das faixas da meta

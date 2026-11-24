@@ -1,5 +1,5 @@
 // ==========================================================================
-// PGT › Materiais (Cid, 20/11/2026): os PADRÕES de material e os materiais com link.
+// PGT › Materiais: os PADRÕES de material e os materiais com link.
 //
 //   * Padrão = formulário, checklist ou modelo de documento feito aqui: campos em ordem e a folha da Marca em que
 //     ele sai (Coluna ou Ficha). Criado uma vez, é LIGADO a quantas etapas, entregas e eventos for preciso, de

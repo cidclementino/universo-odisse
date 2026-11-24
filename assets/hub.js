@@ -2,7 +2,7 @@
 // #/pastas (Estrutura de pastas, em assets/pastas.js), #/acervo (Acervo de imagens, em assets/acervo.js).
 // Tudo vem de dois arquivos: ferramentas.json (aqui) e odisse.json (marca.odisse.com.br).
 // A página Marca mora em assets/marca.js; a página Documentos (#/documentos, aberta pela Biblioteca), em assets/documentos.js;
-// a página Equipe (#/equipe, seção própria da barra), em assets/equipe.js. (A página Ferramentas saiu em 24/11/2026; assets/ferramentas.js segue com os Canais.)
+// a página Equipe (#/equipe, seção própria da barra), em assets/equipe.js. (assets/ferramentas.js segue com os Canais.)
 
 import { criarMarca } from './marca.js';
 import { criarDocumentos } from './documentos.js';
@@ -83,8 +83,8 @@ const cred = criarCredenciais({ esc, api, apiBinario, toque });
 const documentos = criarDocumentos({ esc, api, apiBinario, toque, lerOdisse: () => ODISSE });
 const equipe = criarEquipe({ esc, api, apiBinario, toque, cred });
 const canais = criarFerramentas({ esc, api, toque, lerMapa: () => MAPA, config: configCanais(() => ODISSE) });
-const padroes = criarPadroes({ esc });
-let casca = null; // menu lateral, topo e painel (base/v2; Cid, 24/11)
+const padroes = criarPadroes();
+let casca = null; // menu lateral, topo e painel (base/v2)
 const inicio = criarInicio({ api, toque, lerCasca: () => casca });
 const precos = criarPrecos({ esc, api });
 const pastas = criarPastas({ esc, api, toque });
@@ -93,13 +93,13 @@ const financeiro = criarFinanceiro({ esc, api, toque });
 const acervo = criarAcervo({ esc, api, apiBinario, toque });
 const empresa = criarEmpresa({ esc, api, toque, cred, lerOdisse: () => ODISSE, gravarOdisse: (d) => { ODISSE = d; } });
 
-// Perfil (antes "O Estúdio"; Cid, 19/11 e 23/11): Empresa · Equipe · Marca · Canais · Credenciais são subpáginas, com Abas no alto
+// Perfil (antes "O Estúdio"): Empresa · Equipe · Marca · Canais · Credenciais são subpáginas, com Abas no alto
 const ESTUDIO = ['empresa', 'equipe', 'marca', 'canais', 'credenciais'];
 function abasEstudio(atual) {
   const subs = MAPA.secoes.filter((s) => s.pai === 'estudio');
   return abas('Perfil', subs.map((s) => ({ href: `#/${s.id}`, rotulo: s.nome, ativa: s.id === atual })));
 }
-// Biblioteca (Cid, 24/11): Modelos de documentos · Acervo de imagens · Estrutura de pastas · Padrões de interface, com Abas
+// Biblioteca: Modelos de documentos · Acervo de imagens · Estrutura de pastas · Padrões de interface, com Abas
 const BIBLIOTECA = [['biblioteca', 'Modelos de documentos'], ['acervo', 'Acervo de imagens'], ['pastas', 'Estrutura de pastas'], ['padroes', 'Padrões de interface']];
 const abasBiblioteca = (atual) => abas('Biblioteca', BIBLIOTECA.map(([id, rotulo]) => ({ href: `#/${id}`, rotulo, ativa: id === atual })));
 
@@ -107,17 +107,17 @@ const abasBiblioteca = (atual) => abas('Biblioteca', BIBLIOTECA.map(([id, rotulo
 
 const PAGINAS = {
   inicio() {
-    // panorama do dia (Cid, 19/11): só ações — aviso do balanço do mês, novidades do Radar e publicações de
+    // panorama do dia: só ações — aviso do balanço do mês, novidades do Radar e publicações de
     // hoje (assets/inicio.js). As métricas de ontem foram para os KPIs.
     return '<div id="pagina-inicio" class="pagina-inicio"></div>';
   },
 
-  // KPIs (Cid, 19/11): seção do menu principal, atalho em Ferramentas › Gestão (assets/kpis.js)
+  // KPIs: seção do menu principal (assets/kpis.js)
   kpis() {
     return '<div id="pagina-kpis" class="pagina-kpis"></div>';
   },
 
-  // Financeiro (Cid, 20/11): seção do menu principal, atalho em Ferramentas › Gestão; por ora, Despesas fixas
+  // Financeiro: seção do menu principal; por ora, Despesas fixas
   // com a previsão de custos do ano (assets/financeiro.js)
   financeiro() {
     return '<div id="pagina-financeiro" class="pagina-financeiro"></div>';
@@ -131,7 +131,7 @@ const PAGINAS = {
     return '<div id="pagina-empresa" class="pagina-empresa"></div>';
   },
 
-  // O Estúdio › Credenciais (Cid, 19/11): documentos para editais e concursos (assets/credenciais.js)
+  // O Estúdio › Credenciais: documentos para editais e concursos (assets/credenciais.js)
   credenciais() {
     return '<div id="pagina-credenciais" class="pagina-credenciais"></div>';
   },
@@ -153,22 +153,22 @@ const PAGINAS = {
     return '<div id="pagina-equipe" class="pagina-equipe"></div>';
   },
 
-  // Ferramentas › Comercial › Mapa de preços (Cid, 19/11): contratos só de projeto e concursos, do Radar
+  // Comercial › Mapa de preços: contratos só de projeto e concursos, do Radar
   precos() {
     return '<div id="pagina-precos" class="pagina-precos"></div>';
   },
 
-  // Biblioteca › Padrões de interface (Cid, 19/11): catálogo das disposições e peças, com nome
+  // Biblioteca › Padrões de interface: catálogo das disposições e peças, com nome
   padroes() {
     return '<div id="pagina-padroes" class="pagina-padroes"></div>';
   },
 
-  // Biblioteca › Estrutura de pastas (Cid, 19/11): norma e retrato do Drive das pastas do estúdio
+  // Biblioteca › Estrutura de pastas: norma e retrato do Drive das pastas do estúdio
   pastas() {
     return '<div id="pagina-pastas" class="pagina-pastas"></div>';
   },
 
-  // Biblioteca › Acervo de imagens (Cid, 19/11): banco único de imagens de projetos, objetos e coleções
+  // Biblioteca › Acervo de imagens: banco único de imagens de projetos, objetos e coleções
   acervo() {
     return '<div id="pagina-acervo" class="pagina-acervo"></div>';
   },
@@ -191,7 +191,7 @@ function depois(rota) {
   if (rota === 'biblioteca') documentos.ligarModelos(vista.querySelector('#biblioteca-modelos'));
 }
 
-// seções que abrem outra página; Ferramentas saiu em 24/11/2026 (o menu lateral faz o papel dela) e vai para o Início
+// seções que abrem outra página; o endereço antigo de Ferramentas vai para o Início
 const APELIDOS = { estudio: 'empresa', emissao: 'documentos', ferramentas: 'inicio' };
 
 function rota() {
@@ -243,14 +243,14 @@ async function entrar() {
     return telaEntrada(`Não foi possível falar com o servidor do Universo (${r.status ? 'resposta ' + r.status : 'sem resposta'}${r.error ? ': ' + r.error : ''}). Tente de novo em instantes.`);
   }
   document.body.classList.remove('u-trancado');
-  // login único (24/11): quem chegou de uma ferramenta sem senha volta para a página onde estava
+  // login único: quem chegou de uma ferramenta sem senha volta para a página onde estava
   try {
     const volta = sessionStorage.getItem('universo:volta');
     if (volta) { sessionStorage.removeItem('universo:volta'); if (volta.startsWith('/') && !volta.startsWith('//')) { location.replace(volta); return; } }
   } catch { /* segue no hub */ }
   try { await carregar(); } catch { vista.innerHTML = '<p class="u-apoio">Não foi possível carregar o Universo.</p>'; return; }
   if (!casca) {
-    // padrão novo (Cid, 23–24/11): menu lateral por função, topo com "Ir para" e o conteúdo num painel
+    // padrão novo: menu lateral por função, topo com "Ir para" e o conteúdo num painel
     casca = await montarCasca({ conteudo: vista, hub: true, mapa: MAPA, aoSair: sair });
     const copia = lerCopia('inicio');
     casca.contar(contagensDe(copia));

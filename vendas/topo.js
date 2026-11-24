@@ -1,5 +1,5 @@
 // ==========================================================================
-// Casca do Universo no vendas (desde 24/11/2026 o vendas mora em universo.odisse.com.br/vendas/).
+// Casca do Universo no vendas (o vendas mora em universo.odisse.com.br/vendas/).
 //   <header class="topo" data-pagina="crm"></header>
 //   <script src="topo.js"></script>
 // Diz qual item do menu lateral acender; a casca (menu, Ir para, painel) vem de /base/v2/casca.js.

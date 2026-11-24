@@ -1,4 +1,4 @@
-// Acervo (0020): o banco único de imagens de projetos, objetos e coleções (Cid, 19/11).
+// Acervo (0020): o banco único de imagens de projetos, objetos e coleções.
 // Gerido na Biblioteca do hub; cada imagem pertence a um ou mais alvos (tabela galeria).
 // "Pública" (arquivos.publica) = disponível para o site e afins; desligada = restrita ao projeto.
 //

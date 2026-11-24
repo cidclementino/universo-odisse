@@ -1,4 +1,4 @@
-// Biblioteca › Estrutura de pastas (#/pastas; Cid, 19/11): a norma de cada estrutura de pastas do Drive e o
+// Biblioteca › Estrutura de pastas (#/pastas): a norma de cada estrutura de pastas do Drive e o
 // retrato do Drive tirado num dia, lidos juntos para manter as pastas organizadas.
 //
 // Uma leitura só: GET /api/pastas (R2 privado; ver worker/pastas.js). Os repositórios são públicos e há nomes
@@ -90,7 +90,7 @@ export function criarPastas({ esc, api, toque }) {
   const abertas = () => new Set(lembrar.ler('abertas:' + atual, null) ?? []);
   const guardarAbertas = (s) => lembrar.gravar('abertas:' + atual, [...s]);
 
-  // filtros no Segmentado da v2 (24/11/2026)
+  // filtros no Segmentado da v2
   const seletor = (nome, opcoes, valor) => segmentado(opcoes.map(([id, rotulo]) => ({ id, rotulo })), valor, nome);
 
   const etq = (t, tipo = '') => `<span class="pas-etq${tipo ? ' ' + tipo : ''}">${esc(t)}</span>`;

@@ -1,4 +1,4 @@
-// Contas das Despesas fixas (Financeiro; Cid, 20/11), sem DOM: usadas pela página (assets/financeiro.js) e pelos
+// Contas das Despesas fixas (Financeiro), sem DOM: usadas pela página (assets/financeiro.js) e pelos
 // testes (worker/testes/financeiro.test.mjs).
 //
 // Regras:
@@ -8,8 +8,8 @@
 //   * previsão do ano = cada despesa no mês em que é paga (mensal todo mês; trimestral a cada 3 meses a partir do
 //     mês dela; semestral a cada 6; anual no mês dela), entre o início e o fim, com o valor vigente no mês.
 //     Reajustes futuros não são projetados.
-//   * valor que varia (Cid, 20/11): no mês com o real lançado vale o real; nos outros, a estimativa, como previsão (*);
-//   * simulações (Cid, 20/11): a página tira as simuladas das contas reais; na visão "Com simulações", cada
+//   * valor que varia: no mês com o real lançado vale o real; nos outros, a estimativa, como previsão (*);
+//   * simulações: a página tira as simuladas das contas reais; na visão "Com simulações", cada
 //     simulada vira uma linha própria da previsão, depois do Pessoal.
 
 export const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];

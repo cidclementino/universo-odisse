@@ -1,4 +1,4 @@
-// Biblioteca › Acervo (#/acervo; Cid, 19/11): o banco único de imagens de projetos, objetos e coleções.
+// Biblioteca › Acervo (#/acervo): o banco único de imagens de projetos, objetos e coleções.
 //
 // Cada imagem pertence a um ou mais alvos (projeto, objeto, coleção) e tem o marcador "pública": ligado, fica
 // disponível para o site e afins (o editor do site oferece as públicas do projeto; o marketing só vê as
@@ -54,7 +54,7 @@ export function criarAcervo({ esc, api, apiBinario, toque }) {
 
   // ---- peças
   const etq = (t, tipo = '') => `<span class="acv-etq${tipo ? ' ' + tipo : ''}">${esc(t)}</span>`;
-  // filtros no Segmentado da v2 (24/11/2026)
+  // filtros no Segmentado da v2
   const seletor = (nome, opcoes, valor) => segmentado(opcoes.map(([id, rotulo]) => ({ id, rotulo })), valor, nome);
 
   function opcoesAlvo(valor, { vazio = 'Todos os projetos, objetos e coleções', comSem = true } = {}) {

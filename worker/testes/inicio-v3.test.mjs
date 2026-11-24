@@ -1,4 +1,4 @@
-// Teste da Início v3 (Cid, 24/11): calendário do escopo no servidor, projetos ativos e propostas em aberto.
+// Teste da Início v3: calendário do escopo no servidor, projetos ativos e propostas em aberto.
 // Rodar: node --no-warnings worker/testes/inicio-v3.test.mjs
 import { criarD1 } from './d1.mjs';
 import { api } from '../dados/api.js';

@@ -116,7 +116,7 @@ export function criarMarca({ esc, api, toque, MARCA, lerOdisse, gravarOdisse }) 
       ${Object.values(P).map((p) => `<option value="${esc(p.id)}"${p.id === atual ? ' selected' : ''}>${esc(p.nome)} · ${esc(p.valor)}</option>`).join('')}</select></div></div>`;
   }
 
-  // Ficha da Marca (Cid, 19/11): o mesmo sistema de caixas da Empresa e da Equipe. Sempre editável; a barra de
+  // Ficha da Marca: o mesmo sistema de caixas da Empresa e da Equipe. Sempre editável; a barra de
   // salvar aparece quando algo muda. Uma caixa por núcleo (a marca-mãe primeiro) e uma de paleta e tipografia.
   function edicaoHtml() {
     const d = edicao.dados, P = paleta(d);

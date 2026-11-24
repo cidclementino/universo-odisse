@@ -807,7 +807,7 @@ const equipe = {
 };
 
 // ---------------------------------------------------------------- acervo (0020)
-// "Pública" (Cid, 19/11): só com direitos livres. Mudar os direitos para outra coisa desliga o marcador.
+// "Pública": só com direitos livres. Mudar os direitos para outra coisa desliga o marcador.
 function conferirPublica(r) {
   if (!r.publica) return;
   if (r.protegido) throw new ErroApi(422, 'Pública: arquivo protegido não vai para fora');

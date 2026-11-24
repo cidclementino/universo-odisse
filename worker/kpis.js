@@ -1,4 +1,4 @@
-// KPIs do Universo (Cid, 19/11): seção própria no menu principal (#/kpis), com atalho em Ferramentas › Gestão.
+// KPIs do Universo: seção própria no menu principal (#/kpis), com atalho em Ferramentas › Gestão.
 //
 //   GET  /api/kpis?mes=AAAA-MM   -> { hoje, ontem: { instagram, site }, metas, meses, mes, historico, balanco? }
 //   GET  /api/kpis/balanco?mes=  -> balanço congelado do mês (404 se não houver)

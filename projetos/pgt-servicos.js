@@ -1,6 +1,6 @@
 // ==========================================================================
 // Plano Geral de Trabalho — rotas, Serviços (lista que abre no próprio serviço), Faixas e prazo e publicação única.
-// (Cid, 20/11/2026) As Bases entraram no PGT. Abas: Serviços · Faixas e prazo · Plano do fluxo · Plano das ilhas · Materiais.
+// As Bases entraram no PGT. Abas: Serviços · Faixas e prazo · Plano do fluxo · Plano das ilhas · Materiais.
 //   * Serviço EM FLUXO: entra no plano comum (fases encadeadas) e marca P/O/— nos cartões; pede tipologia; o índice de
 //     complexidade se ajusta por categoria (sem valor próprio, vale o padrão do serviço, que fica oculto).
 //   * Serviço EM ILHA: tem o próprio plano (etapas e cartões só dele); o índice é um só, o do serviço.
@@ -29,7 +29,7 @@ let MODO_FLUXO = (() => { try { return sessionStorage.getItem('pgt:modo') || 'ca
 function lerRota() {
   const h = decodeURIComponent(location.hash.replace(/^#\/?/, ''));
   const [a, b, c] = h.split('/');
-  // endereço da subpágina que existiu por algumas horas (20/11): abre o serviço na lista
+  // endereço da subpágina que existiu por algumas horas: abre o serviço na lista
   if ((a === 'servico' || a === 'servicos') && b) return { aba: 'servicos', abrir: b };
   // endereços antigos da página (abas plano/linha/materiais) e das Bases
   if (a === 'plano' || a === 'linha') return { aba: 'fluxo' };

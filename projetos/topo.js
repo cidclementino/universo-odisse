@@ -1,5 +1,5 @@
 // ==========================================================================
-// Casca do Universo no Projetos (desde 24/11/2026 o Projetos mora em universo.odisse.com.br/projetos/).
+// Casca do Universo no Projetos (o Projetos mora em universo.odisse.com.br/projetos/).
 //   <header class="topo" data-pagina="projetos"></header>
 //   <script src="topo.js"></script>
 // Diz qual item do menu lateral acender; a casca (menu, Ir para, painel) vem de /base/v2/casca.js.
@@ -15,7 +15,7 @@
   s.dataset.classe = 'ferramenta-projetos';
   document.head.appendChild(s);
   // Na página do projeto (escopo e calendário largos), o menu lateral recolhe sozinho, como no editor do Marketing
-  // (Cid, 24/11/2026). Não grava a preferência do menu: nas outras páginas ele fica como a pessoa deixou.
+  //. Não grava a preferência do menu: nas outras páginas ele fica como a pessoa deixou.
   if (pagina === 'projeto') {
     window.addEventListener('universo:casca', () => document.querySelector('.ui-app')?.classList.add('is-recolhido'), { once: true });
   }

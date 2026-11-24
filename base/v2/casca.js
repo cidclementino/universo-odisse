@@ -1,4 +1,4 @@
-// Universo — casca para as ferramentas que moram no Universo (/vendas/, /projetos/…; Cid, 24/11/2026).
+// Universo — casca para as ferramentas que moram no Universo (/vendas/, /projetos/…).
 //
 // Cada ferramenta tem um topo.js pequeno que diz qual item do menu acender e chama este arquivo:
 //   const s = document.createElement('script');
