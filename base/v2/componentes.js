@@ -233,7 +233,7 @@ export async function montarCasca({ conteudo, hub = false, atual = '', mapa = nu
   app.querySelector('.ui-painel').appendChild(conteudo);
 
   function marcar(id) {
-    app.querySelectorAll('[aria-current="page"]').forEach((a) => a.removeAttribute('aria-current'));
+    app.querySelectorAll('.ui-menu [aria-current="page"]').forEach((a) => a.removeAttribute('aria-current'));
     if (id) app.querySelector(`[data-menu="${CSS.escape(id)}"]`)?.setAttribute('aria-current', 'page');
   }
   function descobrir() {
