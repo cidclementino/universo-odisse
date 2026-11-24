@@ -19,6 +19,7 @@ import * as nuvem from './nuvem.js';
 import { instalarPadroes, MACROS, TEXTO_POR_CLASSE, FORMATO_POR_ID } from './padroes.js';
 import { carregarMarca } from './marca.js';
 import { renderPadroes } from './pagina-padroes.js';
+import { carregarLocal as carregarPadroesCards, atualizarDaNuvem as padroesCardsDaNuvem, padraoInicial } from './padroes-cards.js';
 import { renderMetricas } from './pagina-metricas.js';
 import { abas, cabecalho, segmentado, secao, bandeja, lista, etiqueta, quando, acao, link, icone, medidor, gaveta } from '/base/v2/componentes.js';
 
@@ -89,6 +90,10 @@ const chaveGlobais = (nucleoId, formato) => (formato === 'pin' ? 'globais-pin:' 
 
 function novoCard(modelo, nucleoId, formato = '3x4') {
   const c = { id: uid('c'), modelo, campos: exemploDe(nucleoId, modelo), imgs: {} };
+  // os padrões editados na página Padrões entram no card quando ele nasce (as publicações antigas não mudam)
+  const ini = padraoInicial(nucleoId, modelo);
+  if (Object.keys(ini.opcoes).length) c.opcoes = ini.opcoes;
+  if (Object.keys(ini.textos).length) c.textos = ini.textos;
   if (formato === 'pin') c.pin = pinterest.pinVazio(nucleoId);
   return c;
 }
@@ -456,7 +461,7 @@ function renderInicio() {
     </div>`;
   el.innerHTML = `<div class="mk-pagina">
     ${abas('Publicações', SUBPAGINAS.map(([r, f, nome]) => ({ href: `#/publicacoes/${r}`, rotulo: nome, ativa: f === fmt })))}
-    ${cabecalho(pins ? 'Novo projeto de pins' : 'Nova publicação', '', link('Padrões de texto e espaçamento', '#/padroes'))}
+    ${cabecalho(pins ? 'Novo projeto de pins' : 'Nova publicação', '', link('Padrões dos cards', '#/padroes'))}
     <div class="nucleo-tiles">${tiles}</div>
     <div class="mk-pb-arquivo">${secao({ titulo: ui.arquivadas ? 'Arquivadas' : 'Arquivo', n: ui.arquivadas ? narq : ativas.length, corpo: `${filtros}<div class="mk-espaco" id="pbCorpo"></div>` })}</div>
   </div>`;
@@ -888,7 +893,10 @@ function aplicarModelo(id) {
   c.modelo = id;
   c.campos = campos;
   // o carimbo e o véu passam de um modelo para outro
-  c.opcoes = Object.fromEntries(['carimbo', 'veu'].filter((k) => c.opcoes?.[k]).map((k) => [k, c.opcoes[k]]));
+  // os padrões do modelo novo (página Padrões) entram por baixo
+  const ini = padraoInicial(pub.nucleo, id);
+  c.opcoes = { ...ini.opcoes, ...Object.fromEntries(['carimbo', 'veu'].filter((k) => c.opcoes?.[k]).map((k) => [k, c.opcoes[k]])) };
+  c.textos = { ...ini.textos, ...(c.textos || {}) };
   salvar();
   renderTrilho();
   $$('.modelo', $('#modelos')).forEach((b) => b.classList.toggle('ativo', b.dataset.modelo === id));
@@ -1663,11 +1671,11 @@ async function rotear() {
     await renderCalendario($('#calendario'), location.hash.split('/').slice(2).join('/'), { aviso });
     return;
   }
-  if (location.hash === '#/padroes') {
+  if (location.hash.startsWith('#/padroes')) {
     if (pub) await sairDoEditor();
     document.title = 'Padrões · Universo';
     mostrar('padroes');
-    renderPadroes($('#padroes'));
+    await renderPadroes($('#padroes'), location.hash.split('/')[2] || '', { aviso });
     return;
   }
   if (m) {
@@ -2238,6 +2246,8 @@ function ligarDicas() {
 
 async function iniciar() {
   instalarPadroes();
+  await carregarPadroesCards(); // os padrões editados (página Padrões) antes de desenhar qualquer card
+  padroesCardsDaNuvem().then((mudou) => { if (mudou && pub) renderTrilho(); });
   ligarDicas();
   status('pronto');
   carregarMarca(); // por baixo: o site abre com a cópia guardada da Marca
