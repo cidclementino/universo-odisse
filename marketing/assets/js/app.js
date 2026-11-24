@@ -1,6 +1,8 @@
 // Universo — publicações do Odisse: posts 3:4 (Instagram) e pins 2:3 (Pinterest).
-// Duas vistas: início (subpágina do formato: criar + arquivo) e editor de uma publicação.
+// Duas vistas: início (subpágina do formato: criar + arquivo, nas peças da base/v2) e editor de uma publicação.
 // O editor é o mesmo para todos os formatos; muda o canvas, o repertório de modelos e os campos do canal.
+// Gerar arquivos (exportar, enviar ao pool) funciona com qualquer publicação, aberta ou não: as funções recebem
+// a publicação (`p`, padrão a aberta) e passam uma de cada vez pelo #exportador.
 
 import { NUCLEOS, ORDEM_NUCLEOS, padroesDoNucleo, COR, tintaSobre } from './nucleos.js';
 import {
@@ -18,6 +20,7 @@ import { instalarPadroes, MACROS, TEXTO_POR_CLASSE, FORMATO_POR_ID } from './pad
 import { carregarMarca } from './marca.js';
 import { renderPadroes } from './pagina-padroes.js';
 import { renderMetricas } from './pagina-metricas.js';
+import { abas, cabecalho, segmentado, secao, bandeja, lista, etiqueta, quando, acao, link, icone, medidor, gaveta } from '/base/v2/componentes.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -93,7 +96,8 @@ function novoCard(modelo, nucleoId, formato = '3x4') {
 async function novaPublicacao(nucleoId, formato = '3x4') {
   const ultimos = (await local.lerMeta(chaveGlobais(nucleoId, formato))) || {};
   const agora = new Date().toISOString();
-  const globais = { ...padroesDoNucleo(nucleoId), ...ultimos, dataPublicacao: '' };
+  const globais = { ...padroesDoNucleo(nucleoId), ...ultimos };
+  delete globais.dataPublicacao; // o campo saiu: a data dos arquivos é a de criação
   if (formato === 'pin') {
     // o link é de cada projeto; os créditos, lembrados do último projeto do núcleo
     globais.link = '';
@@ -123,6 +127,8 @@ const tituloDe = (p) => p.titulo || p.globais?.projeto || 'Sem título';
 // - rascunho: cada alteração vai para o navegador (IndexedDB), automaticamente;
 // - nuvem: ao criar, no botão Salvar (Ctrl+S), ao exportar, ao sair do editor
 //   e a cada 20 minutos se houver alteração.
+// Publicação já no pool e alterada depois do envio: depois de salvar na nuvem, o pool é atualizado sozinho
+// (reenvio automático; o que já foi publicado não muda). `enviadoEm` guarda a hora do último envio.
 
 const AUTOSALVAR_MIN = 20;
 let timerLocal;
@@ -134,9 +140,20 @@ function salvar() {
   status('pendente');
   clearTimeout(timerLocal);
   timerLocal = setTimeout(async () => {
+    renderSituacao();
     await local.gravarPub(pub);
     await local.gravarMeta(chaveGlobais(pub.nucleo, formatoDe(pub)), pub.globais);
   }, 350);
+}
+
+/** Grava a publicação na nuvem (capa, imagens e o JSON) e a cópia deste navegador. Serve à aberta e a qualquer outra. */
+async function gravarNaNuvem(p) {
+  p.capa = await gerarCapa(p).catch(() => p.capa);
+  for (const ref of local.refsDe(p)) await garantirImagemNaNuvem(ref);
+  const marca = p.atualizado;
+  await nuvem.gravar({ ...p, salvoEm: marca });
+  p.salvoEm = marca;
+  await local.gravarPub(p);
 }
 
 let salvando = null;
@@ -147,14 +164,10 @@ async function salvarNaNuvem({ silencioso = false } = {}) {
   status('salvando');
   salvando = (async () => {
     try {
-      alvo.capa = await gerarCapa(alvo).catch(() => alvo.capa);
-      for (const ref of local.refsDe(alvo)) await garantirImagemNaNuvem(ref);
-      const marca = alvo.atualizado;
-      await nuvem.gravar({ ...alvo, salvoEm: marca });
-      alvo.salvoEm = marca;
-      await local.gravarPub(alvo);
+      await gravarNaNuvem(alvo);
       status(pub === alvo && pendente() ? 'pendente' : 'salvo', alvo.salvoEm);
       if (!silencioso) aviso('Publicação salva.');
+      if (precisaReenvio(alvo)) reenviarAutomatico(alvo);
     } catch (e) {
       console.warn(e);
       if (e.message === 'senha incorreta') return sair();
@@ -176,6 +189,58 @@ async function garantirImagemNaNuvem(ref) {
   if (!src) return;
   if (!(await nuvem.existeImg(ref))) await nuvem.enviarImg(ref, src);
   enviadas.add(ref);
+}
+
+// ---- Situação no pool -----------------------------------------------------------
+// Cada publicação vira um item do pool (carrossel: pl-<publicação>) ou um por pin (pl-<card>), com `pub` apontando
+// para ela. A situação mostrada no arquivo e no editor sai daí.
+
+const itensDoPool = (id) => pool.lista().filter((it) => it.pub === id);
+/** Publicações enviadas antes de existir `enviadoEm`: vale o momento em que foram abertas no editor. */
+const abertura = new WeakMap();
+
+/** Alterada depois do envio: salva depois do último envio, com algo ainda não publicado no pool. */
+function alteradaDepoisDoEnvio(r) {
+  const ref = r.enviadoEm || abertura.get(r) || '';
+  return !!ref && (r.atualizado || '') > ref && itensDoPool(r.id).some((it) => it.status !== 'publicado');
+}
+const precisaReenvio = (p) => alteradaDepoisDoEnvio(p);
+
+/** Resumo da publicação no pool: { estado, itens, noPool, total, agendados, publicados, primeiro, alterada }. */
+function situacaoNoPool(r) {
+  const itens = itensDoPool(r.id);
+  const pin = (r.formato || '3x4') === 'pin';
+  const total = pin ? (r.ncards ?? r.cards?.length ?? 0) : 1;
+  const noPool = pin ? new Set(itens.map((it) => it.card)).size : (itens.length ? 1 : 0);
+  const agendados = itens.filter((it) => it.status === 'agendado');
+  const publicados = itens.filter((it) => it.status === 'publicado');
+  const ordem = (a, b) => (a.dia || '9').localeCompare(b.dia || '9');
+  let estado = 'fora';
+  if (itens.length) estado = publicados.length === itens.length ? 'publicado' : agendados.length ? 'agendado' : 'pronto';
+  return {
+    estado, itens, noPool, total, faltam: Math.max(0, total - noPool),
+    agendados: agendados.length, publicados: publicados.length,
+    proximo: agendados.sort(ordem)[0] || null,
+    ultimoPublicado: publicados.sort((a, b) => (b.publicadoEm || b.dia || '').localeCompare(a.publicadoEm || a.dia || ''))[0] || null,
+    primeiro: [...itens].sort(ordem)[0] || null,
+    alterada: !!itens.length && alteradaDepoisDoEnvio(r),
+  };
+}
+
+/** Texto e tom da situação (Quando da v2). */
+function textoSituacao(r, s = situacaoNoPool(r)) {
+  const pin = (r.formato || '3x4') === 'pin';
+  if (tarefas.has(r.id)) return [tarefas.get(r.id), 'atencao'];
+  if (s.estado === 'fora') return ['Fora do pool', ''];
+  if (s.alterada) return [pin ? 'Alterado depois do envio' : 'Alterada depois do envio', 'atencao'];
+  if (pin) {
+    if (s.estado === 'publicado') return [`${s.publicados} ${s.publicados === 1 ? 'publicado' : 'publicados'}`, 'ok'];
+    if (!s.agendados && !s.publicados) return ['No pool, para agendar', ''];
+    return [`${s.agendados} ${s.agendados === 1 ? 'agendado' : 'agendados'} · ${s.publicados} ${s.publicados === 1 ? 'publicado' : 'publicados'}`, s.agendados ? 'hora' : ''];
+  }
+  if (s.estado === 'publicado') return [`Publicada em ${pool.dataCurta(s.ultimoPublicado?.publicadoEm || s.ultimoPublicado?.dia)}`, 'ok'];
+  if (s.estado === 'agendado') return [`Agendada · ${pool.dataLonga(s.proximo.dia).replace(/\/\d{4}$/, '')}`, 'hora'];
+  return ['No pool, para agendar', ''];
 }
 
 function status(tipo, detalhe = '') {
@@ -226,37 +291,37 @@ async function carregarImagens(p) {
 
 const tratadas = new Map();
 let timerReTrilho;
-function fonteImagem(card, slot) {
+function fonteImagem(card, slot, p = pub) {
   const im = card.imgs[slot];
   const src = im?.ref ? imagens.get(im.ref) : im?.src;
   if (!src) return null;
-  const trat = NUCLEOS[pub?.nucleo || 'estudio'].tratamento;
-  if (semTratamento(im) || trat.tipo === 'nenhum') return src;
-  const k = `${pub.nucleo}:${im.ref || card.id + slot}`;
+  const trat = NUCLEOS[p?.nucleo || 'estudio'].tratamento;
+  if (semTratamento(im, p) || trat.tipo === 'nenhum') return src;
+  const k = `${p.nucleo}:${im.ref || card.id + slot}`;
   if (typeof tratadas.get(k) === 'string') return tratadas.get(k);
   if (!tratadas.has(k)) {
     tratadas.set(k, null);
     tratar(src, trat).then((out) => {
       tratadas.set(k, out);
       clearTimeout(timerReTrilho);
-      timerReTrilho = setTimeout(() => { if (pub) { renderTrilho(); renderImagens(); } }, 30);
+      timerReTrilho = setTimeout(() => { if (pub && p === pub) { renderTrilho(); renderImagens(); } }, 30);
     });
   }
   return src;
 }
 /** A imagem sai sem o tratamento do núcleo? Vale a escolha da própria imagem; senão, a da publicação. */
-function semTratamento(im) {
-  return im.original ?? !!pub?.globais?.semTratamento;
+function semTratamento(im, p = pub) {
+  return im.original ?? !!p?.globais?.semTratamento;
 }
-async function aguardarTratamentos(cards) {
-  const trat = nucleo().tratamento;
+async function aguardarTratamentos(cards, p = pub) {
+  const trat = NUCLEOS[p.nucleo].tratamento;
   if (trat.tipo === 'nenhum') return;
   const tarefas = [];
   for (const c of cards) for (const s of Object.keys(c.imgs)) {
     const im = c.imgs[s];
     const src = im?.ref ? imagens.get(im.ref) : null;
-    if (!src || semTratamento(im)) continue;
-    const k = `${pub.nucleo}:${im.ref}`;
+    if (!src || semTratamento(im, p)) continue;
+    const k = `${p.nucleo}:${im.ref}`;
     if (typeof tratadas.get(k) !== 'string') tarefas.push(tratar(src, trat).then((o) => tratadas.set(k, o)));
   }
   await Promise.all(tarefas);
@@ -287,9 +352,20 @@ function limparHtml(html) {
 }
 
 // ===========================================================================
-// INÍCIO — criar e arquivo
+// INÍCIO — criar e arquivo (peças da base/v2)
+//
+// Abas (Posts 3:4 · Pins 2:3) → Cabeçalho → os cartões de núcleo para criar → Seção Arquivo: busca, núcleo,
+// Ativas/Arquivadas, ordem e vista (Grade · Lista). Cada publicação mostra a situação no pool, as datas
+// automáticas (criada, último salvamento, envio) e a ação do momento: Enviar ao pool, ou Abrir no calendário.
+// Alterada depois do envio: o pool é atualizado sozinho, em segundo plano (uma publicação de cada vez).
 
-let filtro = 'todos';
+const ui = {
+  filtro: 'todos',
+  busca: '',
+  arquivadas: false,
+  vista: prefs.get('pubVista', 'grade'),
+  ordem: prefs.get('pubOrdem', 'salva'),
+};
 
 // Arquivo de publicações: o que está neste navegador aparece na hora; a lista da nuvem é consultada
 // por baixo, no máximo uma vez por minuto (ou na hora, quando `forcar`), e a tela se ajusta se algo mudou.
@@ -303,7 +379,7 @@ async function montarResumos() {
     const l = mapa.get(r.id);
     if (!l || (r.atualizado || '') >= (l.atualizado || '')) mapa.set(r.id, { ...r, rascunho: false });
   }
-  resumos = [...mapa.values()].sort((a, b) => (b.atualizado || '').localeCompare(a.atualizado || ''));
+  resumos = [...mapa.values()];
 }
 
 /** Busca a lista na nuvem. Devolve true quando ela mudou desde a última consulta. */
@@ -323,120 +399,288 @@ async function buscarLista(forcar = false) {
   }
 }
 
-/** Arquivo completo, esperando a nuvem (usado depois de duplicar, excluir ou abrir por link). */
+/** Arquivo completo, esperando a nuvem (usado depois de duplicar, arquivar ou abrir por link). */
 async function carregarArquivo() {
   await buscarLista(true);
   await montarResumos();
 }
 
-const DICA_CRIAR = {
-  '3x4': 'Escolha o núcleo. O carrossel já começa com o repertório de modelos dele.',
-  pin: 'Escolha o núcleo. Cada publicação é um projeto, uma peça ou um texto: de 8 a 15 pins, publicados aos poucos e em pastas diferentes. Começa com um pin; os outros entram pelo +.',
-};
+const naInicio = () => document.body.classList.contains('vista-inicio');
+const hojeIso = () => pool.hoje();
+/** 24/11/2026 16:01 · hoje, 16:01 */
+function dataHora(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  const hora = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  if (pool.isoDia(d) === hojeIso()) return `hoje, ${hora}`;
+  return `${d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })} ${hora}`;
+}
+const dataHoraCurta = (iso) => dataHora(iso).replace(/\/\d{4} /, ' ');
+
+function selecionadas() {
+  const fmt = formatoInicio;
+  const busca = ui.busca.trim().toLowerCase();
+  const chave = ui.ordem === 'criada' ? 'criado' : 'atualizado';
+  return resumos
+    .filter((r) => (r.formato || '3x4') === fmt && !!r.arquivado === ui.arquivadas)
+    .filter((r) => (ui.filtro === 'todos' || r.nucleo === ui.filtro) && (!busca || (r.titulo || '').toLowerCase().includes(busca)))
+    .sort((a, b) => (b[chave] || '').localeCompare(a[chave] || ''));
+}
 
 function renderInicio() {
+  const el = $('#inicio');
   const fmt = formatoInicio, pins = fmt === 'pin';
-  $('#pubNav').innerHTML = SUBPAGINAS.map(([r, f, nome]) => `<a href="#/publicacoes/${r}" class="${f === fmt ? 'ativo' : ''}">${nome}</a>`).join('')
-    + '<span class="em-breve" title="Em breve">Stories 9:16</span>';
-  $('#criarTit').textContent = pins ? 'Novo projeto de pins' : 'Nova publicação';
-  $('#criarInfo').dataset.info = DICA_CRIAR[fmt];
   const doFormato = resumos.filter((r) => (r.formato || '3x4') === fmt);
+  const ativas = doFormato.filter((r) => !r.arquivado);
+  const narq = doFormato.length - ativas.length;
+  if (!narq) ui.arquivadas = false;
   const unid = (q) => (pins ? (q === 1 ? 'projeto' : 'projetos') : q === 1 ? 'publicação' : 'publicações');
-  $('#tiles').innerHTML = ORDEM_NUCLEOS.map((id) => {
+  const tiles = ORDEM_NUCLEOS.map((id) => {
     const n = NUCLEOS[id];
-    const cor = tintaSobre(n.painel);
-    const qtd = doFormato.filter((r) => r.nucleo === id).length;
-    return `<button class="tile" data-criar="${id}" style="--painel:${n.painel};--tinta:${cor}">
-      <span class="tile-selo">${mark(n.selo, 54)}</span>
+    const qtd = ativas.filter((r) => r.nucleo === id).length;
+    return `<button type="button" class="tile" data-criar="${id}" style="--painel:${n.painel};--tinta:${tintaSobre(n.painel)}">
+      <span class="tile-selo">${mark(n.selo, 50)}</span>
       <span class="tile-txt"><b>Odisse ${n.nome}</b><small>${n.conteudo}</small></span>
       <span class="tile-mais">+ Criar</span>
       <span class="tile-qtd">${qtd} ${unid(qtd)}</span>
     </button>`;
   }).join('');
-
-  $('#filtros').innerHTML = [['todos', 'Todos'], ...ORDEM_NUCLEOS.map((id) => [id, NUCLEOS[id].nome])]
-    .map(([v, r]) => `<button data-filtro="${v}" class="${filtro === v ? 'ativo' : ''}">${r}</button>`).join('');
-
-  const busca = $('#busca').value.trim().toLowerCase();
-  const lista = doFormato.filter((r) => (filtro === 'todos' || r.nucleo === filtro) && (!busca || (r.titulo || '').toLowerCase().includes(busca)));
-  $('#arquivoInfo').textContent = doFormato.length
-    ? `${doFormato.length} ${unid(doFormato.length)}`
-    : pins ? 'Nenhum projeto de pins ainda.' : 'Nenhuma publicação ainda.';
-  $('#listaPubs').classList.toggle('pins', pins);
-
-  const data = (iso) => iso ? new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
-  $('#listaPubs').innerHTML = lista.length ? lista.map((r) => {
-    const n = NUCLEOS[r.nucleo] || NUCLEOS.estudio;
-    const capa = r.capa
-      ? `<img src="${r.capa}" alt="">`
-      : `<span class="sem-capa" style="background:${n.painel};color:${tintaSobre(n.painel)}">${mark(n.selo, 40)}</span>`;
-    return `<article class="pub" data-id="${r.id}">
-      <a class="pub-capa" href="#/p/${r.id}">${capa}</a>
-      <div class="pub-info">
-        <a href="#/p/${r.id}" class="pub-nome">${esc(r.titulo || 'Sem título')}</a>
-        <span class="pub-meta"><i style="background:${n.painel}"></i>${n.nome} · ${r.ncards} ${pins ? (r.ncards === 1 ? 'pin' : 'pins') : 'cards'}</span>
-        <span class="pub-data">${data(r.atualizado)}${r.rascunho ? ' · <b class="rascunho" title="Há alterações deste computador que ainda não foram salvas na nuvem">não salvo</b>' : ''}</span>
-      </div>
-      <div class="pub-acoes">
-        <button data-dup="${r.id}" title="Duplicar">Duplicar</button>
-        <button data-del="${r.id}" class="perigo" title="Excluir">Excluir</button>
-      </div>
-    </article>`;
-  }).join('') : `<p class="vazio-arquivo">${doFormato.length ? 'Nada encontrado com esse filtro.' : pins ? 'Os projetos de pins que você criar aparecem aqui.' : 'As publicações que você criar aparecem aqui.'}</p>`;
-  $('#pastasSec').hidden = !pins;
-  if (pins) renderPastas();
+  const filtros = `<div class="mk-filtros mk-pb-filtros">
+      <input type="search" class="mk-busca" data-pb-busca placeholder="Buscar publicação" aria-label="Buscar publicação" value="${esc(ui.busca)}">
+      ${segmentado([{ id: 'todos', rotulo: 'Todos' }, ...ORDEM_NUCLEOS.map((id) => ({ id, rotulo: NUCLEOS[id].nome }))], ui.filtro, 'pb-nuc', 'Núcleo')}
+      ${narq ? segmentado([{ id: 'ativas', rotulo: 'Ativas' }, { id: 'arquivadas', rotulo: 'Arquivadas', n: narq }], ui.arquivadas ? 'arquivadas' : 'ativas', 'pb-arq', 'Arquivadas') : ''}
+      <span class="mk-filtros__fim">
+        ${segmentado([{ id: 'salva', rotulo: 'Últimas salvas' }, { id: 'criada', rotulo: 'Últimas criadas' }], ui.ordem, 'pb-ordem', 'Ordem')}
+        ${segmentado([{ id: 'grade', rotulo: 'Grade' }, { id: 'lista', rotulo: 'Lista' }], ui.vista, 'pb-vista', 'Vista')}
+      </span>
+    </div>`;
+  el.innerHTML = `<div class="mk-pagina">
+    ${abas('Publicações', SUBPAGINAS.map(([r, f, nome]) => ({ href: `#/publicacoes/${r}`, rotulo: nome, ativa: f === fmt })))}
+    ${cabecalho(pins ? 'Novo projeto de pins' : 'Nova publicação', '', link('Padrões de texto e espaçamento', '#/padroes'))}
+    <div class="nucleo-tiles">${tiles}</div>
+    <div class="mk-pb-arquivo">${secao({ titulo: ui.arquivadas ? 'Arquivadas' : 'Arquivo', n: ui.arquivadas ? narq : ativas.length, corpo: `${filtros}<div class="mk-espaco" id="pbCorpo"></div>` })}</div>
+  </div>`;
+  renderArquivo();
 }
 
-// ---- Pastas do Pinterest (subpágina Pins) --------------------------------------
-
-function renderPastas() {
-  const lista = pinterest.listaPastas();
-  $('#pastasSec').innerHTML = `<div class="sec-cab linha"><div>
-      <h2>Pastas do Pinterest${info('As pastas seguem o que as pessoas buscam, não os nomes dos projetos: cada projeto se espalha por várias. A ordem aqui é a do perfil. Valem para todos os computadores.')}</h2>
-      <p>${lista.length} pastas · Arquitetos, Objetos, Elaia, Estúdio e as comuns a todos</p></div></div>
-    <div class="pastas-grupos">${pinterest.GRUPOS_PASTA.map(([g, nome]) => {
-      const itens = lista.filter((x) => x.grupo === g);
-      return `<div class="pastas-grupo" data-grupo="${g}">
-        <h3>${nome} <small>${itens.length}</small></h3>
-        ${itens.map((x, i) => `<div class="pasta-item" data-pasta="${esc(x.id)}">
-          <input class="pasta-nome" data-pasta-campo="nome" value="${esc(x.nome)}" placeholder="Nome da pasta" aria-label="Nome da pasta">
-          <div class="pasta-acoes">
-            <button data-pasta-mover="-1" ${i === 0 ? 'disabled' : ''} title="Subir">↑</button>
-            <button data-pasta-mover="1" ${i === itens.length - 1 ? 'disabled' : ''} title="Descer">↓</button>
-            <button data-pasta-remover class="perigo" title="Remover a pasta">×</button>
-          </div>
-          <input class="pasta-desc" data-pasta-campo="desc" value="${esc(x.desc || '')}" placeholder="O que entra" aria-label="O que entra nesta pasta">
-        </div>`).join('') || '<p class="vazio">Nenhuma pasta.</p>'}
-        <button class="pasta-mais" data-pasta-nova="${g}">+ Pasta</button>
-      </div>`;
-    }).join('')}</div>`;
+/** Só o corpo do arquivo (a busca redesenha só ele, sem perder o foco). */
+function renderArquivo() {
+  const corpo = $('#pbCorpo');
+  if (!corpo) return;
+  const pins = formatoInicio === 'pin';
+  const sel = selecionadas();
+  const doFormato = resumos.some((r) => (r.formato || '3x4') === formatoInicio && !r.arquivado);
+  if (!sel.length) {
+    corpo.innerHTML = bandeja(`<p class="mk-vazio">${ui.busca || ui.filtro !== 'todos' ? 'Nada encontrado com esse filtro.'
+      : ui.arquivadas ? 'Nenhuma publicação arquivada.'
+        : doFormato ? '' : pins ? 'Os projetos de pins que você criar aparecem aqui.' : 'As publicações que você criar aparecem aqui.'}</p>`);
+    return;
+  }
+  if (ui.vista === 'lista') {
+    corpo.innerHTML = bandeja(lista({
+      colunas: '30px minmax(0,1.6fr) 100px minmax(0,1.4fr) 128px 128px 168px',
+      colunasCelular: '30px minmax(0,1fr) 132px',
+      regua: [{ texto: '' }, { texto: 'Publicação' }, { texto: 'Núcleo', celular: false }, { texto: 'No pool', celular: false },
+        { texto: 'Criada', celular: false }, { texto: 'Último salvamento', celular: false }, { texto: '', fim: true }],
+      linhas: sel.map((r) => {
+        const n = NUCLEOS[r.nucleo] || NUCLEOS.estudio;
+        const [txt, tom] = textoSituacao(r);
+        return { abre: r.id, celulas: [
+          { html: `<span class="mk-th ${pins ? 'is-p' : 'is-l'}" style="aspect-ratio:${pins ? '2 / 3' : '3 / 4'}">${r.capa ? `<img src="${r.capa}" alt="">` : ''}</span>` },
+          { html: `<span class="mk-tit"><b>${esc(r.titulo || 'Sem título')}</b><small>${r.ncards} ${pins ? (r.ncards === 1 ? 'pin' : 'pins') : 'cards'}</small></span>` },
+          { html: etiqueta(n.nome), celular: false },
+          { html: `<button type="button" class="mk-link" data-pb-pool="${esc(r.id)}">${quando(txt, tom)}</button>`, celular: false },
+          { html: quando(dataHoraCurta(r.criado)), celular: false },
+          { html: `${quando(dataHoraCurta(r.atualizado))}${r.rascunho ? ' <small class="mk-mudo" title="Alterações só neste computador, ainda não salvas na nuvem">não salvo</small>' : ''}`, celular: false },
+          { html: `<span class="mk-pb-acoes">${botaoDoPool(r)}${botaoMais(r)}</span>`, fim: true },
+        ] };
+      }),
+    }));
+    return;
+  }
+  corpo.innerHTML = bandeja(`<div class="mk-pb-grade${pins ? ' is-pins' : ''}">${sel.map(cartao).join('')}</div>`, { cartao: false });
 }
 
-function mudarPastas(fn, redesenhar = true) {
-  const lista = structuredClone(pinterest.listaPastas());
-  fn(lista);
-  pinterest.gravarPastas(lista).then((ok) => { if (!ok) aviso('Pastas guardadas neste computador; não foi possível salvar na nuvem.'); });
-  if (redesenhar) renderPastas();
+function cartao(r) {
+  const n = NUCLEOS[r.nucleo] || NUCLEOS.estudio;
+  const pins = (r.formato || '3x4') === 'pin';
+  const s = situacaoNoPool(r);
+  const [txt, tom] = textoSituacao(r, s);
+  const capa = r.capa
+    ? `<img src="${r.capa}" alt="">`
+    : `<span class="mk-pb-sem-capa" style="background:${n.painel};color:${tintaSobre(n.painel)}">${mark(n.selo, 40)}</span>`;
+  const enviada = s.itens.length && r.enviadoEm ? `<dt>Enviada</dt><dd${s.alterada ? ' class="is-atencao"' : ''}>${dataHora(r.enviadoEm)}</dd>` : '';
+  return `<article class="mk-pb" data-pb="${esc(r.id)}">
+    <a class="mk-pb__capa${pins ? ' is-pin' : ''}" href="#/p/${esc(r.id)}">${capa}<em>${r.ncards}</em></a>
+    <div class="mk-pb__tx">
+      <a class="mk-pb__nome" href="#/p/${esc(r.id)}" title="${esc(r.titulo || 'Sem título')}">${esc(r.titulo || 'Sem título')}</a>
+      <span class="mk-pb__meta"><i style="background:${n.painel}"></i>${n.nome} · ${r.ncards} ${pins ? (r.ncards === 1 ? 'pin' : 'pins') : 'cards'}</span>
+      <button type="button" class="mk-pb__pool" data-pb-pool="${esc(r.id)}" title="Ver no pool">${quando(txt, tom, { pequeno: true })}${pins && s.itens.length ? `<span class="mk-pb__med">${medidor(s.noPool, s.total)}</span>` : ''}</button>
+      <dl class="mk-pb__datas"><dt>Criada</dt><dd>${dataHora(r.criado)}</dd><dt>Salva</dt><dd>${dataHora(r.atualizado)}${r.rascunho ? ' <b title="Alterações só neste computador, ainda não salvas na nuvem">não salvo</b>' : ''}</dd>${enviada}</dl>
+    </div>
+    <div class="mk-pb-acoes">${botaoDoPool(r, s)}${botaoMais(r)}</div>
+  </article>`;
 }
 
-async function abrirPublicacao(id) {
+/** A ação do momento: Enviar ao pool (o que falta), Restaurar (arquivada) ou Abrir no calendário. */
+function botaoDoPool(r, s = situacaoNoPool(r)) {
+  if (r.arquivado) return acao('Restaurar', { dados: { 'pb-restaurar': r.id } });
+  if (tarefas.has(r.id)) return acao('Enviando…', { desligada: true });
+  const pins = (r.formato || '3x4') === 'pin';
+  if (s.faltam) return acao(pins && s.noPool ? `Enviar ${s.faltam} ao pool` : 'Enviar ao pool', { dados: { 'pb-enviar': r.id } });
+  const alvo = s.proximo || s.primeiro;
+  return acao(s.estado === 'publicado' ? 'Ver no calendário' : 'Abrir no calendário', { href: `#/calendario/item/${encodeURIComponent(alvo.id)}` });
+}
+const TRES_PONTOS = '<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg>';
+const botaoMais = (r) => `<button type="button" class="mk-ico mk-pb-mais" data-pb-menu="${esc(r.id)}" aria-label="Mais ações" aria-haspopup="menu">${TRES_PONTOS}</button>`;
+
+/** Menu ⋯ do cartão: Abrir no editor, Duplicar, Baixar (.zip), Arquivar. */
+function abrirMenu(botao) {
+  fecharMenu();
+  const id = botao.dataset.pbMenu;
+  const r = resumos.find((x) => x.id === id);
+  if (!r) return;
+  const pins = (r.formato || '3x4') === 'pin';
+  const m = document.createElement('div');
+  m.className = 'mk-pb-menu';
+  m.setAttribute('role', 'menu');
+  m.innerHTML = `<a role="menuitem" href="#/p/${esc(id)}">Abrir no editor</a>
+    <button type="button" role="menuitem" data-pb-duplicar="${esc(id)}">Duplicar</button>
+    <button type="button" role="menuitem" data-pb-baixar="${esc(id)}">${pins ? 'Baixar lote (.zip)' : 'Baixar carrossel (.zip)'}</button>
+    ${r.arquivado ? `<button type="button" role="menuitem" data-pb-restaurar="${esc(id)}">Restaurar</button>`
+      : `<button type="button" role="menuitem" data-pb-arquivar="${esc(id)}">Arquivar</button>`}`;
+  botao.after(m);
+  botao.setAttribute('aria-expanded', 'true');
+  m.querySelector('a, button')?.focus();
+}
+function fecharMenu() {
+  $$('#inicio .mk-pb-menu').forEach((m) => { m.previousElementSibling?.removeAttribute('aria-expanded'); m.remove(); });
+}
+
+/** Gaveta da situação no pool: o que está lá, em que dia, e as datas da publicação. */
+function gavetaPool(id) {
+  const r = (pub?.id === id ? pub : null) || resumos.find((x) => x.id === id);
+  if (!r) return;
+  const pins = (r.formato || '3x4') === 'pin';
+  const s = situacaoNoPool(r);
+  const [txt, tom] = textoSituacao(r, s);
+  const STATUS_NOME = Object.fromEntries(pool.STATUS);
+  const ORIGEM_NOME = Object.fromEntries(pool.ORIGENS);
+  const sitItem = (it) => quando(`${STATUS_NOME[it.status] || ''}${it.status === 'publicado' ? ` em ${pool.dataCurta(it.publicadoEm || it.dia)}` : it.dia ? ` · ${pool.dataCurta(it.dia)}` : ''}`,
+    it.status === 'publicado' ? 'ok' : it.status === 'agendado' ? 'hora' : '', { pequeno: true });
+  const campos = [];
+  if (!s.itens.length) campos.push(['No pool', 'Ainda não foi enviada.']);
+  else if (pins) {
+    campos.push(['No pool', `${s.noPool} de ${s.total} pins`]);
+    campos.push(['Pins', `<ul class="mk-gv-lista">${s.itens.slice().sort((a, b) => (a.dia || '9').localeCompare(b.dia || '9'))
+      .map((it) => `<li><a class="mk-link" href="#/calendario/item/${encodeURIComponent(it.id)}">${esc(it.titulo || it.pin?.titulo || 'Pin')}</a> · ${sitItem(it)}</li>`).join('')}</ul>`]);
+  } else {
+    const it = s.itens[0];
+    campos.push(['Situação', sitItem(it)]);
+    if (it.dia) campos.push(['Dia', esc(pool.dataLonga(it.dia))]);
+    campos.push(['Origem', esc(ORIGEM_NOME[it.origem] || '—')]);
+  }
+  campos.push(['Criada', esc(dataHora(r.criado))], ['Último salvamento', esc(dataHora(r.atualizado))]);
+  if (s.itens.length) campos.push(['Enviada ao pool', esc(r.enviadoEm ? dataHora(r.enviadoEm) : '—')]);
+  const alvo = s.proximo || s.primeiro;
+  gaveta.abrir({
+    etiqueta: `${etiqueta(NUCLEOS[r.nucleo]?.nome || '')} ${quando(txt, tom, { pequeno: true })}`,
+    titulo: r.titulo || 'Sem título',
+    texto: s.alterada ? 'Salva depois do último envio: o pool está sendo atualizado com a versão nova (o que já foi publicado não muda).' : '',
+    campos,
+    acoes: `${s.faltam && !r.arquivado && !tarefas.has(id) ? acao(pins && s.noPool ? `Enviar ${s.faltam} ao pool` : 'Enviar ao pool', { principal: true, dados: { 'pb-enviar': id } }) : ''}
+      ${alvo ? acao('Abrir no calendário', { href: `#/calendario/item/${encodeURIComponent(alvo.id)}` }) : ''}
+      ${acao('Abrir no editor', { href: `#/p/${encodeURIComponent(id)}` })}`,
+  }).addEventListener('click', (e) => {
+    const b = e.target.closest('[data-pb-enviar]');
+    if (b) { gaveta.fechar(); if (pub?.id === id) $('#btPool').click(); else enviarDoArquivo(id); }
+    if (e.target.closest('a[href]')) gaveta.fechar(true);
+  });
+}
+
+// ---- Tarefas em segundo plano (enviar, reenviar, baixar), uma de cada vez -----------------------
+
+const tarefas = new Map(); // id → texto mostrado na situação
+let fila = Promise.resolve();
+const tentadas = new Set();  // reenvios automáticos já tentados nesta sessão (não repete se falhar)
+
+function emSegundoPlano(id, texto, fn) {
+  tarefas.set(id, texto);
+  if (naInicio()) renderArquivo();
+  const vez = fila.then(fn).catch((e) => { console.warn(e); aviso('Não foi possível terminar: ' + (e.message || 'erro')); });
+  fila = vez.finally(async () => {
+    tarefas.delete(id);
+    if (!naInicio()) return;
+    await montarResumos();
+    renderArquivo();
+  });
+  return fila;
+}
+const progresso = (id) => (texto) => { tarefas.set(id, texto); if (naInicio()) renderArquivo(); };
+
+const migradas = new WeakSet(); // cards de versões anteriores convertidos aos modelos universais ao abrir
+/** A publicação inteira (a cópia mais nova entre este navegador e a nuvem), com as imagens carregadas. */
+async function lerCompleta(id) {
   let p = await local.lerPub(id);
   const r = resumos.find((x) => x.id === id);
   if (!p || (r && !r.rascunho && (r.atualizado || '') > (p.atualizado || ''))) {
-    try {
-      p = await nuvem.ler(id);
-      await local.gravarPub(p);
-    } catch (e) {
-      if (!p) { aviso('Não foi possível abrir essa publicação.'); location.hash = '#/'; return; }
-    }
+    try { p = await nuvem.ler(id); await local.gravarPub(p); } catch (e) { if (!p) throw e; }
   }
-  if (!p) { aviso('Publicação não encontrada.'); location.hash = '#/'; return; }
+  if (!p) throw new Error('publicação não encontrada');
+  if (p.cards.map((c) => migrarCard(p.nucleo, c)).some(Boolean)) migradas.add(p);
   await carregarImagens(p);
+  return p;
+}
+
+function enviarDoArquivo(id, { auto = false } = {}) {
+  if (pub?.id === id) return;
+  return emSegundoPlano(id, auto ? 'Atualizando o pool…' : 'Enviando ao pool…', async () => {
+    const p = await lerCompleta(id);
+    await enviarAoPool(p, { auto, silencioso: auto, progresso: progresso(id) });
+  });
+}
+
+/** Publicações alteradas depois do envio (salvas noutra hora ou noutro computador): reenvio automático. */
+function reenviarPendentes() {
+  for (const r of resumos) {
+    if (r.arquivado || tarefas.has(r.id) || tentadas.has(r.id) || pub?.id === r.id) continue;
+    if (!alteradaDepoisDoEnvio(r)) continue;
+    tentadas.add(r.id);
+    enviarDoArquivo(r.id, { auto: true });
+  }
+}
+
+function baixarDoArquivo(id) {
+  emSegundoPlano(id, 'Gerando os arquivos…', async () => {
+    const p = await lerCompleta(id);
+    await exportarTudo(p, { progresso: progresso(id) });
+  });
+}
+
+async function arquivarPublicacao(id, arquivar = true) {
+  try {
+    const p = await lerCompleta(id);
+    p.arquivado = arquivar;
+    await local.gravarPub(p);
+    await nuvem.gravar({ ...p, salvoEm: p.salvoEm || p.atualizado });
+  } catch (e) {
+    console.warn(e);
+    aviso('Não foi possível ' + (arquivar ? 'arquivar' : 'restaurar') + ' na nuvem.');
+  }
+  await carregarArquivo();
+  renderInicio();
+  aviso(arquivar ? 'Publicação arquivada. Está em Arquivadas.' : 'Publicação restaurada.');
+}
+
+async function abrirPublicacao(id) {
+  // o envio em segundo plano termina antes (ele usa o mesmo gerador de arquivos)
+  if (tarefas.size) { aviso('Terminando o envio ao pool…'); await fila; }
+  let p;
+  try { p = await lerCompleta(id); } catch { aviso('Não foi possível abrir essa publicação.'); location.hash = '#/'; return; }
   pub = p;
+  abertura.set(pub, pub.atualizado || '');
   pub.ativo = Math.min(pub.ativo || 0, pub.cards.length - 1);
-  // cards de versões anteriores → modelos universais com as opções equivalentes
-  const migrou = pub.cards.map((c) => migrarCard(pub.nucleo, c)).some(Boolean);
-  if (migrou || (pub.versao || 0) < VERSAO) { pub.versao = VERSAO; salvar(); }
+  if (migradas.has(pub) || (pub.versao || 0) < VERSAO) { pub.versao = VERSAO; salvar(); }
   mostrar('editor');
   status(pendente() ? 'pendente' : 'salvo', pub.salvoEm);
   renderEditor();
@@ -447,7 +691,7 @@ async function duplicarPublicacao(id) {
   if (!p && nuvem.ativa()) p = await nuvem.ler(id);
   if (!p) return;
   const agora = new Date().toISOString();
-  const copia = { ...structuredClone(p), id: uid('p'), titulo: `${tituloDe(p)} (cópia)`, criado: agora, atualizado: agora };
+  const copia = { ...structuredClone(p), id: uid('p'), titulo: `${tituloDe(p)} (cópia)`, criado: agora, atualizado: agora, enviadoEm: '', arquivado: false };
   const novos = new Map(copia.cards.map((c) => [c.id, uid('c')]));
   copia.cards.forEach((c) => {
     c.id = novos.get(c.id);
@@ -459,19 +703,6 @@ async function duplicarPublicacao(id) {
   await carregarArquivo();
   renderInicio();
   aviso('Publicação duplicada.');
-}
-
-async function excluirPublicacao(id, botao) {
-  if (!botao.dataset.confirmar) {
-    botao.dataset.confirmar = '1';
-    botao.textContent = 'Confirmar?';
-    setTimeout(() => { delete botao.dataset.confirmar; botao.textContent = 'Excluir'; }, 2500);
-    return;
-  }
-  await local.apagarPub(id);
-  await nuvem.apagar(id).catch((e) => aviso('Excluída aqui, mas não na nuvem: ' + e.message));
-  await carregarArquivo();
-  renderInicio();
 }
 
 // ===========================================================================
@@ -489,22 +720,42 @@ function renderEditor() {
   const pin = ehPin();
   document.body.classList.toggle('editor-pin', pin);
   $('#btVoltar').href = `#/publicacoes/${rotaDoFormato(formatoDe(pub))}`;
+  $('#voltarRot').textContent = SUBPAGINAS.find((x) => x[1] === formatoDe(pub))[2];
   $('#cardRot').textContent = pin ? 'Dados do pin' : 'Dados do card';
-  $('#btExportarCard').textContent = pin ? 'Exportar pin' : 'Exportar card';
-  $('#btExportarTudo').textContent = pin ? 'Exportar lote (.zip)' : 'Exportar carrossel';
-  $('#btExportarCard').title = pin ? 'JPG em 1000 × 1500' : 'JPG em 1080 × 1440';
-  $('#btExportarTudo').title = pin ? 'Todos os pins em JPG, com o textos.txt (título, descrição, pasta e link de cada pin)' : 'Todos os cards em JPG, num .zip';
+  $('#btExportarCard').textContent = pin ? 'Pin ativo (JPG 1000 × 1500)' : 'Card ativo (JPG 1080 × 1440)';
+  $('#btExportarTudo').textContent = pin ? 'Lote de pins (.zip com textos.txt)' : 'Carrossel (.zip)';
   $('#btPool').title = pin
-    ? 'Envia todos os pins ao pool de mídias (imagem e textos), para agendar no Calendário. Reenviar atualiza o que ainda não foi publicado.'
-    : 'Envia o carrossel ao pool de mídias, para agendar no Calendário. Reenviar atualiza, se ainda não foi publicado.';
-  // pool por baixo: avisa no painel de imagens quando a foto já está no pool
+    ? 'Envia os pins ao pool de mídias (imagem e textos), para agendar no Calendário. Depois, as alterações vão sozinhas para o pool.'
+    : 'Envia o carrossel ao pool de mídias, para agendar no Calendário. Depois, as alterações vão sozinhas para o pool.';
+  // pool por baixo: a situação no pool e o aviso, no painel de imagens, de foto que já está no pool
   const alvo = pub;
-  pool.carregar().then(() => { if (pub === alvo && ehPin()) renderImagens(); }).catch(() => {});
+  renderSituacao();
+  pool.carregar().then(() => { if (pub === alvo) { renderSituacao(); if (ehPin()) renderImagens(); } }).catch(() => {});
   renderGuias();
   renderGlobais();
   renderTrilho();
   renderModelos();
   renderImagens();
+}
+
+/** Situação no pool, na barra do editor, e o Enviar ao pool quando falta algo lá. */
+function renderSituacao(tarefa = '') {
+  if (!pub) return;
+  const s = situacaoNoPool(pub);
+  const [txt, tom] = tarefa ? [tarefa, 'atencao'] : textoSituacao(pub, s);
+  $('#pubPool').innerHTML = `<button type="button" class="mk-link" id="btSituacao" title="Ver no pool">${quando(txt, tom)}</button>`;
+  const b = $('#btPool');
+  b.hidden = !s.faltam || tarefas.has(pub.id);
+  b.textContent = ehPin() && s.noPool ? `Enviar ${s.faltam} ao pool` : 'Enviar ao pool';
+  const auto = $('#datasPub');
+  if (auto) auto.innerHTML = datasDaPublicacao();
+}
+
+/** Datas automáticas (só leitura) e o código dos arquivos. */
+function datasDaPublicacao() {
+  const env = itensDoPool(pub.id).length ? `<div><span>Enviada ao pool</span><span>${esc(pub.enviadoEm ? dataHora(pub.enviadoEm) : '—')}</span></div>` : '';
+  return `<div><span>Criada</span><span>${esc(dataHora(pub.criado))}</span></div>
+    <div><span>Último salvamento</span><span>${esc(pub.salvoEm ? dataHora(pub.salvoEm) : 'ainda não salva na nuvem')}</span></div>${env}`;
 }
 
 // ---- Informações padrão ---------------------------------------------------
@@ -513,7 +764,6 @@ const CAMPOS_GLOBAIS = [
   { grupo: 'Dados da publicação', dica: 'Valem para todos os cards desta publicação.', campos: [
     { k: '__titulo', rot: 'Nome da publicação' },
     { k: 'projeto', rot: 'Rótulo do cabeçalho', rotElaia: 'Autoria', dica: 'Texto do canto superior direito dos cards.', dicaElaia: 'Canto superior direito dos cards, depois do texto fixo "Escrito por".' },
-    { k: 'dataPublicacao', rot: 'Data de publicação', tipo: 'date' },
   ] },
 ];
 
@@ -521,7 +771,6 @@ const CAMPOS_GLOBAIS = [
 const CAMPOS_PIN = [
   { k: '__titulo', rot: 'Nome da publicação' },
   { k: 'projeto', rot: 'Projeto, peça ou texto', dica: 'Entra na campanha dos links (utm_campaign) e no nome dos arquivos, quando a publicação não tem nome.' },
-  { k: 'dataPublicacao', rot: 'Data dos arquivos', tipo: 'date', dica: 'Data no nome dos arquivos exportados (AAMMDD). A programação de cada pin entra depois, no pool de mídias.' },
   { k: 'link', rot: 'Link de destino padrão', tipo: 'url', ph: 'https://projetos.odisse.com.br/…', dica: 'Página do projeto, da peça ou do texto (nunca a página inicial). Vale para os pins sem link próprio.' },
   { k: 'creditos', rot: 'Créditos', dica: 'Fecham a descrição de cada pin: núcleo e parceiros, quando houver (fornecedor, fotógrafo).' },
   { k: 'creditosEn', rot: 'Créditos em inglês', dica: 'Fecham a descrição dos pins em inglês.', soComEn: true },
@@ -555,6 +804,9 @@ function renderGlobais() {
     h += `<div class="campo opcao"><span>Origem${info('Ordem de entrada: acervo (o que já está nos sites), fluxo contínuo (material novo) e imprensa. Cada pin leva a etiqueta ao pool de mídias; lá ela pode ser trocada.')}</span>
       <div class="seg" role="group" aria-label="Origem">${pool.ORIGENS.map(([v, r]) => `<button data-origem="${v}" class="${o === v ? 'ativo' : ''}" aria-pressed="${o === v}">${r}</button>`).join('')}</div></div>`;
   }
+  // datas automáticas (criação, último salvamento, envio ao pool) e o código dos arquivos
+  h += `<div class="pub-datas" id="datasPub">${datasDaPublicacao()}</div>
+    <p class="pub-codigo">Código dos arquivos${pin ? ' e do utm_content' : ''}: <code>${esc(dataArquivo())}-001-${esc(nucleo().sigla)}</code>${info(pub.globais.dataPublicacao ? 'Data escolhida quando a publicação foi criada (campo antigo); fica assim para os nomes e links já enviados não mudarem.' : 'A data é a de criação da publicação; o número é a posição do card.')}</p>`;
   $('#globaisPub').innerHTML = h;
 }
 
@@ -569,7 +821,7 @@ function aoMudarGlobal(k, v) {
   }
   pub.globais[k] = v;
   salvar();
-  if (ehPin() && ['link', 'creditos', 'creditosEn', 'projeto', 'dataPublicacao'].includes(k)) atualizarPinterest();
+  if (ehPin() && ['link', 'creditos', 'creditosEn', 'projeto'].includes(k)) atualizarPinterest();
   clearTimeout(timerGlobais);
   timerGlobais = setTimeout(() => {
     renderTrilho();
@@ -714,10 +966,6 @@ function ampliacao(c, s, im) {
 
 // ---- Pinterest: campos do pin ativo ------------------------------------------
 
-const codigoPin = (i) => `${dataArquivo()}-${String(i + 1).padStart(3, '0')}-${nucleo().sigla}`;
-const linkDoPin = (i) => pinterest.linkFinal(pub.cards[i].pin || {}, pub.globais, {
-  sigla: nucleo().sigla, projeto: pub.globais.projeto || pub.titulo, codigo: codigoPin(i),
-});
 const IDIOMAS = [['pt', 'Português'], ['en', 'Inglês']];
 const TIPOS = [['imagem', 'Imagem'], ['video', 'Capa de vídeo']];
 
@@ -938,7 +1186,7 @@ function indicesVisiveis() {
 function escala(qtd) {
   const wrap = $('#trilhoWrap');
   const W = wrap.clientWidth - 112;
-  const H = wrap.clientHeight - 44 - 22;
+  const H = wrap.clientHeight - 44 - 62; // em cima o código do card; embaixo as setas de mover
   const gap = modo === 'todos' ? 18 : 28;
   const kH = H / altDe();
   const unidades = modo === '3' ? 1 + 2 * LATERAL : qtd;
@@ -957,6 +1205,12 @@ function renderTrilho() {
   trilho.style.setProperty('--gap', gap + 'px');
   $('#trilhoWrap').classList.toggle('todos', modo === 'todos');
 
+  const pin = ehPin();
+  const mais = `<button type="button" class="mais" id="btMais" title="Novo ${pin ? 'pin' : 'card'} ${modo === 'todos' ? 'no fim' : 'depois deste'}" aria-label="Novo ${pin ? 'pin' : 'card'} ${modo === 'todos' ? 'no fim' : 'depois deste'}">${icone('mais', 18, 2)}</button>`;
+  const mover = `<div class="mover">
+      <button type="button" class="mk-ico" data-mover="-1" title="Mover para a esquerda" aria-label="Mover o ${pin ? 'pin' : 'card'} para a esquerda"${pub.ativo <= 0 ? ' disabled' : ''}>${icone('anterior', 14, 2)}</button>
+      <button type="button" class="mk-ico" data-mover="1" title="Mover para a direita" aria-label="Mover o ${pin ? 'pin' : 'card'} para a direita"${pub.ativo >= pub.cards.length - 1 ? ' disabled' : ''}>${icone('seta', 14, 2)}</button>
+    </div>`;
   let h = '';
   for (const i of vis) {
     if (i === null) { h += `<div class="peca" style="width:${LARG * k * LATERAL}px"></div>`; continue; }
@@ -969,9 +1223,11 @@ function renderTrilho() {
       <div class="moldura" style="--k:${kk};--alt:${altDe()}px"><div class="${classeCard()} editar">${renderCard({
         card: c, indice: i, total: pub.cards.length, nucleo: n, globais: pub.globais, modo: 'editar', fonteImagem,
       })}</div>${guiasSvg(altDe())}</div>
+      ${i === pub.ativo ? mover : ''}
     </div>`;
+    if (modo === '3' && i === pub.ativo) h += mais;
   }
-  h += `<button class="mais" id="btMais" title="Adicionar ${ehPin() ? 'pin' : 'card'} ${modo === 'todos' ? 'no fim' : 'depois deste'}">+</button>`;
+  if (modo === 'todos') h += mais;
   trilho.innerHTML = h;
   $$('.card', trilho).forEach(ajustarLayout);
   atualizarAvisosFicha();
@@ -986,20 +1242,19 @@ function renderBarra() {
   const c = cardAtivo();
   $('#posicao').textContent = `${ehPin() ? 'Pin' : 'Card'} ${pub.ativo + 1} de ${pub.cards.length}`;
   $('#modeloAtual').textContent = c ? `· ${modeloDe(pub.nucleo, c.modelo).nome}` : '';
-  $('#btMoverEsq').disabled = pub.ativo <= 0;
-  $('#btMoverDir').disabled = pub.ativo >= pub.cards.length - 1;
   $('#btExcluir').disabled = pub.cards.length <= 1;
   $('#navEsq').disabled = pub.ativo <= 0;
   $('#navDir').disabled = pub.ativo >= pub.cards.length - 1;
   $$('#modos button').forEach((b) => b.classList.toggle('ativo', b.dataset.modo === modo));
-  $('#pontos').innerHTML = pub.cards.map((_, i) => `<button data-ir="${i}" class="${i === pub.ativo ? 'ativo' : ''}">${i + 1}</button>`).join('');
+  $('#pontos').innerHTML = pub.cards.map((_, i) => `<button type="button" data-ir="${i}" class="${i === pub.ativo ? 'ativo' : ''}" aria-label="${ehPin() ? 'Pin' : 'Card'} ${i + 1}"${i === pub.ativo ? ' aria-current="true"' : ''}>${i + 1}</button>`).join('');
+  renderSituacao(tarefas.get(pub.id) || '');
 }
 
 function irPara(i) {
   const novo = Math.max(0, Math.min(pub.cards.length - 1, i));
   if (novo === pub.ativo) return;
   pub.ativo = novo;
-  salvar();
+  local.gravarPub(pub); // só a posição, neste navegador: trocar de card não é alteração da publicação
   renderTrilho();
   $$('.modelo', $('#modelos')).forEach((b) => b.classList.toggle('ativo', b.dataset.modelo === cardAtivo().modelo));
   renderImagens();
@@ -1058,23 +1313,35 @@ function abrirSeletor(cardId, slot) {
 }
 
 // ---- Exportação -------------------------------------------------------------
+// Todas recebem a publicação (padrão: a aberta). O #exportador é um só: um arquivo de cada vez (naVez).
 
 const slug = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '');
-function dataArquivo() {
-  const v = pub.globais.dataPublicacao;
-  const d = v ? new Date(v + 'T12:00:00') : new Date();
+/** AAMMDD dos arquivos e do código dos pins: a data de criação. Publicações antigas guardam a data escolhida à mão
+ *  (o campo saiu do editor), para os nomes e os links já enviados não mudarem. */
+function dataArquivo(p = pub) {
+  const v = p.globais?.dataPublicacao;
+  const d = v ? new Date(v + 'T12:00:00') : p.criado ? new Date(p.criado) : new Date();
   return `${String(d.getFullYear()).slice(2)}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
 }
-const nomeBase = () => slug(pub.titulo || pub.globais.projeto) || (ehPin() ? 'projeto' : 'post');
+const nomeBase = (p = pub) => slug(p.titulo || p.globais.projeto) || (ehPin(p) ? 'projeto' : 'post');
 /** Post: AAMMDD-NNN-nn-assunto.jpg · Pin: AAMMDD-NNN-nn-assunto-pin.jpg (versão em inglês: …-en-pin.jpg). */
-const nomeArquivo = (i) => (ehPin()
-  ? `${codigoPin(i)}-${nomeBase()}${pub.cards[i].pin?.idioma === 'en' ? '-en' : ''}-pin.jpg`
-  : `${dataArquivo()}-${String(i + 1).padStart(3, '0')}-${nucleo().sigla}-${nomeBase()}.jpg`);
+const nomeArquivo = (i, p = pub) => (ehPin(p)
+  ? `${codigoPin(i, p)}-${nomeBase(p)}${p.cards[i].pin?.idioma === 'en' ? '-en' : ''}-pin.jpg`
+  : `${dataArquivo(p)}-${String(i + 1).padStart(3, '0')}-${NUCLEOS[p.nucleo].sigla}-${nomeBase(p)}.jpg`);
+
+let vez = Promise.resolve();
+/** Um uso do #exportador de cada vez (editor e segundo plano dividem o mesmo). */
+function naVez(fn) {
+  const r = vez.then(fn);
+  vez = r.catch(() => {});
+  return r;
+}
 
 async function montarCard(p, i) {
   const host = $('#exportador');
   host.innerHTML = `<div class="${classeCard(p)}">${renderCard({
-    card: p.cards[i], indice: i, total: p.cards.length, nucleo: NUCLEOS[p.nucleo], globais: p.globais, modo: 'exportar', fonteImagem,
+    card: p.cards[i], indice: i, total: p.cards.length, nucleo: NUCLEOS[p.nucleo], globais: p.globais, modo: 'exportar',
+    fonteImagem: (c, s) => fonteImagem(c, s, p),
   })}</div>`;
   const no = host.firstElementChild;
   await document.fonts.ready;
@@ -1086,23 +1353,27 @@ async function montarCard(p, i) {
 /** JPG otimizado, sRGB, qualidade 0,86 (bom equilíbrio para redes que recomprimem).
  *  Post: 1080 × 1440. Pin: 1000 × 1500, desenhado em 1080 × 1620 e reduzido (a margem de 52 vira 48). */
 const QUALIDADE_JPG = 0.86;
-async function gerarArquivo(i) {
-  const no = await montarCard(pub, i);
-  const f = FORMATO_POR_ID[formatoDe(pub)];
-  const [w, h] = f.canvas;
-  const opc = { width: w, height: h, canvasWidth: f.larg, canvasHeight: f.alt, pixelRatio: 1, cacheBust: false, backgroundColor: COR.papel };
-  await window.htmlToImage.toCanvas(no, opc); // 1ª passada carrega as fontes
-  const canvas = await window.htmlToImage.toCanvas(no, opc);
-  $('#exportador').innerHTML = '';
-  return new Promise((ok) => canvas.toBlob(ok, 'image/jpeg', QUALIDADE_JPG));
+function gerarArquivo(i, p = pub) {
+  return naVez(async () => {
+    const no = await montarCard(p, i);
+    const f = FORMATO_POR_ID[formatoDe(p)];
+    const [w, h] = f.canvas;
+    const opc = { width: w, height: h, canvasWidth: f.larg, canvasHeight: f.alt, pixelRatio: 1, cacheBust: false, backgroundColor: COR.papel };
+    await window.htmlToImage.toCanvas(no, opc); // 1ª passada carrega as fontes
+    const canvas = await window.htmlToImage.toCanvas(no, opc);
+    $('#exportador').innerHTML = '';
+    return new Promise((ok) => canvas.toBlob(ok, 'image/jpeg', QUALIDADE_JPG));
+  });
 }
 
-async function gerarCapa(p) {
-  if (!p.cards.length) return '';
-  const no = await montarCard(p, 0);
-  const url = await window.htmlToImage.toJpeg(no, { width: LARG, height: altDe(p), pixelRatio: 0.25, quality: 0.82, backgroundColor: COR.papel });
-  $('#exportador').innerHTML = '';
-  return url;
+function gerarCapa(p) {
+  if (!p.cards.length) return Promise.resolve('');
+  return naVez(async () => {
+    const no = await montarCard(p, 0);
+    const url = await window.htmlToImage.toJpeg(no, { width: LARG, height: altDe(p), pixelRatio: 0.25, quality: 0.82, backgroundColor: COR.papel });
+    $('#exportador').innerHTML = '';
+    return url;
+  });
 }
 
 function baixar(url, nome) {
@@ -1125,46 +1396,52 @@ async function exportarCard() {
   salvarNaNuvem({ silencioso: true });
 }
 
+const codigoPin = (i, p = pub) => `${dataArquivo(p)}-${String(i + 1).padStart(3, '0')}-${NUCLEOS[p.nucleo].sigla}`;
+const linkDoPin = (i, p = pub) => pinterest.linkFinal(p.cards[i].pin || {}, p.globais, {
+  sigla: NUCLEOS[p.nucleo].sigla, projeto: p.globais.projeto || p.titulo, codigo: codigoPin(i, p),
+});
+
 /** Lote de pins: o que vai para o textos.txt (seção 07 da estratégia do Pinterest). */
-function lotePins() {
-  const g = pub.globais;
+function lotePins(p = pub) {
+  const g = p.globais;
   const texto = (s) => String(s || '').replace(/\s+/g, ' ').trim();
-  return pub.cards.map((c, i) => {
-    const p = c.pin || pinterest.pinVazio(pub.nucleo);
+  return p.cards.map((c, i) => {
+    const pin = c.pin || pinterest.pinVazio(p.nucleo);
     return {
       numero: String(i + 1).padStart(2, '0'),
-      arquivo: nomeArquivo(i),
-      pasta: pinterest.pastaDe(p.pasta)?.nome || '',
-      titulo: texto(p.titulo),
-      descricao: pinterest.descricaoFinal(p, g),
-      alt: texto(p.alt),
-      link: linkDoPin(i),
-      idioma: p.idioma || 'pt',
-      tipo: p.tipo || 'imagem',
-      avisos: ['titulo', 'descricao', 'pasta', 'link'].flatMap((k) => pinterest.avisosDe(k, p, g)),
+      arquivo: nomeArquivo(i, p),
+      pasta: pinterest.pastaDe(pin.pasta)?.nome || '',
+      titulo: texto(pin.titulo),
+      descricao: pinterest.descricaoFinal(pin, g),
+      alt: texto(pin.alt),
+      link: linkDoPin(i, p),
+      idioma: pin.idioma || 'pt',
+      tipo: pin.tipo || 'imagem',
+      avisos: ['titulo', 'descricao', 'pasta', 'link'].flatMap((k) => pinterest.avisosDe(k, pin, g)),
     };
   });
 }
 
-async function exportarTudo() {
-  const pin = ehPin();
-  aviso(`Gerando ${pub.cards.length} ${pin ? 'pins' : 'cards'}…`);
-  await aguardarTratamentos(pub.cards);
+/** Carrossel (.zip) ou lote de pins (.zip com textos.txt). `progresso(texto)`: no arquivo, o texto vai ao cartão. */
+async function exportarTudo(p = pub, { progresso = aviso } = {}) {
+  const pin = ehPin(p);
+  progresso(`Gerando ${p.cards.length} ${pin ? 'pins' : 'cards'}…`);
+  await aguardarTratamentos(p.cards, p);
   const zip = new window.JSZip();
-  for (let i = 0; i < pub.cards.length; i++) zip.file(nomeArquivo(i), await gerarArquivo(i));
+  for (let i = 0; i < p.cards.length; i++) zip.file(nomeArquivo(i, p), await gerarArquivo(i, p));
   let pendentes = 0;
   if (pin) {
-    const lote = lotePins();
+    const lote = lotePins(p);
     pendentes = lote.filter((x) => x.avisos.length).length;
-    zip.file('textos.txt', pinterest.textosDoLote({ projeto: pub.globais.projeto || tituloDe(pub), nucleo: `Odisse ${nucleo().nome}`, pins: lote }));
+    zip.file('textos.txt', pinterest.textosDoLote({ projeto: p.globais.projeto || tituloDe(p), nucleo: `Odisse ${NUCLEOS[p.nucleo].nome}`, pins: lote }));
   }
   const u = URL.createObjectURL(await zip.generateAsync({ type: 'blob' }));
-  baixar(u, `${dataArquivo()}-${nucleo().sigla}-${nomeBase()}${pin ? '-pins' : ''}.zip`);
+  baixar(u, `${dataArquivo(p)}-${NUCLEOS[p.nucleo].sigla}-${nomeBase(p)}${pin ? '-pins' : ''}.zip`);
   setTimeout(() => URL.revokeObjectURL(u), 4000);
   aviso(pin
     ? `Lote exportado (.zip, com textos.txt).${pendentes ? ` ${pendentes} ${pendentes === 1 ? 'pin tem' : 'pins têm'} avisos — veja o textos.txt.` : ''}`
     : 'Carrossel exportado (.zip).');
-  salvarNaNuvem({ silencioso: true });
+  if (p === pub) salvarNaNuvem({ silencioso: true });
 }
 
 // ---- Pool de mídias ----------------------------------------------------------------
@@ -1179,10 +1456,10 @@ async function miniatura(blob, larg = 160) {
 }
 
 /** Fotos de origem dos cards (hash da imagem original + recorte), para o controle de repetição. */
-async function fontesDe(indices) {
+async function fontesDe(indices, p = pub) {
   const out = [];
   for (const i of indices) {
-    for (const im of Object.values(pub.cards[i].imgs || {})) {
+    for (const im of Object.values(p.cards[i].imgs || {})) {
       const src = im?.ref ? imagens.get(im.ref) : null;
       if (src) out.push({ hash: await pool.hashDe(src), x: im.x ?? 50, y: im.y ?? 50, z: im.z ?? 1 });
     }
@@ -1193,45 +1470,50 @@ async function fontesDe(indices) {
 /**
  * Envia ao pool: cada pin vira um item (pl-<card>); o carrossel inteiro, um item (pl-<publicação>).
  * Reenviar substitui imagens e textos e mantém dia, situação e origem; o que já foi publicado não muda.
+ * `auto` (reenvio automático, depois de alterar o que já estava no pool): só atualiza o que já está lá; pins
+ * novos entram pelo Enviar ao pool. Grava `enviadoEm` (a hora do envio) e salva a publicação.
  */
-async function enviarAoPool() {
-  const pin = ehPin();
-  const alvo = pub;
-  try { await pool.carregar(true); } catch (e) { console.warn(e); aviso('Não foi possível ler o pool na nuvem.'); return; }
-  await aguardarTratamentos(alvo.cards);
-  const unidades = pin ? alvo.cards.map((_, i) => [i]) : [alvo.cards.map((_, i) => i)];
-  const lote = pin ? lotePins() : null;
+async function enviarAoPool(p = pub, { auto = false, silencioso = false, progresso = aviso } = {}) {
+  const pin = ehPin(p);
+  try { await pool.carregar(true); } catch (e) { console.warn(e); if (!silencioso) aviso('Não foi possível ler o pool na nuvem.'); return; }
+  await aguardarTratamentos(p.cards, p);
+  // a hora do envio; nunca antes da última alteração (relógios de computadores diferentes)
+  const enviadoEm = [new Date().toISOString(), p.atualizado || ''].sort().pop();
+  let unidades = pin ? p.cards.map((_, i) => [i]) : [p.cards.map((_, i) => i)];
+  if (auto) unidades = unidades.filter((idx) => pool.item(pin ? `pl-${p.cards[idx[0]].id}` : `pl-${p.id}`));
+  const lote = pin ? lotePins(p) : null;
   const agora = new Date().toISOString();
   let novos = 0, atualizados = 0, publicados = 0, repetidos = 0;
   try {
     for (let u = 0; u < unidades.length; u++) {
       const idx = unidades[u];
-      const card = alvo.cards[idx[0]];
-      const id = pin ? `pl-${card.id}` : `pl-${alvo.id}`;
+      const card = p.cards[idx[0]];
+      const id = pin ? `pl-${card.id}` : `pl-${p.id}`;
       const ant = pool.item(id);
       if (ant?.status === 'publicado') { publicados++; continue; }
-      aviso(pin ? `Enviando ao pool: pin ${u + 1} de ${unidades.length}…` : 'Enviando o carrossel ao pool…');
+      progresso(pin ? `${auto ? 'Atualizando' : 'Enviando'} o pin ${u + 1} de ${unidades.length}…` : `${auto ? 'Atualizando o pool' : 'Enviando ao pool'}…`);
       const imgs = [];
       let mini = '';
       for (const i of idx) {
-        const blob = await gerarArquivo(i);
+        const blob = await gerarArquivo(i, p);
         const ref = uid('m');
         await nuvem.enviarBlob(ref, blob);
-        imgs.push({ ref, nome: nomeArquivo(i) });
+        imgs.push({ ref, nome: nomeArquivo(i, p) });
         if (!mini) mini = await miniatura(blob);
       }
-      const fontes = await fontesDe(idx);
+      const fontes = await fontesDe(idx, p);
       const par = pin && card.pin?.par ? `pl-${card.pin.par}` : '';
       const l = pin ? lote[idx[0]] : null;
       const it = {
-        id, rede: pin ? 'pinterest' : 'instagram', formato: formatoDe(alvo), pub: alvo.id, card: pin ? card.id : null,
-        nucleo: alvo.nucleo, projeto: alvo.globais.projeto || tituloDe(alvo), titulo: pin ? l.titulo : tituloDe(alvo),
+        ...(ant || {}),
+        id, rede: pin ? 'pinterest' : 'instagram', formato: formatoDe(p), pub: p.id, card: pin ? card.id : null,
+        nucleo: p.nucleo, projeto: p.globais.projeto || tituloDe(p), titulo: pin ? l.titulo : tituloDe(p),
         imagens: imgs, miniatura: mini,
         pin: pin ? { titulo: l.titulo, descricao: l.descricao, alt: l.alt, pasta: card.pin?.pasta || '', pastaNome: l.pasta, link: l.link, idioma: l.idioma, tipo: l.tipo } : null,
         avisos: pin ? l.avisos : [],
         fontes, par,
-        origem: ant?.origem || alvo.globais.origem || (pin ? 'acervo' : 'fluxo'),
-        status: ant?.status || 'pronto', dia: ant?.dia || '', publicadoEm: ant?.publicadoEm || '',
+        origem: ant?.origem || p.globais.origem || (pin ? 'acervo' : 'fluxo'),
+        status: ant?.status || 'pronto', dia: ant?.dia || '', pos: ant?.pos ?? null, publicadoEm: ant?.publicadoEm || '',
         criado: ant?.criado || agora,
       };
       it.repete = pool.repeticoes(fontes, [id, par]);
@@ -1242,18 +1524,35 @@ async function enviarAoPool() {
   } catch (e) {
     console.warn(e);
     if (e.message === 'senha incorreta') return sair();
-    aviso('Não foi possível enviar ao pool. Tente de novo.');
-    return;
+    if (!silencioso) aviso('Não foi possível enviar ao pool. Tente de novo.');
+    throw e;
   }
+  p.enviadoEm = enviadoEm;
   const partes = [];
   if (novos) partes.push(`${novos} ${novos === 1 ? 'nova' : 'novas'}`);
   if (atualizados) partes.push(`${atualizados} ${atualizados === 1 ? 'atualizada' : 'atualizadas'}`);
   let msg = partes.length ? `Pool de mídias: ${partes.join(', ')}.` : 'Nada enviado.';
   if (publicados) msg += ` ${publicados} já ${publicados === 1 ? 'publicada ficou' : 'publicadas ficaram'} como estava${publicados === 1 ? '' : 'm'}.`;
   if (repetidos) msg += ` Atenção: ${repetidos} com imagem e recorte iguais a outro item.`;
-  aviso(msg);
-  if (pub === alvo) renderImagens();
-  salvarNaNuvem({ silencioso: true });
+  if (!silencioso || repetidos) aviso(auto && !repetidos ? 'Pool atualizado com a versão nova.' : msg);
+  // guarda a hora do envio (sem mexer em `atualizado`: não é alteração da publicação)
+  if (p === pub) {
+    await local.gravarPub(p);
+    renderImagens();
+    renderSituacao();
+    if (salvando) await salvando;
+    await salvarNaNuvem({ silencioso: true });
+  } else await gravarNaNuvem(p);
+}
+
+/** Reenvio automático da publicação aberta, em segundo plano (o editor continua livre). */
+function reenviarAutomatico(p) {
+  if (tarefas.has(p.id)) return;
+  emSegundoPlano(p.id, 'Atualizando o pool…', async () => {
+    if (pub === p) renderSituacao('Atualizando o pool…');
+    await enviarAoPool(p, { auto: true, silencioso: true, progresso: (t) => { progresso(p.id)(t); if (pub === p) renderSituacao(t); } });
+    if (pub === p) renderSituacao();
+  });
 }
 
 // ===========================================================================
@@ -1295,11 +1594,7 @@ async function rotear() {
   marcarSecao(metr ? 'metricas' : cal ? 'calendario' : estr ? 'estrategia' : 'publicacoes');
   if (!pastasLidas) {
     pastasLidas = true;
-    pinterest.carregarPastas().then((mudou) => {
-      if (!mudou) return;
-      if (document.body.classList.contains('vista-inicio') && formatoInicio === 'pin') renderPastas();
-      if (pub && ehPin()) renderPinterest();
-    });
+    pinterest.carregarPastas().then((mudou) => { if (mudou && pub && ehPin()) renderPinterest(); });
   }
   if (metr) {
     if (pub) await sairDoEditor();
@@ -1346,17 +1641,19 @@ async function rotear() {
     const sub = location.hash.match(/^#\/publicacoes\/([\w-]+)/)?.[1];
     const f = SUBPAGINAS.find((x) => x[0] === sub);
     if (!f) { history.replaceState(null, '', `#/publicacoes/${rotaDoFormato(formatoInicio)}`); }
-    else if (f[1] !== formatoInicio) { formatoInicio = f[1]; prefs.set('formatoInicio', formatoInicio); filtro = 'todos'; }
+    else if (f[1] !== formatoInicio) { formatoInicio = f[1]; prefs.set('formatoInicio', formatoInicio); ui.filtro = 'todos'; ui.busca = ''; ui.arquivadas = false; }
     if (pub) await sairDoEditor();
     document.title = `${SUBPAGINAS.find((x) => x[1] === formatoInicio)[2]} · Publicações · Universo`;
     mostrar('inicio');
+    await pool.abrirLocal();
     await montarResumos(); // na hora, com o que já está neste navegador
     renderInicio();
-    buscarLista().then(async (mudou) => {
-      if (!mudou || pub || !document.body.classList.contains('vista-inicio')) return;
-      await montarResumos();
-      renderInicio();
-    });
+    // por baixo: a lista e o pool da nuvem; depois, o reenvio automático do que mudou depois do envio
+    const [mudouLista, mudouPool] = await Promise.all([buscarLista(), pool.carregar().catch(() => false)]);
+    if (pub || !naInicio()) return;
+    if (mudouLista) await montarResumos();
+    if (mudouLista || mudouPool) renderInicio();
+    reenviarPendentes();
   }
 }
 
@@ -1394,70 +1691,57 @@ async function sair() {
 function ligarEventos() {
   window.addEventListener('hashchange', rotear);
 
-  // Início
-  $('#tiles').addEventListener('click', async (e) => {
-    const b = e.target.closest('[data-criar]');
-    if (!b) return;
-    const p = await novaPublicacao(b.dataset.criar, formatoInicio);
-    await local.gravarPub(p);
-    try {
-      await nuvem.gravar({ ...p, salvoEm: p.atualizado });
-      p.salvoEm = p.atualizado;
+  // Início: criar e arquivo (um ouvinte só, a página é redesenhada inteira)
+  const inicio = $('#inicio');
+  inicio.addEventListener('click', async (e) => {
+    const t = e.target;
+    if (!t.closest('.mk-pb-menu') && !t.closest('[data-pb-menu]')) fecharMenu();
+    const criar = t.closest('[data-criar]');
+    if (criar) {
+      const p = await novaPublicacao(criar.dataset.criar, formatoInicio);
       await local.gravarPub(p);
-    } catch { /* fica como rascunho até o próximo salvamento */ }
-    location.hash = `#/p/${p.id}`;
-  });
-  $('#filtros').addEventListener('click', (e) => {
-    const b = e.target.closest('[data-filtro]');
-    if (!b) return;
-    filtro = b.dataset.filtro;
-    renderInicio();
-  });
-  $('#busca').addEventListener('input', renderInicio);
-
-  // Pastas do Pinterest
-  const pastasSec = $('#pastasSec');
-  pastasSec.addEventListener('input', (e) => {
-    const k = e.target.dataset.pastaCampo;
-    if (!k) return;
-    const id = e.target.closest('[data-pasta]').dataset.pasta;
-    mudarPastas((l) => { const x = l.find((y) => y.id === id); if (x) x[k] = e.target.value; }, false);
-  });
-  pastasSec.addEventListener('click', (e) => {
-    const b = e.target.closest('button');
-    if (!b) return;
-    const id = b.closest('[data-pasta]')?.dataset.pasta;
-    if (b.dataset.pastaNova) {
-      const nova = { id: uid('pf'), grupo: b.dataset.pastaNova, nome: '', desc: '' };
-      mudarPastas((l) => {
-        const ult = l.map((x) => x.grupo).lastIndexOf(nova.grupo);
-        l.splice(ult < 0 ? l.length : ult + 1, 0, nova);
-      });
-      $(`[data-pasta="${nova.id}"] .pasta-nome`, pastasSec)?.focus();
-    } else if (b.dataset.pastaMover) {
-      mudarPastas((l) => {
-        const i = l.findIndex((x) => x.id === id);
-        const grupo = l[i].grupo, d = Number(b.dataset.pastaMover);
-        let j = i + d;
-        while (j >= 0 && j < l.length && l[j].grupo !== grupo) j += d; // troca com a vizinha do mesmo grupo
-        if (j >= 0 && j < l.length) [l[i], l[j]] = [l[j], l[i]];
-      });
-    } else if (b.dataset.pastaRemover !== undefined) {
-      if (!b.dataset.confirmar) {
-        b.dataset.confirmar = '1';
-        b.textContent = 'Remover?';
-        setTimeout(() => { delete b.dataset.confirmar; b.textContent = '×'; }, 2500);
-        return;
-      }
-      mudarPastas((l) => { const i = l.findIndex((x) => x.id === id); if (i >= 0) l.splice(i, 1); });
+      try {
+        await nuvem.gravar({ ...p, salvoEm: p.atualizado });
+        p.salvoEm = p.atualizado;
+        await local.gravarPub(p);
+      } catch { /* fica como rascunho até o próximo salvamento */ }
+      location.hash = `#/p/${p.id}`;
+      return;
     }
+    const seg = t.closest('[data-segmentado]');
+    if (seg) {
+      const g = seg.dataset.segmentado, v = seg.dataset.valor;
+      if (g === 'pb-nuc') ui.filtro = v;
+      if (g === 'pb-arq') ui.arquivadas = v === 'arquivadas';
+      if (g === 'pb-ordem') { ui.ordem = v; prefs.set('pubOrdem', v); }
+      if (g === 'pb-vista') { ui.vista = v; prefs.set('pubVista', v); }
+      renderInicio();
+      return;
+    }
+    const b = t.closest('button');
+    const d = b?.dataset || {};
+    if (d.pbMenu) { if (b.getAttribute('aria-expanded')) fecharMenu(); else abrirMenu(b); return; }
+    if (d.pbPool) { gavetaPool(d.pbPool); return; }
+    if (d.pbEnviar) { enviarDoArquivo(d.pbEnviar); return; }
+    if (d.pbDuplicar) { fecharMenu(); duplicarPublicacao(d.pbDuplicar); return; }
+    if (d.pbBaixar) { fecharMenu(); baixarDoArquivo(d.pbBaixar); return; }
+    if (d.pbArquivar) { fecharMenu(); arquivarPublicacao(d.pbArquivar, true); return; }
+    if (d.pbRestaurar) { fecharMenu(); arquivarPublicacao(d.pbRestaurar, false); return; }
+    if (t.closest('.mk-pb-menu a')) { fecharMenu(); return; }
+    // linha da Lista: abre o editor
+    const linha = t.closest('[data-abre]');
+    if (linha && !t.closest('a, button')) location.hash = `#/p/${linha.dataset.abre}`;
   });
-  $('#listaPubs').addEventListener('click', (e) => {
-    const d = e.target.closest('[data-dup]');
-    if (d) duplicarPublicacao(d.dataset.dup);
-    const x = e.target.closest('[data-del]');
-    if (x) excluirPublicacao(x.dataset.del, x);
+  inicio.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') fecharMenu();
+    if ((e.key === 'Enter' || e.key === ' ') && e.target.matches?.('[data-abre][tabindex]')) { e.preventDefault(); location.hash = `#/p/${e.target.dataset.abre}`; }
   });
+  inicio.addEventListener('input', (e) => {
+    if (!e.target.matches('[data-pb-busca]')) return;
+    ui.busca = e.target.value;
+    renderArquivo();
+  });
+  document.addEventListener('click', (e) => { if (!e.target.closest?.('#inicio')) fecharMenu(); });
 
   // Entrada e saída
 
@@ -1681,8 +1965,6 @@ function ligarEventos() {
     prefs.set('modo', modo);
     renderTrilho();
   });
-  $('#btMoverEsq').onclick = () => mover(-1);
-  $('#btMoverDir').onclick = () => mover(1);
   $('#btDuplicar').onclick = () => {
     const c = structuredClone(cardAtivo());
     c.id = uid('c');
@@ -1713,13 +1995,25 @@ function ligarEventos() {
     renderModelos();
     renderImagens();
   };
-  $('#btExportarCard').onclick = () => exportarCard().catch(erroExport);
+  const menuExp = $('#menuExportar');
+  const fecharExp = () => { menuExp.hidden = true; $('#btExportar').setAttribute('aria-expanded', 'false'); };
+  $('#btExportar').onclick = () => {
+    const abrir = menuExp.hidden;
+    menuExp.hidden = !abrir;
+    $('#btExportar').setAttribute('aria-expanded', String(abrir));
+    if (abrir) menuExp.querySelector('button').focus();
+  };
+  document.addEventListener('click', (e) => { if (!e.target.closest?.('.pub-exportar')) fecharExp(); });
+  menuExp.addEventListener('keydown', (e) => { if (e.key === 'Escape') { fecharExp(); $('#btExportar').focus(); } });
+  $('#btExportarCard').onclick = () => { fecharExp(); exportarCard().catch(erroExport); };
+  $('#btExportarTudo').onclick = () => { fecharExp(); exportarTudo().catch(erroExport); };
   $('#btPool').onclick = (e) => {
     const b = e.currentTarget;
     b.disabled = true;
-    enviarAoPool().catch(erroExport).finally(() => { b.disabled = false; });
+    renderSituacao('Enviando ao pool…');
+    enviarAoPool().catch(erroExport).finally(() => { b.disabled = false; renderSituacao(); });
   };
-  $('#btExportarTudo').onclick = () => exportarTudo().catch(erroExport);
+  $('#pubPool').addEventListener('click', (e) => { if (e.target.closest('#btSituacao') && pub) gavetaPool(pub.id); });
   $('#navEsq').onclick = () => irPara(pub.ativo - 1);
   $('#navDir').onclick = () => irPara(pub.ativo + 1);
   // Roda do mouse (ou trackpad) passa de card em card; um passo por gesto.
@@ -1745,6 +2039,8 @@ function ligarEventos() {
   const trilho = $('#trilho');
   trilho.addEventListener('click', (e) => {
     if (e.target.closest('#btMais')) { adicionarCard(); return; }
+    const mv = e.target.closest('[data-mover]');
+    if (mv) { mover(Number(mv.dataset.mover)); return; }
     const peca = e.target.closest('.peca[data-i]');
     if (!peca) return;
     const i = Number(peca.dataset.i);
@@ -1873,22 +2169,6 @@ function focarGlobal(k) {
 function erroExport(err) {
   console.error(err);
   aviso('Não foi possível exportar. Abra o editor por um servidor (veja o README).');
-}
-
-/** Ao conectar a nuvem pela primeira vez, envia o que já existe neste navegador. */
-async function enviarTudoParaNuvem() {
-  const locais = await local.listarPubs();
-  let remotos = [];
-  try { remotos = await nuvem.listar(); } catch { return; }
-  const r = new Map(remotos.map((x) => [x.id, x]));
-  for (const res of locais) {
-    if ((r.get(res.id)?.atualizado || '') >= (res.atualizado || '')) continue;
-    const p = await local.lerPub(res.id);
-    for (const ref of local.refsDe(p)) await garantirImagemNaNuvem(ref);
-    p.salvoEm = p.atualizado;
-    await nuvem.gravar(p);
-    await local.gravarPub(p);
-  }
 }
 
 // ---------------------------------------------------------------------------

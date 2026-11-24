@@ -10,6 +10,7 @@ import * as plano from './plano.js';
 import * as pool from './pool.js';
 import * as nuvem from './nuvem.js';
 import * as local from './store.js';
+import * as pinterest from './pinterest.js';
 import { NUCLEOS, ORDEM_NUCLEOS } from './nucleos.js';
 import { cabecalho, abas, segmentado, bandeja, lista, secao, quando, acao, etiqueta, gaveta, toque, icone, esc } from '/base/v2/componentes.js';
 
@@ -32,7 +33,7 @@ export async function renderEstrategia(el, sub, opc = {}) {
   await pool.abrirLocal();
   if (!resumos.length) resumos = await local.listarPubs();
   desenhar();
-  await Promise.all([plano.carregarEstrategia(), plano.carregarPautas(), pool.carregar().catch(() => false)]);
+  await Promise.all([plano.carregarEstrategia(), plano.carregarPautas(), pool.carregar().catch(() => false), pinterest.carregarPastas()]);
   nuvem.listar().then((l) => { resumos = l; }).catch(() => {});
   if (document.body.classList.contains('vista-estrategia')) desenhar();
 }
@@ -167,7 +168,8 @@ function paginaPlataformas() {
       corpo: bandeja(`<div class="mk-pcfg">${cfg.map((x) => `<span>${x}</span>`).join('')}</div>
         ${lista({ colunas: 'minmax(120px,170px) 140px minmax(0,1fr) 96px 60px', colunasCelular: 'minmax(0,1fr) minmax(0,1.4fr) 60px',
           regua: [{ texto: 'Formato' }, { texto: 'Peça do editor', celular: false }, { texto: 'Tipos' }, { texto: 'Na grade', celular: false }, { texto: '', fim: true }], linhas, vazio: 'Nenhum formato ainda.' })}
-        <button type="button" class="mk-mais is-largo" data-p-novo-formato="${esc(p.id)}">${icone('mais', 13, 2)} Formato</button>`),
+        <button type="button" class="mk-mais is-largo" data-p-novo-formato="${esc(p.id)}">${icone('mais', 13, 2)} Formato</button>`)
+        + (p.id === 'pinterest' ? `<div class="mk-espaco">${bandeja(blocoPastas())}</div>` : ''),
     });
   }).join('');
   const arquivadas = arq.length ? secao({
@@ -179,6 +181,30 @@ function paginaPlataformas() {
     <button type="button" class="mk-nova-plat" data-p-nova="1">${icone('mais', 15, 2)} Nova plataforma</button>
     ${arquivadas}
     <p class="ui-nota">Tipo é o conteúdo dentro de um formato (o “Carrossel de projeto” de um post, o “Antes & Depois” de um reel); pode ter código e núcleo. A peça do editor liga o formato às mídias do pool: o Calendário só deixa soltar num encaixe o que tem a peça dele. Arquivar tira da grade daqui para a frente; o que já foi publicado continua com o nome que tinha.</p>`;
+}
+
+/** Pastas do perfil do Pinterest: seguem o que as pessoas buscam, não os nomes dos projetos. A ordem é a do perfil
+ *  (arrastar pela alça, dentro do grupo). Valem para todos os computadores (cfg:pin-pastas). */
+function blocoPastas() {
+  const todas = pinterest.listaPastas();
+  return `<div class="mk-pastas__cab">Pastas do perfil <small>${todas.length} pastas · a ordem é a do perfil</small></div>
+    ${pinterest.GRUPOS_PASTA.map(([g, nome]) => {
+      const itens = todas.filter((x) => x.grupo === g);
+      return `<div class="ui-lista__grupo">${esc(nome)} <small>${itens.length}</small></div>
+        ${itens.map((x) => `<div class="mk-pasta" data-pasta="${esc(x.id)}" data-pasta-grupo="${esc(g)}">
+          <button type="button" class="mk-alca" draggable="true" data-pasta-alca title="Arrastar para mudar a ordem (ou setas para cima e para baixo)" aria-label="Mudar a ordem de ${esc(x.nome || 'pasta')}: setas para cima e para baixo">${icone('alca', 14, 2)}</button>
+          <input class="mk-campo-in mk-plano mk-pasta__nome" data-pasta-campo="nome" value="${esc(x.nome)}" placeholder="Nome da pasta" aria-label="Nome da pasta">
+          <input class="mk-campo-in mk-plano mk-pasta__desc" data-pasta-campo="desc" value="${esc(x.desc || '')}" placeholder="O que entra" aria-label="O que entra nesta pasta">
+          <button type="button" class="mk-ico" data-pasta-remover="${esc(x.id)}" title="Remover a pasta" aria-label="Remover a pasta ${esc(x.nome)}">${icone('fechar', 13, 2)}</button>
+        </div>`).join('')}
+        <button type="button" class="mk-mais is-largo" data-pasta-nova="${esc(g)}">${icone('mais', 13, 2)} Pasta</button>`;
+    }).join('')}`;
+}
+function mudarPastas(fn, redesenhar = true) {
+  const l = structuredClone(pinterest.listaPastas());
+  fn(l);
+  pinterest.gravarPastas(l).then((ok) => { if (!ok) avisar('Pastas guardadas neste computador; não foi possível salvar na nuvem.'); });
+  if (redesenhar) desenhar();
 }
 
 // ---------------------------------------------------------------------------
@@ -608,6 +634,19 @@ function ligar() {
       mudarEst((e) => { e.grades.instagram[fase] = normalizarFaseDoc(fase); });
       return;
     }
+    // pastas do Pinterest
+    if (d.pastaNova) {
+      const nova = { id: `pf${Date.now().toString(36)}`, grupo: d.pastaNova, nome: '', desc: '' };
+      mudarPastas((l) => { const ult = l.map((x) => x.grupo).lastIndexOf(nova.grupo); l.splice(ult < 0 ? l.length : ult + 1, 0, nova); });
+      $(`[data-pasta="${nova.id}"] [data-pasta-campo="nome"]`, raiz)?.focus();
+      return;
+    }
+    if (d.pastaRemover) {
+      if (!d.confirmar) { d.confirmar = '1'; b.innerHTML = '<small>Remover?</small>'; b.classList.add('is-confirmar'); setTimeout(() => { if (b.isConnected) desenhar(); }, 2500); return; }
+      const id = d.pastaRemover;
+      mudarPastas((l) => { const k = l.findIndex((x) => x.id === id); if (k >= 0) l.splice(k, 1); });
+      return;
+    }
     // plataformas
     if (d.pNova !== undefined) { novaPlataforma(); return; }
     if (d.pNovoFormato) {
@@ -632,6 +671,18 @@ function ligar() {
   });
   raiz.addEventListener('keydown', (e) => {
     if ((e.key === 'Enter' || e.key === ' ') && e.target.matches?.('[data-abre][tabindex]')) { e.preventDefault(); abrir(e.target.dataset.abre); return; }
+    if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && e.target.matches?.('[data-pasta-alca]')) {
+      e.preventDefault();
+      const id = e.target.closest('[data-pasta]').dataset.pasta, dir = e.key === 'ArrowUp' ? -1 : 1;
+      mudarPastas((l) => {
+        const i = l.findIndex((x) => x.id === id);
+        let j = i + dir;
+        while (j >= 0 && j < l.length && l[j].grupo !== l[i].grupo) j += dir; // troca com a vizinha do mesmo grupo
+        if (j >= 0 && j < l.length) [l[i], l[j]] = [l[j], l[i]];
+      });
+      $(`[data-pasta="${id}"] [data-pasta-alca]`, raiz)?.focus();
+      return;
+    }
     if (e.key === 'Enter' && e.target.dataset?.nova) { e.preventDefault(); adicionarPauta(); }
   });
   raiz.addEventListener('change', (e) => {
@@ -652,11 +703,53 @@ function ligar() {
       ligar.t = setTimeout(() => { desenhar(); const c = $('[data-busca-pauta]', raiz); c?.focus(); c?.setSelectionRange(c.value.length, c.value.length); }, 250);
       return;
     }
+    if (t.dataset.pastaCampo) {
+      const id = t.closest('[data-pasta]').dataset.pasta, campo = t.dataset.pastaCampo;
+      mudarPastas((l) => { const x = l.find((y) => y.id === id); if (x) x[campo] = t.value; }, false);
+      return;
+    }
     if (t.dataset.pautaCampo === 'angulo' || t.dataset.pautaCampo === 'notas') {
       const id = t.dataset.pauta, campo = t.dataset.pautaCampo;
       mudarPautas((l) => { const p = l.find((x) => x.id === id); if (p) p[campo] = t.value; }, false);
     }
   });
+
+  // pastas do Pinterest: arrastar pela alça para mudar a ordem, dentro do mesmo grupo
+  let pasta = null;
+  raiz.addEventListener('dragstart', (e) => {
+    const alca = e.target.closest?.('.mk-pasta .mk-alca');
+    if (!alca) return;
+    const linha = alca.closest('[data-pasta]');
+    pasta = { id: linha.dataset.pasta, grupo: linha.dataset.pastaGrupo };
+    e.dataTransfer.setData('text/plain', pasta.id);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setDragImage(linha, 16, 16);
+    linha.classList.add('is-pego');
+  });
+  raiz.addEventListener('dragover', (e) => {
+    if (!pasta) return;
+    const l = e.target.closest?.('[data-pasta]');
+    raiz.querySelectorAll('.mk-pasta.is-sobre').forEach((x) => x !== l && x.classList.remove('is-sobre'));
+    if (!l || l.dataset.pastaGrupo !== pasta.grupo || l.dataset.pasta === pasta.id) return;
+    e.preventDefault();
+    l.classList.add('is-sobre');
+  });
+  raiz.addEventListener('drop', (e) => {
+    if (!pasta) return;
+    const l = e.target.closest?.('[data-pasta]');
+    const de = pasta.id;
+    pasta = null;
+    if (!l || l.dataset.pasta === de) return;
+    e.preventDefault();
+    mudarPastas((lista) => {
+      const i = lista.findIndex((x) => x.id === de);
+      const alvo = lista.findIndex((y) => y.id === l.dataset.pasta);
+      const [x] = lista.splice(i, 1);
+      const j = lista.findIndex((y) => y.id === l.dataset.pasta);
+      lista.splice(i < alvo ? j + 1 : j, 0, x); // descendo, entra depois da pasta de destino; subindo, antes
+    });
+  });
+  document.addEventListener('dragend', () => { pasta = null; raiz?.querySelectorAll('.mk-pasta.is-pego, .mk-pasta.is-sobre').forEach((x) => x.classList.remove('is-pego', 'is-sobre')); });
 
   // grade: arrastar o cartão para outra posição ou outro dia
   let pego = null;

@@ -92,7 +92,6 @@ export function padroesDoNucleo(id) {
     aviso: '',
     contador: true,
     selo: true,
-    dataPublicacao: '',
     contatoTitulo: 'Vamos conversar sobre o seu projeto.',
     contatoTexto: 'Projetos de arquitetura e interiores, com atendimento em todo o Brasil.',
     // site, telefone e e-mail não ficam aqui: vêm da Marca (marca.js → contatosDe)

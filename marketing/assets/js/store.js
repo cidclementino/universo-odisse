@@ -35,7 +35,6 @@ async function op(loja, modo, fn) {
 
 export const ler = (chave, loja = 'estado') => op(loja, 'readonly', (s) => s.get(chave));
 export const gravar = (chave, valor, loja = 'estado') => op(loja, 'readwrite', (s) => s.put(valor, chave));
-export const apagar = (chave, loja = 'estado') => op(loja, 'readwrite', (s) => s.delete(chave));
 
 export async function listarPubs() {
   const todos = (await op('pubs', 'readonly', (s) => s.getAll())) || [];
@@ -43,7 +42,6 @@ export async function listarPubs() {
 }
 export const lerPub = (id) => ler(id, 'pubs');
 export const gravarPub = (pub) => gravar(pub.id, pub, 'pubs');
-export const apagarPub = (id) => apagar(id, 'pubs');
 export const lerImg = (ref) => ler(ref, 'imgs');
 export const gravarImg = (ref, src) => gravar(ref, src, 'imgs');
 export const lerMeta = (k) => ler(k, 'meta');
@@ -60,6 +58,8 @@ export function resumo(pub) {
     criado: pub.criado,
     atualizado: pub.atualizado,
     salvoEm: pub.salvoEm || '',
+    enviadoEm: pub.enviadoEm || '',
+    arquivado: !!pub.arquivado,
     capa: pub.capa || '',
   };
 }
