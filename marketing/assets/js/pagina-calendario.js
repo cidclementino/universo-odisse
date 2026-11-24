@@ -41,10 +41,13 @@ let raiz = null, resumos = [], ligado = false, avisar = () => {}, chaveGaveta = 
 const estreito = () => matchMedia('(max-width: 760px)').matches;
 const vistaEfetiva = () => (estreito() ? 'lista' : ui.vista);
 
-/** Monta a página. `sub`: '' (calendário), 'pool' ou 'pool/tabela'. `opc.aviso` mostra a mensagem do app. */
+/** Monta a página. `sub`: '' (calendário), 'pool', 'pool/tabela' ou 'item/<id>' (abre o item do pool na semana
+ *  dele, vindo das Publicações). `opc.aviso` mostra a mensagem do app. */
 export async function renderCalendario(el, sub, opc = {}) {
   raiz = el;
   const [s, v] = String(sub || '').split('/');
+  const itemPedido = s === 'item' && v ? decodeURIComponent(v) : '';
+  if (itemPedido) history.replaceState(null, '', '#/calendario');
   ui.sub = s === 'pool' ? 'pool' : '';
   if (ui.sub === 'pool' && v === 'tabela') ui.poolVista = 'tabela';
   avisar = opc.aviso || avisar;
@@ -59,7 +62,11 @@ export async function renderCalendario(el, sub, opc = {}) {
     plano.carregarPautas(),
   ]);
   if (lista_) resumos = lista_;
-  if (document.body.classList.contains('vista-calendario')) desenhar();
+  if (!document.body.classList.contains('vista-calendario')) return;
+  const it = itemPedido && pool.item(itemPedido);
+  if (it?.dia) ui.ref = it.dia;
+  desenhar();
+  if (it) abrir(`i:${it.id}`);
 }
 
 // ---------------------------------------------------------------------------

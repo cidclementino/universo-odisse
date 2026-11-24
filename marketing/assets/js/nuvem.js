@@ -58,7 +58,6 @@ export const gravar = (pub) =>
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(pub),
   });
-export const apagar = (id) => req(`/api/publicacoes/${encodeURIComponent(id)}`, { method: 'DELETE' });
 
 export async function enviarImg(ref, dataUrl) {
   const blob = await (await fetch(dataUrl)).blob();

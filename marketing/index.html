@@ -9,7 +9,7 @@
   <script type="importmap">
   {
     "imports": {
-      "./assets/js/app.js": "./assets/js/app.js?v=c13eba4791",
+      "./assets/js/app.js": "./assets/js/app.js?v=5bd5ef7fc1",
       "./assets/js/grade.js": "./assets/js/grade.js?v=cd5de68ccd",
       "./assets/js/imaging.js": "./assets/js/imaging.js?v=0055923bbd",
       "./assets/js/marca.js": "./assets/js/marca.js?v=7a8a4998bf",
@@ -17,18 +17,18 @@
       "./assets/js/metricas/graficos.js": "./assets/js/metricas/graficos.js?v=afa4f6157a",
       "./assets/js/metricas/leituras.js": "./assets/js/metricas/leituras.js?v=3f3f18ecbe",
       "./assets/js/metricas/modelo.js": "./assets/js/metricas/modelo.js?v=1708260e9e",
-      "./assets/js/metricas/paginas.js": "./assets/js/metricas/paginas.js?v=53de141b7c",
-      "./assets/js/nucleos.js": "./assets/js/nucleos.js?v=dde87f2eb3",
-      "./assets/js/nuvem.js": "./assets/js/nuvem.js?v=15ce35c953",
+      "./assets/js/metricas/paginas.js": "./assets/js/metricas/paginas.js?v=85680c3bc8",
+      "./assets/js/nucleos.js": "./assets/js/nucleos.js?v=4b27bd2b4c",
+      "./assets/js/nuvem.js": "./assets/js/nuvem.js?v=20cbe3c883",
       "./assets/js/padroes.js": "./assets/js/padroes.js?v=b0b7f6886a",
-      "./assets/js/pagina-calendario.js": "./assets/js/pagina-calendario.js?v=f2fb688860",
-      "./assets/js/pagina-estrategia.js": "./assets/js/pagina-estrategia.js?v=c157c5cbe7",
+      "./assets/js/pagina-calendario.js": "./assets/js/pagina-calendario.js?v=80afd9465f",
+      "./assets/js/pagina-estrategia.js": "./assets/js/pagina-estrategia.js?v=3deed454d2",
       "./assets/js/pagina-metricas.js": "./assets/js/pagina-metricas.js?v=e3cdd5a3de",
       "./assets/js/pagina-padroes.js": "./assets/js/pagina-padroes.js?v=6ef5f16288",
       "./assets/js/pinterest.js": "./assets/js/pinterest.js?v=24eb256430",
       "./assets/js/plano.js": "./assets/js/plano.js?v=35bd1fd547",
       "./assets/js/pool.js": "./assets/js/pool.js?v=ab279b9572",
-      "./assets/js/store.js": "./assets/js/store.js?v=a4c6d728d8",
+      "./assets/js/store.js": "./assets/js/store.js?v=134f5aff9e",
       "./assets/js/templates.js": "./assets/js/templates.js?v=93f9e2dab1"
     }
   }
@@ -37,38 +37,11 @@
   <link rel="stylesheet" href="assets/css/card.css?v=03e46c1ae1">
   <!-- Casca do Universo: o Marketing mora em /marketing/ -->
   <script src="/base/v2/casca.js" data-classe="ferramenta-marketing"></script>
-  <link rel="stylesheet" href="assets/css/app.css?v=c3e68eee64">
+  <link rel="stylesheet" href="assets/css/app.css?v=6b7ad3b5f5">
 </head>
 <body class="vista-inicio">
-  <!-- ===================== INÍCIO: criar + arquivo ===================== -->
-  <main class="inicio" id="inicio">
-    <!-- Subpáginas de Publicações: uma por formato de arquivo -->
-    <nav class="met-nav pub-nav" id="pubNav" aria-label="Formatos de publicação"></nav>
-    <section class="criar">
-      <div class="sec-cab linha">
-        <h1><span id="criarTit">Nova publicação</span> <span class="info" tabindex="0" id="criarInfo" data-info="Escolha o núcleo. O carrossel já começa com o repertório de modelos dele.">i</span></h1>
-        <a class="bt-padroes" href="#/padroes">Padrões de texto e espaçamento</a>
-      </div>
-      <div class="nucleo-tiles" id="tiles"></div>
-    </section>
-
-    <section class="arquivo">
-      <div class="sec-cab linha">
-        <div>
-          <h2>Arquivo</h2>
-          <p id="arquivoInfo"></p>
-        </div>
-        <div class="filtros">
-          <div class="chips" id="filtros"></div>
-          <input type="search" id="busca" placeholder="Buscar publicação" aria-label="Buscar publicação">
-        </div>
-      </div>
-      <div class="lista-pubs" id="listaPubs"></div>
-    </section>
-
-    <!-- Só nos pins: pastas do perfil do Pinterest (comuns a todos os computadores) -->
-    <section class="pastas" id="pastasSec" hidden></section>
-  </main>
+  <!-- ===================== INÍCIO: criar + arquivo (peças da v2, desenhado por app.js) ===================== -->
+  <main class="inicio" id="inicio"></main>
 
   <!-- ===================== PADRÕES ===================== -->
   <main class="padroes" id="padroes"></main>
@@ -84,15 +57,24 @@
 
   <!-- ===================== EDITOR ===================== -->
   <div class="pub-barra" id="pubBarra">
-    <a class="voltar" id="btVoltar" href="#/publicacoes">← Publicações</a>
+    <a class="voltar" id="btVoltar" href="#/publicacoes"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg><span id="voltarRot">Publicações</span></a>
     <div class="pub-id">
       <span class="chip" id="pubChip"></span>
       <span class="pub-nucleo" id="pubNucleo"></span>
       <input id="pubTitulo" class="pub-titulo" type="text" placeholder="Título da publicação" aria-label="Título da publicação">
+      <span class="pub-pool" id="pubPool"></span>
     </div>
     <div class="pub-salvar">
       <span class="sinc" id="sinc" data-estado="pronto"><span class="ponto"></span><span id="sincTxt"></span></span>
-      <button id="btSalvar" title="Salvar na nuvem (Ctrl+S)">Salvar</button>
+      <button type="button" class="ui-acao" id="btSalvar" title="Salvar na nuvem (Ctrl+S)">Salvar</button>
+      <span class="pub-exportar">
+        <button type="button" class="ui-acao" id="btExportar" aria-haspopup="menu" aria-expanded="false">Exportar</button>
+        <span class="mk-pb-menu" id="menuExportar" role="menu" hidden>
+          <button type="button" role="menuitem" id="btExportarCard">Exportar card</button>
+          <button type="button" role="menuitem" id="btExportarTudo">Exportar carrossel</button>
+        </span>
+      </span>
+      <button type="button" class="ui-acao is-principal" id="btPool" hidden>Enviar ao pool</button>
     </div>
   </div>
 
@@ -121,33 +103,26 @@
         <div class="barra-g">
           <span class="posicao" id="posicao"></span>
           <span class="modelo-atual" id="modeloAtual"></span>
+          <span class="acoes-card" id="acoesCard">
+            <button type="button" class="ui-acao" id="btDuplicar" title="Duplicar card">Duplicar</button>
+            <button type="button" class="ui-acao" id="btExcluir" title="Excluir card">Excluir</button>
+          </span>
         </div>
-        <div class="acoes-card" id="acoesCard">
-          <button class="txt" id="btDuplicar" title="Duplicar card">Duplicar</button>
-          <button class="txt perigo" id="btExcluir" title="Excluir card">Excluir</button>
-        </div>
-        <div class="seg" role="group" aria-label="Visualização" id="modos">
-          <button data-modo="3" title="Card ativo com os vizinhos">3</button>
-          <button data-modo="todos" title="Todos em linha, como carrossel">Todos</button>
+        <div class="barra-d">
+          <div class="seg guias-bt" role="group" aria-label="Guias de composição" id="guias"></div>
+          <div class="seg" role="group" aria-label="Visualização" id="modos">
+            <button type="button" data-modo="3" title="Card ativo com os vizinhos">3</button>
+            <button type="button" data-modo="todos" title="Todos em linha, como carrossel">Todos</button>
+          </div>
         </div>
       </div>
       <div class="trilho-wrap" id="trilhoWrap">
-        <button class="nav-seta esq" id="navEsq" aria-label="Card anterior">‹</button>
+        <button type="button" class="nav-seta esq" id="navEsq" aria-label="Card anterior"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button>
         <div class="trilho" id="trilho"></div>
-        <button class="nav-seta dir" id="navDir" aria-label="Próximo card">›</button>
+        <button type="button" class="nav-seta dir" id="navDir" aria-label="Próximo card"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
       </div>
       <div class="rodape">
-        <div class="seg guias-bt" role="group" aria-label="Guias de composição" id="guias"></div>
-        <div class="paginacao">
-          <button class="ico" id="btMoverEsq" title="Mover o card para a esquerda">←</button>
-          <div class="pontos" id="pontos"></div>
-          <button class="ico" id="btMoverDir" title="Mover o card para a direita">→</button>
-        </div>
-        <div class="exportar">
-          <button class="txt" id="btPool" title="Envia as mídias prontas ao pool de mídias, para agendar no Calendário">Enviar ao pool</button>
-          <button class="txt" id="btExportarCard">Exportar card</button>
-          <button class="txt forte" id="btExportarTudo">Exportar carrossel</button>
-        </div>
+        <div class="pontos" id="pontos"></div>
       </div>
     </section>
 
@@ -168,6 +143,6 @@
 
   <script src="vendor/html-to-image.js?v=ad74ac1e13"></script>
   <script src="vendor/jszip.min.js?v=978d62b574"></script>
-  <script type="module" src="assets/js/app.js?v=c13eba4791"></script>
+  <script type="module" src="assets/js/app.js?v=5bd5ef7fc1"></script>
 </body>
 </html>
