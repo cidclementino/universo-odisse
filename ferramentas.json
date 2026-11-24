@@ -536,9 +536,9 @@
             "id": "catalogo",
             "nome": "Catálogo de serviços",
             "icone": "catalogo",
-            "url": "https://servicos.odisse.com.br/painel/",
+            "url": "https://universo.odisse.com.br/catalogo/",
             "hosts": [
-              "servicos.odisse.com.br/painel"
+              "universo.odisse.com.br/catalogo"
             ]
           }
         ]

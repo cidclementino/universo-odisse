@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Odisse · Catálogo de serviços</title>
+  <link rel="icon" href="https://marca.odisse.com.br/favicon/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="https://marca.odisse.com.br/v1/marca.css">
+  <link rel="stylesheet" href="/base/v1/universo.css">
+  <link rel="stylesheet" href="painel.css">
+  <!-- Casca do Universo (menu lateral, Ir para, painel): desde 24/11/2026 o Catálogo mora em /catalogo/ -->
+  <script src="/base/v2/casca.js" data-item="catalogo" data-classe="ferramenta-catalogo"></script>
+</head>
+<body class="u-pagina">
+  <nav class="ui-abas" id="secoes" aria-label="Catálogo de serviços">
+    <span class="ui-abas__rot">Catálogo de serviços</span>
+    <span class="ui-abas__caixa">
+      <a href="#/" data-secao="catalogo" aria-current="page">Catálogo</a>
+      <a href="#/inicio" data-secao="inicio">Página inicial</a>
+      <a href="#/modulos" data-secao="modulos">Módulos</a>
+    </span>
+    <a class="ui-acao catalogo-site" href="https://servicos.odisse.com.br/inicio/" target="_blank" rel="noopener">Ver o site</a>
+  </nav>
+
+  <!-- ===================== PÁGINAS (desenhadas pelo painel.js conforme o endereço) ===================== -->
+  <main class="pagina" id="pagina" hidden></main>
+  <!-- Barra de salvar (Ficha do produto e montador da landing page) -->
+  <div class="barra-salvar" id="barraSalvar" hidden>
+    <span id="barraTexto">Mudanças não salvas</span>
+    <div>
+      <button class="u-botao" id="btDescartar" type="button">Descartar</button>
+      <button class="u-botao forte" id="btSalvar" type="button">Salvar</button>
+    </div>
+  </div>
+
+  <!-- Escolher módulo (montador) -->
+  <dialog class="dialogo" id="dlgBlocos" aria-labelledby="dlgBlocosTitulo">
+    <div class="dlg-cab">
+      <h2 class="u-subtitulo" id="dlgBlocosTitulo">Acrescentar módulo</h2>
+      <button class="caixa" type="button" data-fechar aria-label="Fechar"></button>
+    </div>
+    <div class="dlg-corpo" id="dlgBlocosCorpo"></div>
+  </dialog>
+
+  <input type="file" accept="image/*" id="arqImagem" hidden>
+  <script type="module" src="painel.js"></script>
+</body>
+</html>
