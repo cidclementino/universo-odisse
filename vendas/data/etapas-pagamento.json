@@ -1,0 +1,18 @@
+[
+  {
+    "nome": "Entrada",
+    "percentual": 0.3
+  },
+  {
+    "nome": "Estudo Preliminar",
+    "percentual": 0.2
+  },
+  {
+    "nome": "Projeto Legal e/ou Anteprojeto",
+    "percentual": 0.2
+  },
+  {
+    "nome": "Projeto Executivo",
+    "percentual": 0.3
+  }
+]

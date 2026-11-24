@@ -139,9 +139,9 @@
       "secao": "ferramentas",
       "ramo": "comercial",
       "descricao": "Acompanha as oportunidades, do pedido ao contrato",
-      "url": "https://vendas.odisse.com.br/crm.html",
+      "url": "https://universo.odisse.com.br/vendas/crm.html",
       "hosts": [
-        "vendas.odisse.com.br/crm.html"
+        "universo.odisse.com.br/vendas/crm.html"
       ],
       "acesso": "interna",
       "status": "no-ar"
@@ -152,9 +152,9 @@
       "secao": "ferramentas",
       "ramo": "comercial",
       "descricao": "Cadastro de clientes, parceiros e organizações",
-      "url": "https://vendas.odisse.com.br/contatos.html",
+      "url": "https://universo.odisse.com.br/vendas/contatos.html",
       "hosts": [
-        "vendas.odisse.com.br/contatos.html"
+        "universo.odisse.com.br/vendas/contatos.html"
       ],
       "acesso": "interna",
       "status": "no-ar"
@@ -165,9 +165,10 @@
       "secao": "ferramentas",
       "ramo": "comercial",
       "descricao": "Emite propostas e simulações de honorários",
-      "url": "https://vendas.odisse.com.br/",
+      "url": "https://universo.odisse.com.br/vendas/",
       "hosts": [
-        "vendas.odisse.com.br"
+        "universo.odisse.com.br/vendas/index.html",
+        "universo.odisse.com.br/vendas/migrar.html"
       ],
       "acesso": "interna",
       "status": "no-ar"
@@ -203,9 +204,9 @@
       "descricao": "Emite e registra os contratos assinados",
       "acesso": "interna",
       "status": "no-ar",
-      "url": "https://vendas.odisse.com.br/contratos.html",
+      "url": "https://universo.odisse.com.br/vendas/contratos.html",
       "hosts": [
-        "vendas.odisse.com.br/contratos.html"
+        "universo.odisse.com.br/vendas/contratos.html"
       ]
     },
     {
@@ -425,6 +426,19 @@
       "descricao": "Como o Odisse faz cada coisa, do atendimento à entrega",
       "acesso": "interna",
       "status": "em-breve"
+    },
+    {
+      "id": "referencias",
+      "nome": "Referências de preço",
+      "secao": "ferramentas",
+      "ramo": "comercial",
+      "descricao": "Serviços, fases e etapas, honorários, tabelas do CAU e do CUB, e a fórmula",
+      "url": "https://universo.odisse.com.br/vendas/honorarios.html",
+      "hosts": [
+        "universo.odisse.com.br/vendas/honorarios.html"
+      ],
+      "acesso": "interna",
+      "status": "no-ar"
     }
   ],
   "menu": {
@@ -485,6 +499,11 @@
             "nome": "Mapa de preços",
             "icone": "precos",
             "rota": "precos"
+          },
+          {
+            "id": "referencias",
+            "nome": "Referências de preço",
+            "icone": "tabela"
           }
         ]
       },

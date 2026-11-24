@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Contratos · Vendas — Odisse</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="https://marca.odisse.com.br/favicon/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="https://marca.odisse.com.br/favicon/favicon-32x32.png" sizes="32x32">
+<link rel="stylesheet" href="https://marca.odisse.com.br/v1/marca.css">
+<link rel="stylesheet" href="https://universo.odisse.com.br/base/v1/universo.css">
+<link rel="stylesheet" href="styles.css?v=1f3fa8b945">
+</head>
+<body>
+
+<div id="app" class="app app--no-sidebar" hidden>
+  <header class="topo" data-pagina="contratos"></header>
+  <script src="topo.js?v=164bd89cf9"></script>
+
+  <main class="ct">
+    <div class="ct-abas">
+      <span class="ct-abas__secao">Contratos</span>
+      <div class="abas" role="tablist" aria-label="Páginas de Contratos">
+        <button type="button" role="tab" data-aba="contratos">Contratos</button>
+        <button type="button" role="tab" data-aba="clausulas">Gestor de cláusulas</button>
+      </div>
+    </div>
+
+    <!-- Contratos: o emissor ainda não existe -->
+    <section data-painel="contratos" hidden>
+      <div class="ct-cab"><h1>Contratos</h1></div>
+      <div class="ct-vazio">
+        <p><strong>O emissor de contratos ainda não está pronto.</strong></p>
+        <p>Por enquanto, o contrato assinado se registra no <a href="crm.html">Funil</a>, na ficha da oportunidade (Contrato e projeto), que cria o projeto no Projetos.
+          As cláusulas do contrato (15 seções, com o que vem de outras ferramentas) já se editam no <a href="#clausulas">Gestor de cláusulas</a>.</p>
+      </div>
+    </section>
+
+    <!-- Gestor de cláusulas -->
+    <section data-painel="clausulas" hidden>
+      <div class="ct-cab">
+        <h1>Gestor de cláusulas</h1>
+        <div class="ct-pub" id="ct-pub"></div>
+      </div>
+      <div id="ct-aviso"></div>
+
+      <div class="ct-bloco">
+        <h2 class="ct-bloco__titulo">Cláusulas do contrato <span class="ct-conta" id="conta-gerais"></span></h2>
+        <div id="gerais"><p class="small muted">Carregando…</p></div>
+      </div>
+
+      <div class="ct-bloco">
+        <h2 class="ct-bloco__titulo">Despesas reembolsáveis <span class="ct-conta" id="conta-despesas"></span></h2>
+        <div class="ct-pilha" id="despesas"><p class="small muted">Carregando…</p></div>
+      </div>
+
+      <div class="ct-bloco">
+        <div class="ct-bloco__cab">
+          <h2 class="ct-bloco__titulo">Cláusulas dos eventos <span class="ct-conta" id="conta-eventos"></span></h2>
+        </div>
+        <div id="eventos"><p class="small muted">Carregando…</p></div>
+      </div>
+
+      <section class="ct-notas">
+        <div><p class="ct-notas__titulo">Onde aparecem</p>
+          <p>As despesas e as cláusulas dos eventos aparecem no bloco Cláusulas do formulário da proposta (Escopo) e vão para o PDF; as escolhidas na proposta seguem para o contrato. As cláusulas do contrato só aparecem no contrato.</p></div>
+        <div><p class="ct-notas__titulo">Publicar</p>
+          <p>As propostas leem a última versão publicada dos Honorários. Mudou um texto aqui, publique para que ele chegue às propostas novas. Propostas já finalizadas não mudam.</p></div>
+        <div><p class="ct-notas__titulo">Cláusulas dos eventos</p>
+          <p>No <a href="https://projetos.odisse.com.br/pgt.html" target="_blank" rel="noopener">PGT</a> se marca quais eventos são cláusula e se ela é obrigatória ou opcional em cada serviço; o texto se redige só aqui. Marcada e ainda sem texto, aparece como “a redigir” e fica fora das propostas até ter texto. N no texto vira a quantidade informada na proposta.</p></div>
+        <div><p class="ct-notas__titulo">Cláusulas do contrato</p>
+          <p>As 15 seções do contrato. Em cada uma, os cartões “dado” mostram o que vem de outras ferramentas (Empresa, Equipe, Contatos, proposta, PGT) e de onde; as cláusulas redigidas ficam aqui. <b>Fixa</b> entra sempre; <b>opcional</b> você assente ou não em cada contrato (marcada = já vem assentida). A condição faz a cláusula entrar sozinha só quando o contrato pede (por exemplo, com Projeto Legal). {proposta} vira o número da proposta; {etapa_aprovada}, a etapa escolhida no contrato. A numeração mostrada é a de um contrato com tudo assentido. O tratamento é sempre “o CONTRATANTE”.</p></div>
+        <div><p class="ct-notas__titulo">Editar</p>
+          <p>Lápis abre o texto (nas cláusulas do contrato, também o nome curto). Enter grava, Shift+Enter quebra a linha, Esc desfaz; sair do campo também grava. Despesa marcada por padrão já vem marcada nas propostas novas. Tudo o que muda aqui chega aos documentos novos depois de Publicar versão.</p></div>
+      </section>
+    </section>
+  </main>
+</div>
+
+<script src="config.js?v=07793b6f66"></script>
+<script src="auth.js?v=2a461f8bce"></script>
+<script>exigirAutenticacao();</script>
+<script src="store.js?v=66a6878146"></script>
+<script src="contrato-minuta.js?v=02e8a868b2"></script>
+<script>
+// ==========================================================================
+// Contratos (vendas). Aba Contratos: o emissor ainda não existe. Aba Gestor de cláusulas: as cláusulas do contrato
+// (15 seções da minuta, contrato-minuta.js; grupo 'geral' de vendas_clausulas, 0027) e os textos das
+// cláusulas que aparecem no formulário da proposta — despesas reembolsáveis (tabela vendas_clausulas, 0019)
+// e cláusulas dos eventos do PGT (campo pgt_eventos.clausula; o vendas edita só esse campo). As propostas
+// leem do retrato publicado dos Honorários, que leva os dois.
+// ==========================================================================
+const ICONE = {
+  lapis: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 2.5l2 2L5 11H3V9z"/></svg>',
+  cima: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 9 4-4 4 4"/></svg>',
+  baixo: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 5 4 4 4-4"/></svg>',
+  seta: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 5.5 3 3 3-3"/></svg>',
+  fora: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M4 4l6 6M10 4l-6 6"/></svg>',
+};
+let DESP = [], GERAIS = [], PGT = null, HON = null;
+
+function aviso(texto, tipo = 'erro') {
+  const a = document.getElementById('ct-aviso');
+  a.innerHTML = texto ? `<p class="ct-msg ct-msg--${tipo}">${escHtml(texto)}</p>` : '';
+}
+
+// ---------------------------------------------------------------- publicar
+function desenharPub() {
+  const el = document.getElementById('ct-pub');
+  if (!HON) { el.innerHTML = ''; return; }
+  const p = HON.publicacao;
+  el.innerHTML = `<span class="ct-pub__estado">${p ? `Honorários v${p.numero} · ${new Date(p.publicado_em).toLocaleDateString('pt-BR')}` : 'Honorários ainda não publicados'}</span>
+    ${HON.pendente ? '<span class="etq etq--atencao">mudanças não publicadas</span>' : '<span class="etq etq--ok">publicado</span>'}
+    <button type="button" class="u-botao forte" id="btn-publicar" ${HON.pendente ? '' : 'disabled'}>Publicar versão</button>`;
+  const b = document.getElementById('btn-publicar');
+  b.onclick = async () => {
+    b.disabled = true; b.textContent = 'Publicando…';
+    try { await Universo.post('honorarios/publicar', { nota: 'Cláusulas (Gestor de cláusulas)' }); aviso(''); }
+    catch (e) { aviso(e.status === 409 ? 'Nada mudou desde a última versão.' : 'Não consegui publicar: ' + e.message); }
+    await lerHonorarios();
+  };
+}
+async function lerHonorarios() {
+  try { HON = await Universo.get('honorarios'); } catch (e) { HON = null; }
+  desenharPub();
+  desenharEventos();
+}
+
+// ---------------------------------------------------------------- edição no lugar
+// Texto vira campo com contorno ocre: Enter grava, Shift+Enter quebra linha, Esc desfaz, sair do campo grava.
+function editarNoLugar(alvo, valor, gravar) {
+  const ta = document.createElement('textarea');
+  ta.className = 'ct-editar'; ta.value = valor || ''; ta.rows = Math.max(2, Math.ceil((valor || '').length / 90));
+  alvo.replaceChildren(ta); ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length);
+  let feito = false;
+  const fim = async (salvar) => {
+    if (feito) return; feito = true;
+    const novo = ta.value.trim();
+    if (salvar && novo && novo !== (valor || '').trim()) { ta.disabled = true; await gravar(novo); }
+    else await gravar(null);
+  };
+  ta.onkeydown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); fim(true); }
+    if (e.key === 'Escape') { e.preventDefault(); fim(false); }
+  };
+  ta.onblur = () => fim(true);
+}
+
+// ---------------------------------------------------------------- despesas (Pilha)
+async function lerDespesas(fresco) {
+  const buscar = async () => (await Universo.listar('vendas-clausulas', { grupo: 'despesa' })).itens;
+  try {
+    DESP = await comCopia('gestor:despesas', buscar, (n) => { DESP = n; desenharDespesas(); }, { fresco });
+  } catch (e) {
+    document.getElementById('despesas').innerHTML = `<p class="small muted">Não consegui ler as despesas (${escHtml(e.message)}). Confira se a migração 0019 do Universo já está no ar.</p>`;
+    return;
+  }
+  desenharDespesas();
+}
+function desenharDespesas() {
+  const box = document.getElementById('despesas');
+  document.getElementById('conta-despesas').textContent = DESP.length || '';
+  box.innerHTML = DESP.map((d, i) => `
+    <div class="ct-cartao" data-id="${d.id}">
+      <span class="ct-pos">${i + 1}</span>
+      <button type="button" class="ctl__btn" data-editar title="Editar o texto" aria-label="Editar o texto">${ICONE.lapis}</button>
+      <div class="ct-texto" data-texto>${escHtml(d.texto)}</div>
+      <label class="check-row ct-padrao" title="Já vem marcada nas propostas novas"><input type="checkbox" data-padrao ${d.padrao ? 'checked' : ''}><span class="check-row__box"><svg viewBox="0 0 20 20" fill="none"><path d="M4 10l4 4 8-8" stroke="#FFFFFF" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="check-row__text small">por padrão</span></label>
+      <span class="ct-ctl">
+        <button type="button" class="ctl__btn" data-mover="-1" ${i === 0 ? 'disabled' : ''} aria-label="Subir">${ICONE.cima}</button>
+        <button type="button" class="ctl__btn" data-mover="1" ${i === DESP.length - 1 ? 'disabled' : ''} aria-label="Descer">${ICONE.baixo}</button>
+        <button type="button" class="ctl__btn ctl__btn--perigo" data-arquivar aria-label="Tirar da lista">${ICONE.fora}</button>
+      </span>
+    </div>`).join('') + '<button type="button" class="ct-acrescentar" id="btn-nova-despesa">+ Acrescentar despesa</button>';
+
+  const guardar = async (fazer) => {
+    try { await fazer(); aviso(''); } catch (e) { aviso(e.status === 409 ? 'Alguém mudou esta lista ao mesmo tempo; recarreguei.' : 'Não consegui gravar: ' + e.message); }
+    await lerDespesas(true); lerHonorarios();
+  };
+  box.querySelectorAll('.ct-cartao').forEach((c) => {
+    const d = DESP.find((x) => x.id === c.dataset.id);
+    c.querySelector('[data-editar]').onclick = () => editarNoLugar(c.querySelector('[data-texto]'), d.texto, (novo) =>
+      novo ? guardar(() => Universo.alterar('vendas-clausulas', d.id, { texto: novo, versao: d.versao })) : desenharDespesas());
+    c.querySelector('[data-padrao]').onchange = (e) => guardar(() => Universo.alterar('vendas-clausulas', d.id, { padrao: e.target.checked ? 1 : 0, versao: d.versao }));
+    c.querySelectorAll('[data-mover]').forEach((b) => b.onclick = () => {
+      const i = DESP.indexOf(d), j = i + Number(b.dataset.mover);
+      const l = [...DESP]; [l[i], l[j]] = [l[j], l[i]];
+      guardar(async () => { for (const [k, x] of l.entries()) if (x.ordem !== k + 1) await Universo.alterar('vendas-clausulas', x.id, { ordem: k + 1, versao: x.versao }); });
+    });
+    c.querySelector('[data-arquivar]').onclick = () => {
+      if (!confirm('Tirar esta despesa da lista? Ela some das propostas novas depois de publicar (dá para trazer de volta pelo Universo).')) return;
+      guardar(() => Universo.post(`vendas-clausulas/${d.id}/arquivar`, { versao: d.versao }));
+    };
+  });
+  document.getElementById('btn-nova-despesa').onclick = () => {
+    const novo = document.createElement('div');
+    novo.className = 'ct-cartao ct-cartao--novo';
+    novo.innerHTML = '<span class="ct-pos">+</span><span></span><div class="ct-texto"></div>';
+    box.insertBefore(novo, document.getElementById('btn-nova-despesa'));
+    editarNoLugar(novo.querySelector('.ct-texto'), '', (texto) => texto
+      ? guardar(() => Universo.criar('vendas-clausulas', { grupo: 'despesa', texto, padrao: 1, ordem: DESP.length + 1 }))
+      : desenharDespesas());
+  };
+}
+
+// ---------------------------------------------------------------- cláusulas do contrato (0027)
+// As 15 seções da minuta (contrato-minuta.js): dados de outras ferramentas (só leitura, com a fonte) e as cláusulas
+// gerais (vendas_clausulas, grupo 'geral'). Seções em Blocos recolhíveis, estado lembrado neste computador.
+const ABERTAS = 'gestor:secoes-abertas';
+const abertas = () => { try { return new Set(JSON.parse(localStorage.getItem(ABERTAS) || '[]')); } catch (_) { return new Set(); } };
+const guardarAbertas = (s) => { try { localStorage.setItem(ABERTAS, JSON.stringify([...s])); } catch (_) {} };
+
+async function lerGerais(fresco) {
+  const buscar = async () => (await Universo.listar('vendas-clausulas', { grupo: 'geral', limite: 200 })).itens;
+  try {
+    GERAIS = await comCopia('gestor:gerais', buscar, (n) => { GERAIS = n; desenharGerais(); }, { fresco });
+  } catch (e) {
+    document.getElementById('gerais').innerHTML = `<p class="small muted">Não consegui ler as cláusulas do contrato (${escHtml(e.message)}). Confira se a migração 0027 do Universo já está no ar.</p>`;
+    return;
+  }
+  desenharGerais();
+}
+
+// itens da seção na ordem do contrato: dados apos 0 → cláusulas (as N primeiras antes dos dados apos N) → dados 'fim'
+function itensDaSecao(sec) {
+  const cl = GERAIS.filter((c) => c.secao === sec.n).sort((a, b) => a.ordem - b.ordem);
+  const dados = sec.dados || [];
+  const out = [];
+  const dadosApos = (k) => dados.filter((d) => d.apos === k).forEach((d) => out.push({ dado: d }));
+  dadosApos(0);
+  cl.forEach((c, i) => { out.push({ clausula: c }); dadosApos(i + 1); });
+  dados.filter((d) => d.apos !== 'fim' && d.apos > cl.length).forEach((d) => out.push({ dado: d }));
+  dadosApos('fim');
+  return out;
+}
+
+function desenharGerais() {
+  const box = document.getElementById('gerais');
+  const ab = abertas();
+  document.getElementById('conta-gerais').textContent = GERAIS.length ? `${GERAIS.length} cláusulas em 15 seções` : '';
+  box.innerHTML = ContratoMinuta.SECOES.map((sec) => {
+    const itens = itensDaSecao(sec);
+    const nCl = itens.filter((x) => x.clausula).length, nDa = itens.filter((x) => x.dado).length;
+    const aberta = ab.has(sec.n);
+    const corpo = itens.map((x, i) => {
+      const num = `${sec.n}.${i + 1}`;
+      if (x.dado) {
+        const d = x.dado;
+        return `<div class="ct-cartao ct-cartao--dado">
+          <span class="ct-pos ct-pos--num">${num}</span>
+          <div><div class="ct-titulo">${escHtml(d.nome)}</div><div class="ct-evento">${escHtml(d.fonte)}</div>
+            ${d.falta ? `<div class="ct-evento ct-falta">${escHtml(d.falta)}</div>` : ''}</div>
+          <span class="ct-etqs"><span class="etq">dado</span></span>
+        </div>`;
+      }
+      const c = x.clausula;
+      const doGrupo = GERAIS.filter((g) => g.secao === sec.n).sort((a, b) => a.ordem - b.ordem);
+      const j = doGrupo.indexOf(c);
+      return `<div class="ct-cartao ct-cartao--geral${c.tipo === 'opcional' ? ' ct-cartao--opcional' : ''}" data-id="${c.id}">
+        <span class="ct-pos ct-pos--num">${num}</span>
+        <button type="button" class="ctl__btn" data-editar title="Editar" aria-label="Editar ${escHtml(c.titulo || 'a cláusula')}">${ICONE.lapis}</button>
+        <div data-texto><div class="ct-titulo">${escHtml(c.titulo || 'Sem nome')}</div><div class="ct-texto">${escHtml(c.texto)}</div></div>
+        <div class="ct-opcoes">
+          <span class="seletor seletor--p" role="group" aria-label="Fixa ou opcional">
+            <button type="button" data-tipo="fixa" class="${c.tipo === 'fixa' ? 'is-on' : ''}">Fixa</button>
+            <button type="button" data-tipo="opcional" class="${c.tipo === 'opcional' ? 'is-on' : ''}">Opcional</button></span>
+          ${c.tipo === 'opcional' ? `<label class="check-row ct-padrao" title="Já vem assentida nos contratos novos"><input type="checkbox" data-padrao ${c.padrao ? 'checked' : ''}><span class="check-row__box"><svg viewBox="0 0 20 20" fill="none"><path d="M4 10l4 4 8-8" stroke="#FFFFFF" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="check-row__text small">vem marcada</span></label>` : '<span></span>'}
+          <select class="ct-condicao" data-condicao aria-label="Quando entra">
+            <option value="">sempre</option>
+            ${Object.entries(ContratoMinuta.CONDICOES).map(([k, r]) => `<option value="${k}"${c.condicao === k ? ' selected' : ''}>${escHtml(r)}</option>`).join('')}
+          </select>
+        </div>
+        <span class="ct-ctl">
+          <button type="button" class="ctl__btn" data-mover="-1" ${j === 0 ? 'disabled' : ''} aria-label="Subir">${ICONE.cima}</button>
+          <button type="button" class="ctl__btn" data-mover="1" ${j === doGrupo.length - 1 ? 'disabled' : ''} aria-label="Descer">${ICONE.baixo}</button>
+          <button type="button" class="ctl__btn ctl__btn--perigo" data-arquivar aria-label="Tirar do contrato">${ICONE.fora}</button>
+        </span>
+      </div>`;
+    }).join('');
+    return `<section class="ct-secao${aberta ? ' is-aberta' : ''}" data-secao="${sec.n}">
+      <button type="button" class="ct-secao__cab" aria-expanded="${aberta}">
+        <span class="ct-secao__num">${sec.n}</span><span class="ct-secao__nome">${escHtml(sec.nome)}</span>
+        <span class="ct-conta">${nCl} ${nCl === 1 ? 'cláusula' : 'cláusulas'}${nDa ? ` · ${nDa} ${nDa === 1 ? 'dado' : 'dados'}` : ''}</span>
+        <span class="ct-secao__seta">${ICONE.seta}</span>
+      </button>
+      <div class="ct-secao__corpo" ${aberta ? '' : 'hidden'}><div class="ct-pilha">${corpo}
+        <button type="button" class="ct-acrescentar" data-nova>+ Acrescentar cláusula em ${escHtml(sec.nome)}</button></div></div>
+    </section>`;
+  }).join('');
+
+  const guardar = async (fazer) => {
+    try { await fazer(); aviso(''); } catch (e) { aviso(e.status === 409 ? 'Alguém mudou esta cláusula ao mesmo tempo; recarreguei.' : 'Não consegui gravar: ' + e.message); }
+    await lerGerais(true); lerHonorarios();
+  };
+  box.querySelectorAll('.ct-secao').forEach((el) => {
+    const n = Number(el.dataset.secao);
+    el.querySelector('.ct-secao__cab').onclick = () => {
+      const s = abertas(); s.has(n) ? s.delete(n) : s.add(n); guardarAbertas(s);
+      const ab2 = s.has(n);
+      el.classList.toggle('is-aberta', ab2);
+      el.querySelector('.ct-secao__cab').setAttribute('aria-expanded', String(ab2));
+      el.querySelector('.ct-secao__corpo').hidden = !ab2;
+    };
+    el.querySelectorAll('.ct-cartao--geral').forEach((cEl) => {
+      const c = GERAIS.find((x) => x.id === cEl.dataset.id);
+      const doGrupo = GERAIS.filter((g) => g.secao === n).sort((a, b) => a.ordem - b.ordem);
+      cEl.querySelector('[data-editar]').onclick = () => editarClausula(cEl.querySelector('[data-texto]'), c, (mud) =>
+        mud ? guardar(() => Universo.alterar('vendas-clausulas', c.id, { ...mud, versao: c.versao })) : desenharGerais());
+      cEl.querySelectorAll('[data-tipo]').forEach((b) => b.onclick = () => {
+        if (b.dataset.tipo === c.tipo) return;
+        guardar(() => Universo.alterar('vendas-clausulas', c.id, { tipo: b.dataset.tipo, ...(b.dataset.tipo === 'fixa' ? { padrao: 1 } : {}), versao: c.versao }));
+      });
+      const pd = cEl.querySelector('[data-padrao]');
+      if (pd) pd.onchange = (e) => guardar(() => Universo.alterar('vendas-clausulas', c.id, { padrao: e.target.checked ? 1 : 0, versao: c.versao }));
+      cEl.querySelector('[data-condicao]').onchange = (e) => guardar(() => Universo.alterar('vendas-clausulas', c.id, { condicao: e.target.value || null, versao: c.versao }));
+      cEl.querySelectorAll('[data-mover]').forEach((b) => b.onclick = () => {
+        const i = doGrupo.indexOf(c), k = i + Number(b.dataset.mover);
+        const l = [...doGrupo]; [l[i], l[k]] = [l[k], l[i]];
+        guardar(async () => { for (const [m, x] of l.entries()) { const o = n * 100 + m + 1; if (x.ordem !== o) await Universo.alterar('vendas-clausulas', x.id, { ordem: o, versao: x.versao }); } });
+      });
+      cEl.querySelector('[data-arquivar]').onclick = () => {
+        if (!confirm(`Tirar “${c.titulo || 'esta cláusula'}” do contrato? Ela some dos contratos novos depois de publicar (dá para trazer de volta pelo Universo).`)) return;
+        guardar(() => Universo.post(`vendas-clausulas/${c.id}/arquivar`, { versao: c.versao }));
+      };
+    });
+    el.querySelector('[data-nova]').onclick = (ev) => {
+      const novo = document.createElement('div');
+      novo.className = 'ct-cartao ct-cartao--geral ct-cartao--novo';
+      novo.innerHTML = '<span class="ct-pos">+</span><span></span><div data-texto></div>';
+      ev.currentTarget.before(novo);
+      const doGrupo = GERAIS.filter((g) => g.secao === n);
+      const ordem = n * 100 + Math.min(99, (doGrupo.reduce((m, x) => Math.max(m, x.ordem - n * 100), 0)) + 1);
+      editarClausula(novo.querySelector('[data-texto]'), { titulo: '', texto: '' }, (mud) => mud && mud.texto
+        ? guardar(() => Universo.criar('vendas-clausulas', { grupo: 'geral', secao: n, tipo: 'opcional', padrao: 1, ordem, titulo: mud.titulo || null, texto: mud.texto }))
+        : desenharGerais());
+    };
+  });
+}
+
+// Edição no lugar de nome curto + texto: Enter no nome passa ao texto; Enter no texto grava; Esc desfaz;
+// sair dos dois campos grava. Devolve só o que mudou (ou null).
+function editarClausula(alvo, c, gravar) {
+  alvo.innerHTML = `<input class="ct-editar ct-editar--titulo" maxlength="80" placeholder="Nome curto (só no Gestor e no editor)">
+    <textarea class="ct-editar" rows="${Math.max(2, Math.ceil((c.texto || '').length / 90))}" placeholder="Texto da cláusula, como sai no contrato"></textarea>`;
+  const [ti, ta] = alvo.querySelectorAll('input, textarea');
+  ti.value = c.titulo || ''; ta.value = c.texto || '';
+  const altura = () => { ta.style.height = 'auto'; ta.style.height = (ta.scrollHeight + 4) + 'px'; };
+  ta.addEventListener('input', altura); altura();
+  (c.texto ? ta : ti).focus();
+  let feito = false;
+  const fim = (salvar) => {
+    if (feito) return; feito = true;
+    if (!salvar) return gravar(null);
+    const mud = {};
+    const t = ti.value.trim(), x = ta.value.trim();
+    if (t !== (c.titulo || '')) mud.titulo = t || null;
+    if (x && x !== (c.texto || '')) mud.texto = x;
+    if (!c.id && x) mud.texto = x;
+    gravar(Object.keys(mud).length ? mud : null);
+  };
+  ti.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); ta.focus(); } if (e.key === 'Escape') { e.preventDefault(); fim(false); } };
+  ta.onkeydown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); fim(true); }
+    if (e.key === 'Escape') { e.preventDefault(); fim(false); }
+  };
+  alvo.addEventListener('focusout', (e) => { if (!alvo.contains(e.relatedTarget)) setTimeout(() => { if (!alvo.contains(document.activeElement)) fim(true); }, 0); });
+}
+
+// ---------------------------------------------------------------- cláusulas dos eventos
+async function lerPgt(fresco) {
+  try { PGT = await comCopia('gestor:pgt', () => Universo.get('pgt'), (n) => { PGT = n; desenharEventos(); }, { fresco }); }
+  catch (e) { document.getElementById('eventos').innerHTML = `<p class="small muted">Não consegui ler o Plano Geral de Trabalho (${escHtml(e.message)}).</p>`; return; }
+  desenharEventos();
+}
+// Eventos marcados como cláusula no PGT (clausula_marcada, 0019). O texto vem da página dos Honorários;
+// marcado sem texto = a redigir. (Antes da 0019 no ar: vale quem tem texto no evento.)
+const marcado = (v) => !v.encerramento && (v.clausula_marcada !== undefined ? !!v.clausula_marcada : !!(v.clausula && v.clausula.trim()));
+const textoDe = (v) => ((HON && HON.clausulas_eventos) ? HON.clausulas_eventos[v.id] : v.clausula) || '';
+function desenharEventos() {
+  if (!PGT) return;
+  const sigla = Object.fromEntries((PGT.servicos || []).map((s) => [s.id, s.sigla]));
+  const etapas = PGT.etapas || [];
+  const evs = (PGT.eventos || []).filter(marcado);
+  const faltam = evs.filter((v) => !textoDe(v).trim()).length;
+  document.getElementById('conta-eventos').innerHTML = evs.length ? `${evs.length}${faltam ? ` · <span class="ct-conta--falta">${faltam} a redigir</span>` : ''}` : '';
+  const pert = (v) => Object.entries(v.servicos || {}).filter(([, p]) => p === 'P' || p === 'O')
+    .map(([s, p]) => `<span class="etq ${p === 'P' ? '' : 'etq--opcional'}" title="${p === 'P' ? 'obrigatória' : 'opcional'} em ${escHtml(sigla[s] || s)}">${escHtml(sigla[s] || s)} · ${p === 'P' ? 'obrigatória' : 'opcional'}</span>`).join('');
+  const html = (PGT.fases || []).map((f) => {
+    const blocos = etapas.filter((e) => e.fase_id === f.id).map((e) => {
+      const l = evs.filter((v) => v.etapa_id === e.id);
+      if (!l.length) return '';
+      return `<p class="ct-etapa"><b>${escHtml(e.sigla)}</b> ${escHtml(e.nome)}</p>` + l.map((v) => {
+        const t = textoDe(v);
+        return `
+        <div class="ct-cartao ct-cartao--evento${t ? '' : ' ct-cartao--falta'}" data-id="${v.id}">
+          <button type="button" class="ctl__btn" data-editar title="${t ? 'Editar o texto' : 'Redigir'}" aria-label="${t ? 'Editar' : 'Redigir'} a cláusula de ${escHtml(v.nome)}">${ICONE.lapis}</button>
+          <div><div class="ct-texto${t ? '' : ' ct-texto--sem'}" data-texto>${t ? escHtml(t) : 'Cláusula a redigir'}</div>
+            <div class="ct-evento">${escHtml(v.nome)}</div></div>
+          <span class="ct-etqs">${t ? '' : '<span class="etq etq--atencao">a redigir</span>'}<span class="etq etq--codigo">${escHtml(v.codigo || '')}</span>${pert(v)}</span>
+        </div>`;
+      }).join('');
+    }).join('');
+    return blocos ? `<div class="ct-grupo"><p class="ct-grupo__titulo">${escHtml(f.nome)}</p>${blocos}</div>` : '';
+  }).join('');
+  const box = document.getElementById('eventos');
+  box.innerHTML = html || '<div class="ct-vazio"><p>Nenhum evento marcado como cláusula no Plano Geral de Trabalho.</p></div>';
+  box.querySelectorAll('.ct-cartao--evento').forEach((c) => {
+    const v = PGT.eventos.find((x) => x.id === c.dataset.id);
+    c.querySelector('[data-editar]').onclick = () => editarNoLugar(c.querySelector('[data-texto]'), textoDe(v), async (novo) => {
+      if (!novo) return desenharEventos();
+      try { await Universo.alterar('pgt-eventos', v.id, { clausula: novo, versao: v.versao }); aviso(''); }
+      catch (e) { aviso(e.status === 409 ? 'Este evento mudou no PGT ao mesmo tempo; recarreguei.' : 'Não consegui gravar: ' + e.message); }
+      await lerPgt(true); await lerHonorarios();
+    });
+  });
+}
+
+// ---------------------------------------------------------------- abas
+function ligarAbas() {
+  const botoes = [...document.querySelectorAll('.ct-abas [data-aba]')];
+  const mostrar = (id) => {
+    botoes.forEach((b) => b.setAttribute('aria-selected', String(b.dataset.aba === id)));
+    document.querySelectorAll('[data-painel]').forEach((s) => { s.hidden = s.dataset.painel !== id; });
+    document.title = (id === 'clausulas' ? 'Gestor de cláusulas' : 'Contratos') + ' · Vendas — Odisse';
+    if (id === 'clausulas' && !ligarAbas.lido) { ligarAbas.lido = true; lerHonorarios(); lerGerais(); lerDespesas(); lerPgt(); }
+  };
+  botoes.forEach((b) => b.onclick = () => { history.replaceState(null, '', '#' + b.dataset.aba); mostrar(b.dataset.aba); });
+  window.addEventListener('hashchange', () => { const id = location.hash.slice(1); if (botoes.some((b) => b.dataset.aba === id)) mostrar(id); });
+  const inicial = location.hash.slice(1);
+  mostrar(botoes.some((b) => b.dataset.aba === inicial) ? inicial : 'contratos');
+}
+
+if (isAuthenticated()) { document.getElementById('app').hidden = false; ligarAbas(); }
+</script>
+</body>
+</html>

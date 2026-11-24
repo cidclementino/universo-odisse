@@ -1,0 +1,17 @@
+name: Vendas — conferir versões dos arquivos
+
+# O service worker (sw.js) guarda cada .js/.css pelo endereço com ?v=<hash>. Se um arquivo mudar sem o
+# número mudar, o navegador continua usando o antigo. Este workflow avisa (falha) quando alguém esqueceu
+# de rodar `python3 tools/versionar.py` antes do commit.
+
+on:
+  push:
+    paths: ['vendas/**']
+  pull_request:
+
+jobs:
+  conferir:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 vendas/tools/versionar.py --conferir

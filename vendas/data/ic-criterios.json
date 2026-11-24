@@ -1,0 +1,68 @@
+[
+  {
+    "criterio": "Empenho ao Projeto vs Porte",
+    "baixo": "Menor que o comum",
+    "medio": "Adequado ao porte",
+    "alto": "Maior que o comum"
+  },
+  {
+    "criterio": "Quantidade de especialistas",
+    "baixo": "Até 5 especialistas",
+    "medio": "de 6 a 10 especialistas",
+    "alto": "Mais de 10 especialistas"
+  },
+  {
+    "criterio": "Quantidade de aprovações",
+    "baixo": "Uma",
+    "medio": "De duas a cinco",
+    "alto": "Mais de cinco"
+  },
+  {
+    "criterio": "Grau de detalhamento",
+    "baixo": "Desenhos do objeto principal são suficientes",
+    "medio": "O nº de detalhes desenhados é no máximo 1/3 do nº dos desenhos principais",
+    "alto": "O nº de detalhes desenhados é maior que 1/3 dos desenhos principais"
+  },
+  {
+    "criterio": "Grau de responsabilidade civil",
+    "baixo": "Objeto se restringe ao arbítrio do cliente e do arquiteto",
+    "medio": "Objeto envolve o usuário, o cliente e o construtor",
+    "alto": "Objeto atinge questões da sociedade, do meio ambiente e de periculosidade da complexidade construtiva"
+  },
+  {
+    "criterio": "Grau de intervenção do cliente",
+    "baixo": "Clientes apresentam poucas dificuldades para aprovação do estudo preliminar e projeto executivo",
+    "medio": "Cliente verificam cuidadosamente e comentam as entregas das etapas projetuais",
+    "alto": "Clientes acompanham diariamente o projeto, através de equipe especializada de controle"
+  },
+  {
+    "criterio": "Expectativa plástica",
+    "baixo": "Plástica não é foco do trabalho",
+    "medio": "Equilíbrio entre os aspectos econômicos, formais e funcionais",
+    "alto": "Plástica é foco do trabalho e objeto de interesse do cliente"
+  },
+  {
+    "criterio": "Grau de controle de custo",
+    "baixo": "Estimativa de custo no estudo preliminar e orçamento no projeto executivo",
+    "medio": "Estimativas de custo para aprovação de cada etapa",
+    "alto": "Averiguação constante dos custos durante definições e detalhamentos de todos os sistemas e soluções"
+  },
+  {
+    "criterio": "Indefinição do escopo",
+    "baixo": "Solicitação clara e definida na etapa de estudo preliminar",
+    "medio": "Solicitação definida no estudo preliminar, mas reavaliada durante aprovação de cada etapa",
+    "alto": "Solicitação necessita de estudos prévios para ser compreendida e potencialmente sofrerá reavaliações"
+  },
+  {
+    "criterio": "Indefinição do prazo",
+    "baixo": "Prazo previsto e cumprível com segurança",
+    "medio": "Prazo reavaliável em cada entrega de etapa do projeto",
+    "alto": "Prazo previsto com risco de não cumprimento e/ou interrupções por motivos técnicos, legais ou comerciais"
+  },
+  {
+    "criterio": "Demanda de material para mídias",
+    "baixo": "Sem necessidade de material fotográfico/audiovisual voltado à divulgação",
+    "medio": "Registro fotográfico padrão das etapas e do resultado final, para portfólio",
+    "alto": "Produção de conteúdo dedicado (vídeo, ensaio fotográfico, making-of) para uso em mídias e redes sociais"
+  }
+]

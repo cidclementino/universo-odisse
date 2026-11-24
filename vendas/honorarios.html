@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Referências · Vendas — Odisse</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="https://marca.odisse.com.br/favicon/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="https://marca.odisse.com.br/favicon/favicon-32x32.png" sizes="32x32">
+<link rel="stylesheet" href="https://marca.odisse.com.br/v1/marca.css">
+<link rel="stylesheet" href="https://universo.odisse.com.br/base/v1/universo.css">
+<link rel="stylesheet" href="styles.css?v=1f3fa8b945">
+</head>
+<body>
+
+<div id="app" class="app app--no-sidebar" hidden>
+  <header class="topo" data-pagina="referencias"></header>
+  <script src="topo.js?v=164bd89cf9"></script>
+
+  <main class="crm">
+    <div class="crm__barra">
+      <h1>Referências</h1>
+      <div class="gestao__pub" id="pub"></div>
+    </div>
+    <p class="gestao__intro">O preço sobre a estrutura do estúdio e as tabelas que o calculam. A estrutura (serviços, fases, etapas, entregas) vem do Projetos:
+      <a href="https://projetos.odisse.com.br/pgt.html#servicos">Bases</a> e <a href="https://projetos.odisse.com.br/pgt.html">Plano Geral de Trabalho</a>.</p>
+    <div class="abas gestao__abas" role="tablist">
+      <button type="button" data-aba="servicos">Serviços</button>
+      <button type="button" data-aba="pesos">Fases e etapas</button>
+      <button type="button" data-aba="bh">Base de honorários</button>
+      <button type="button" data-aba="tabelas">Tabelas do CAU</button>
+      <button type="button" data-aba="cub">Tabela do CUB</button>
+      <button type="button" data-aba="formula">Fórmula</button>
+    </div>
+    <div id="aviso"></div>
+
+    <section data-painel="servicos" hidden><div class="rolagem" id="servicos"><p class="muted">Carregando…</p></div></section>
+    <section data-painel="pesos" hidden><div id="entrada"></div><div class="rolagem" id="pesos"></div></section>
+    <section data-painel="bh" hidden>
+      <div class="gestao__filtros"><input type="search" id="filtro-uso" placeholder="Filtrar usos (descrição, item, CUB)"></div>
+      <div id="bh"><p class="muted">Carregando…</p></div>
+    </section>
+    <section data-painel="tabelas" hidden><div id="tabelas"><p class="muted">Carregando…</p></div></section>
+    <section data-painel="cub" hidden><div id="cub"><p class="muted">Carregando…</p></div></section>
+    <section data-painel="formula" hidden>
+      <div class="formula">
+        <p class="formula__nome">Honorário projetual</p>
+        <p class="formula__conta" aria-label="H igual a: CUB vezes FA, que é a BH; vezes A vezes R vezes Rr, a área de cálculo; isso é o CEO; vezes fp vezes IC, que é o valor de tabela do CAU; vezes M vezes P; tudo dividido por Fm">
+          <var>H</var> = <span class="formula__frac"><span><span class="fg"><span class="fg__c">{ <span class="fg"><span class="fg__c">[ <span class="fg"><span class="fg__c">(<var>CUB</var> × <var>FA</var>)</span><span class="fg__r">BH</span></span> × <span class="fg"><span class="fg__c">(<var>A</var> × <var>R</var> × <var>Rr</var>)</span><span class="fg__r">área de cálculo</span></span> ]</span><span class="fg__r">CEO</span></span> × <var>fp</var> × <var>IC</var> }</span><span class="fg__r">valor de tabela CAU</span></span> × <var>M</var> × <var>P</var></span><span><var>Fm</var></span></span>
+        </p>
+      </div>
+      <dl class="legenda">
+        <dt><var>H</var></dt><dd>Honorário do projeto, em reais.</dd>
+        <dt><var>CUB</var></dt><dd>Custo Unitário Básico vigente (R$/m²), do código do CUB que o uso referencia. Sinduscon-JP, 19 códigos, atualizado todo mês. Vários usos podem apontar para o mesmo código. aba <a href="#cub">Tabela do CUB</a>.</dd>
+        <dt><var>FA</var></dt><dd>Fator de adequação do uso (tabela de enquadramento do CAU). O uso também define a categoria (1 a 4) que escolhe a coluna do <var>fp</var>. <var>CUB</var> × <var>FA</var> é a base de honorários (BH, R$/m²): aba <a href="#bh">Base de honorários</a>.</dd>
+        <dt><var>A</var></dt><dd>Área construída prevista (m²).</dd>
+        <dt><var>fp</var></dt><dd>Fator percentual do CAU, pela faixa da área construída (<var>A</var>) × categoria do uso: aba <a href="#tabelas">Tabelas do CAU</a>.</dd>
+        <dt><var>IC</var></dt><dd>Índice de complexidade: média dos critérios, cada um Baixo (0,7), Médio (1,0) ou Alto (1,3). Editável no <a href="https://projetos.odisse.com.br/pgt.html#servicos">Projetos</a>.</dd>
+        <dt><var>Rr</var></dt><dd>Redutor por repetição, pela quantidade de áreas repetidas: aba <a href="#tabelas">Tabelas do CAU</a>.</dd>
+        <dt><var>R</var></dt><dd>Razão entre a área projetada e a construída: (<var>A</var> + 25% da área externa) ÷ <var>A</var>. Sem área externa, <var>R</var> = 1.</dd>
+        <dt><var>M</var></dt><dd>Modificador do serviço (Modificador de Fator Percentual do CAU): cada serviço tem o seu, na aba <a href="#servicos">Serviços</a>.</dd>
+        <dt><var>P</var></dt><dd>Percentual do projeto contratado: soma dos pesos das fases contratadas (cada etapa pelo seu fator), mais o acréscimo do "só tal fase" e o da Obra: aba <a href="#pesos">Fases e etapas</a>.</dd>
+        <dt><var>Fm</var></dt><dd>Fator de ajuste de mercado, escolhido na proposta (1 · 1,25 · 2,25 ou outro).</dd>
+      </dl>
+      <p class="legenda__titulo">Os grupos</p>
+      <dl class="legenda">
+        <dt>BH</dt><dd>Base de honorários (R$/m²) = <var>CUB</var> × <var>FA</var>.</dd>
+        <dt>Área de cálculo</dt><dd><var>A</var> × <var>R</var> × <var>Rr</var>: a área construída, somando 25% da área externa e descontando as repetições.</dd>
+        <dt>CEO</dt><dd>Custo estimado da obra = BH × área de cálculo.</dd>
+        <dt>Valor de tabela</dt><dd>O honorário pela tabela do CAU = CEO × <var>fp</var> × <var>IC</var>.</dd>
+      </dl>
+    </section>
+  </main>
+</div>
+
+<div id="painel-raiz"></div>
+
+<script src="config.js?v=07793b6f66"></script>
+<script src="auth.js?v=2a461f8bce"></script>
+<script>exigirAutenticacao();</script>
+<script src="data-loader.js?v=b1b3a59ba0"></script>
+<script src="store.js?v=66a6878146"></script>
+<script src="comercial.js?v=2dc7225c30"></script>
+<script src="ui.js?v=2dfbfc5119"></script>
+<script>
+// ==========================================================================
+// Honorários (migração 0006 do Universo): o custo que se aplica sobre as
+// Bases e o Plano Geral de Trabalho, que moram na ferramenta Projetos.
+//   - preço dos serviços: modificador, tem preço, repartido por etapa
+//   - fases e etapas (0015): peso de cada fase por serviço (% do projeto; as do fluxo somam 100, a de
+//     acréscimo — Obra — vai além dos 100) e fator 1 ou 2 de cada etapa dentro da fase. A % da etapa é
+//     fórmula: fator ÷ soma dos fatores das etapas contratadas da fase (a que não for contratada se
+//     redistribui entre as que ficaram). Entrada (na assinatura) como parâmetro do pagamento.
+//   - base de honorários de cada uso: CUB vigente (data/cub.json) × fator
+// Publicar grava a versão de honorários que as propostas vão registrar.
+// ==========================================================================
+let H = null;     // GET honorarios
+let B = null;     // GET bases (usos e categorias, para a base de honorários)
+let CUB = null;   // tabela do CUB da região ativa
+let CUB_TODO = null; // data/cub.json inteiro (todas as regiões), para a aba Tabela do CUB
+const aviso = avisoEm(document.getElementById('aviso'));
+
+const GRUPOS = [
+  { id: 'residencial', nome: 'Residencial', cor: 'var(--odisse-pessego, #F2DDBE)' },
+  { id: 'comercial', nome: 'Comercial', cor: 'var(--odisse-ambar, #ECC28F)' },
+  { id: 'institucional', nome: 'Institucional', cor: 'color-mix(in srgb, var(--odisse-ardosia, #3F4B57) 30%, white)' },
+  { id: 'diversos', nome: 'Diversos', cor: 'var(--odisse-areia, #E3D9C6)' }
+];
+const lerNum = (s) => {
+  const t = String(s ?? '').trim().replace(/\s/g, '').replace(',', '.');
+  if (!t) return null;
+  const n = Number(t);
+  return Number.isFinite(n) ? n : NaN;
+};
+const fmtNum = (n, casas) => (n === null || n === undefined || n === '') ? '' :
+  Number(n).toLocaleString('pt-BR', casas === undefined ? { maximumFractionDigits: 4 } : { minimumFractionDigits: casas, maximumFractionDigits: casas });
+const fmtReais = (n) => (n === null || n === undefined || Number.isNaN(n)) ? '—' : Number(n).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+const igual = (a, b) => Math.abs(a - b) < 0.0001;
+
+async function iniciar() {
+  document.getElementById('app').hidden = false;
+  ligarAbas();
+  await carregar({ copia: true });
+  carregarBH();
+}
+
+// Abre na hora com a cópia local (copia: true, só na entrada) e confere por baixo; depois de gravar, lê do servidor.
+async function carregar({ copia = false } = {}) {
+  try {
+    H = await comCopia('honorarios', () => Universo.get('honorarios'), (novo) => { H = novo; desenhar(); }, { fresco: !copia });
+    desenhar();
+  } catch (e) { aviso(`Não consegui carregar os honorários (${mensagemDe(e)}).`); }
+}
+
+function desenhar() {
+  desenharPublicacao();
+  desenharServicos();
+  desenharPesos();
+}
+
+// ---------------------------------------------------------------- publicação
+function desenharPublicacao() {
+  const el = document.getElementById('pub');
+  const p = H.publicacao;
+  const quando = p ? new Date(p.publicado_em).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+  el.innerHTML = `<span class="gestao-status">
+      ${p ? `<span title="${escHtml(p.nota || '')}">Versão <strong>${p.numero}</strong> publicada em ${quando}</span>` : '<span>Ainda não publicado</span>'}
+      ${H.pendente ? '<span class="chip chip--pendente">mudanças não publicadas</span>' : '<span class="chip chip--ok">em dia</span>'}
+    </span>
+    <button class="btn btn--primary btn--small" type="button" ${H.pendente ? '' : 'disabled'}>Publicar versão</button>`;
+  el.querySelector('button').onclick = () => {
+    const numero = p ? p.numero + 1 : 1;
+    const painel = abrirPainel(`
+      <div class="painel__topo"><h2>Publicar a versão ${numero} dos honorários</h2><button class="painel__fechar" aria-label="Fechar">×</button></div>
+      <div id="pub-aviso"></div>
+      <p class="small">Publicar grava um retrato do que está aqui agora (preços, pesos das fases e das etapas, entrada). É esse retrato que as propostas novas vão usar
+        e registrar, junto com as versões das Bases e do Plano Geral de Trabalho. O rascunho continua editável depois.</p>
+      ${somasRuins().length ? `<div class="aviso aviso--erro">Fases que não somam 100%: ${escHtml(somasRuins().join(', '))}.</div>` : ''}
+      <form id="f-pub">
+        <div class="field"><label class="field__label">O que mudou (opcional)</label>
+          <textarea name="nota" rows="3" maxlength="500" placeholder="Ex.: pesos de Interiores revisados"></textarea></div>
+        <div class="painel__acoes"><button class="btn btn--primary btn--small" type="submit">Publicar</button></div>
+      </form>`);
+    const av = avisoEm(painel.querySelector('#pub-aviso'));
+    painel.querySelector('#f-pub').onsubmit = async (e) => {
+      e.preventDefault();
+      try {
+        await Universo.post('honorarios/publicar', { nota: e.target.nota.value.trim() || null });
+        fecharPainel();
+        carregar();
+      } catch (err) { av(err.status === 409 ? 'Nada mudou desde a última versão publicada.' : mensagemDe(err)); }
+    };
+  };
+}
+function marcarPendente() { H.pendente = true; desenharPublicacao(); }
+
+// ---------------------------------------------------------------- serviços (preço)
+function desenharServicos() {
+  const sn = [{ id: '1', nome: 'Sim' }, { id: '0', nome: 'Não' }];
+  document.getElementById('servicos').innerHTML = `<table class="tabela">
+    <thead><tr><th>Sigla</th><th>Serviço</th><th class="centro">Tem preço</th><th class="centro">Modificador</th><th class="centro">Repartido por etapa</th></tr></thead>
+    <tbody>${H.servicos.map((s) => `<tr data-id="${s.id}">
+      <td class="sigla">${escHtml(s.sigla)}</td><td><strong>${escHtml(s.nome)}</strong></td>
+      <td class="centro"><select data-c="com_preco">${opcoes(sn, String(s.com_preco))}</select></td>
+      <td class="centro"><input class="cel" data-c="modificador" inputmode="decimal" value="${fmtNum(s.modificador)}" placeholder="—"></td>
+      <td class="centro"><select data-c="preco_por_etapa">${opcoes(sn, String(s.preco_por_etapa))}</select></td></tr>`).join('')}</tbody></table>
+    <p class="field__hint">Modificador: multiplica o valor do CAU (Nova Edificação = 1,00 é a referência). Repartido por etapa: o honorário se divide
+      pelas fases e etapas (aba Fases e etapas). Serviços novos são criados nas Bases, no Projetos, e chegam aqui sem preço.</p>`;
+  document.querySelectorAll('#servicos [data-c]').forEach((c) => c.onchange = async () => {
+    const s = H.servicos.find((x) => x.id === c.closest('tr').dataset.id);
+    let v = c.value;
+    if (c.dataset.c === 'modificador') {
+      v = lerNum(v);
+      if (Number.isNaN(v) || (v !== null && v <= 0)) { aviso('Modificador: número maior que zero (ex.: 1,25).'); c.value = fmtNum(s.modificador); return; }
+    } else v = Number(v);
+    c.disabled = true;
+    try {
+      const r = await Universo.alterar('bases-servicos', s.id, { versao: s.versao, [c.dataset.c]: v });
+      Object.assign(s, { [c.dataset.c]: r[c.dataset.c], versao: r.versao });
+      aviso('');
+      marcarPendente();
+      desenharPesos();
+    } catch (err) { aviso(mensagemDe(err)); if (err.status === 409) carregar(); }
+    c.disabled = false;
+  });
+}
+
+// ---------------------------------------------------------------- fases e etapas (0015)
+// Peso da fase: % do honorário do projeto, por serviço. As fases do fluxo somam 100; a de acréscimo (Obra) vai além.
+// Fator da etapa (1 ou 2): dentro da fase, a etapa leva fator ÷ soma dos fatores das etapas contratadas.
+// As % mostradas consideram as etapas pertinentes (P) contratadas; a opcional (O) mostra quanto levaria se marcada.
+const comPreco = () => H.servicos.filter((s) => s.com_preco);
+const repartidos = () => comPreco().filter((s) => s.preco_por_etapa);
+const fasesDoFluxo = () => H.fases.filter((f) => !f.ilha);
+const etapasDa = (f, s) => H.etapas.filter((e) => e.fase_id === f.id && e.servicos[s.id]);
+const fator = (x) => (x && x.peso === 2 ? 2 : 1);
+function somaDe(s) { return fasesDoFluxo().filter((f) => !f.acrescimo).reduce((t, f) => t + (etapasDa(f, s).length ? (f.pesos[s.id] || 0) : 0), 0); }
+function acrescimoDe(s) { return fasesDoFluxo().filter((f) => f.acrescimo).reduce((t, f) => t + (etapasDa(f, s).length ? (f.pesos[s.id] || 0) : 0), 0); }
+function somasRuins() { return repartidos().filter((s) => !igual(somaDe(s), 100)).map((s) => `${s.sigla} (${fmtNum(somaDe(s))}%)`); }
+// Opcionais: "sem" (padrão) conta só as etapas pertinentes; "com" conta também as opcionais, como se todas fossem contratadas.
+const CHAVE_OPCIONAIS = 'vendas:honorarios:opcionais';
+let comOpcionais = (() => { try { return localStorage.getItem(CHAVE_OPCIONAIS) === 'com'; } catch (_) { return false; } })();
+// % da etapa na fase e no projeto, com as etapas que entram na conta (null = opcional fora da conta)
+function partes(e, f, s) {
+  const op = e.servicos[s.id].pertinencia === 'O';
+  if (op && !comOpcionais) return null;
+  const lista = etapasDa(f, s).filter((x) => comOpcionais || x.servicos[s.id].pertinencia === 'P');
+  const total = lista.reduce((t, x) => t + fator(x.servicos[s.id]), 0);
+  const naFase = total ? fator(e.servicos[s.id]) / total : 0;
+  return { naFase, noProjeto: naFase * (f.pesos[s.id] || 0) / 100 };
+}
+const pct = (n) => `${fmtNum(Math.round(n * 1000) / 10)}%`;
+
+// ---- redistribuição: as fases dos 100% de um serviço fecham sempre 100%.
+// Mexer numa fase tira (ou devolve) a diferença das outras em partes iguais; nenhuma passa de 0 a 100.
+// Contas em décimos de ponto, para os números ficarem redondos.
+const participantes = (s) => fasesDoFluxo().filter((f) => !f.acrescimo && etapasDa(f, s).length && f.pesos[s.id] !== undefined && f.pesos[s.id] !== null);
+function equilibrar(s, fixa) {
+  const outras = participantes(s).filter((f) => f !== fixa);
+  if (!outras.length) return [];
+  const alvo = Math.round((100 - (fixa && !fixa.acrescimo ? (fixa.pesos[s.id] || 0) : 0)) * 10);
+  const v = new Map(outras.map((f) => [f, Math.round(f.pesos[s.id] * 10)]));
+  let falta = alvo - [...v.values()].reduce((t, n) => t + n, 0); // >0: as outras sobem; <0: descem
+  let livres = outras.slice();
+  while (falta !== 0 && livres.length) {
+    const sinal = Math.sign(falta);
+    const base = Math.trunc(falta / livres.length);
+    let resto = falta - base * livres.length;
+    // o resto (um décimo por vez) vai primeiro para as maiores quando descem, para as menores quando sobem
+    const ordem = livres.slice().sort((a, b) => sinal < 0 ? v.get(b) - v.get(a) : v.get(a) - v.get(b));
+    const parte = new Map(ordem.map((f) => { const r = resto !== 0 ? sinal : 0; resto -= r; return [f, base + r]; }));
+    for (const f of livres) {
+      const novo = Math.min(1000, Math.max(0, v.get(f) + parte.get(f)));
+      falta -= novo - v.get(f);
+      v.set(f, novo);
+    }
+    livres = livres.filter((f) => (falta < 0 ? v.get(f) > 0 : v.get(f) < 1000));
+  }
+  const mudadas = [];
+  for (const [f, n] of v) if (!igual(n / 10, f.pesos[s.id])) { f.pesos[s.id] = n / 10; mudadas.push(f); }
+  return mudadas;
+}
+
+// ---- gravação adiada: as setas e as redistribuições mudam a tela na hora; o Universo recebe tudo após uma pausa
+const aGravar = new Map(); // "fase|serviço" → { fase, srv }
+let relogio = null;
+function gravarDepois(f, srvId) {
+  aGravar.set(`${f.id}|${srvId}`, { f, srvId });
+  marcarPendente();
+  clearTimeout(relogio);
+  relogio = setTimeout(gravarFila, 700);
+}
+async function gravarFila() {
+  const lote = [...aGravar.values()]; aGravar.clear();
+  try {
+    await Promise.all(lote.map(({ f, srvId }) => Universo.post('honorarios/fases', { fase_id: f.id, servico_id: srvId, peso: f.pesos[srvId] ?? null })));
+    aviso('');
+  } catch (err) { aviso(`${mensagemDe(err)} Recarregando os pesos…`); carregar(); }
+}
+// muda o peso de uma fase num serviço e, se ela está nos 100%, reequilibra as outras
+function mudarPesoFase(f, s, valor) {
+  if (valor === null) delete f.pesos[s.id]; else f.pesos[s.id] = Math.round(valor * 10) / 10;
+  gravarDepois(f, s.id);
+  if (!f.acrescimo && valor !== null) for (const o of equilibrar(s, f)) gravarDepois(o, s.id);
+  atualizarNumeros();
+}
+
+// Parâmetros da aba (cartões, como os da Equipe no Universo): entrada do pagamento e o acréscimo do "só tal fase" (0016).
+const PARAMS_ABA = [
+  { chave: 'parcela_entrada', rotulo: 'Entrada na assinatura', nota: 'O restante do pagamento acompanha o peso das fases contratadas.' },
+  { chave: 'acrescimo_lacuna', rotulo: 'Fase anterior não contratada', nota: 'Acréscimo sobre o peso das fases puladas. Em NE, só a Legal: 20% + 50% × 40% = 40%.' },
+];
+function desenharEntrada() {
+  const el = document.getElementById('entrada');
+  el.innerHTML = `<div class="hon-params">${PARAMS_ABA.filter((p) => H.parametros_rotulos[p.chave]).map((p) => `
+    <label class="hon-param" for="p-${p.chave}">
+      <span class="hon-param__rotulo">${escHtml(p.rotulo)}</span>
+      <span class="hon-param__valor"><input id="p-${p.chave}" data-param="${p.chave}" inputmode="decimal" value="${H.parametros[p.chave] === undefined ? '' : fmtNum(H.parametros[p.chave] * 100)}"><span>%</span></span>
+      <span class="hon-param__nota">${escHtml(p.nota)}</span>
+    </label>`).join('')}</div>`;
+  el.querySelectorAll('[data-param]').forEach((c) => c.onchange = async (ev) => {
+    const chave = c.dataset.param;
+    const n = lerNum(ev.target.value);
+    if (n === null || Number.isNaN(n) || n < 0 || n > 100) { aviso(`${H.parametros_rotulos[chave]}: número de 0 a 100.`); return desenharEntrada(); }
+    try {
+      await Universo.post('honorarios/parametros', { chave, valor: n / 100 });
+      H.parametros[chave] = n / 100;
+      aviso(''); marcarPendente(); desenharEntrada();
+    } catch (err) { aviso(mensagemDe(err)); }
+  });
+}
+// "Fase Conceitual" sem repetir "Fase" quando o nome já traz a palavra
+const nomeFase = (f) => /^fase\b/i.test(f.nome) ? f.nome : `Fase ${f.nome}`;
+
+// Fases abertas/fechadas (lembradas no computador). Fechada, a fase mostra só o seu peso por serviço.
+const CHAVE_ABERTAS = 'vendas:honorarios:fases-abertas';
+const abertas = new Set((() => { try { return JSON.parse(localStorage.getItem(CHAVE_ABERTAS) || '[]'); } catch (_) { return []; } })());
+const lembrarAbertas = () => { try { localStorage.setItem(CHAVE_ABERTAS, JSON.stringify([...abertas])); } catch (_) { /* sem cópia */ } };
+
+function htmlPartes(e, f, s) {
+  const p = partes(e, f, s);
+  if (!p) return '<span class="hon-fora">opcional<br>fora da conta</span>';
+  return `<span><b>${pct(p.naFase)}</b> da fase</span><span><b>${pct(p.noProjeto)}</b> do projeto</span>`;
+}
+function htmlTotal(s) {
+  const n = somaDe(s), ok = igual(n, 100);
+  return `${ok ? `<span class="hon-total__n ok">${fmtNum(n)}%</span>`
+    : `<button type="button" class="hon-total__n ruim" data-completar="${s.id}" title="Ajustar as fases de ${escHtml(s.sigla)} para somar 100%">${fmtNum(n)}%</button>`}${acrescimoDe(s) ? `<span class="hon-total__acr">+${fmtNum(acrescimoDe(s))}% acréscimo</span>` : ''}`;
+}
+// atualiza números sem redesenhar a tabela (o cursor e as fases abertas ficam onde estão)
+function atualizarNumeros() {
+  const el = document.getElementById('pesos');
+  const S = repartidos();
+  el.querySelectorAll('.cel--fase').forEach((c) => {
+    if (c === document.activeElement) return;
+    const f = H.fases.find((x) => x.id === c.dataset.fase);
+    c.value = fmtNum(f.pesos[c.dataset.srv]);
+  });
+  el.querySelectorAll('[data-partes]').forEach((sp) => {
+    const [eid, sid] = sp.dataset.partes.split('|');
+    const e = H.etapas.find((x) => x.id === eid), s = S.find((x) => x.id === sid), f = H.fases.find((x) => x.id === e.fase_id);
+    sp.innerHTML = htmlPartes(e, f, s);
+  });
+  el.querySelectorAll('[data-total]').forEach((td) => { td.innerHTML = htmlTotal(S.find((x) => x.id === td.dataset.total)); });
+  ligarCompletar(el);
+}
+function ligarCompletar(el) {
+  el.querySelectorAll('[data-completar]').forEach((b) => b.onclick = () => {
+    const s = repartidos().find((x) => x.id === b.dataset.completar);
+    for (const o of equilibrar(s, null)) gravarDepois(o, s.id);
+    atualizarNumeros();
+  });
+}
+
+function desenharPesos() {
+  desenharEntrada();
+  const S = repartidos();
+  let html = '';
+  for (const f of fasesDoFluxo()) {
+    const etapas = H.etapas.filter((e) => e.fase_id === f.id);
+    if (!etapas.length) continue;
+    const aberta = abertas.has(f.id);
+    html += `<tbody class="hon-grupo${aberta ? ' is-aberta' : ''}${f.acrescimo ? ' is-acrescimo' : ''}" data-grupo="${f.id}">
+      <tr class="hon-fase"><td>
+        <button type="button" class="hon-abrir" data-abrir="${f.id}" aria-expanded="${aberta}" aria-label="${aberta ? 'Fechar' : 'Abrir'} ${escHtml(nomeFase(f))}">
+          <span class="hon-seta" aria-hidden="true">▸</span><strong>${escHtml(nomeFase(f))}</strong><span class="hon-conta">${etapas.length} etapa${etapas.length === 1 ? '' : 's'}</span></button></td>
+      <td class="hon-conta-col"><div class="hon-seg" role="radiogroup" aria-label="${escHtml(nomeFase(f))} entra como">
+        <button type="button" role="radio" aria-checked="${!f.acrescimo}" data-acrescimo="${f.id}" data-valor="0" title="O peso desta fase é parte dos 100% do projeto">Nos 100%</button>
+        <button type="button" role="radio" aria-checked="${!!f.acrescimo}" data-acrescimo="${f.id}" data-valor="1" title="O peso desta fase soma por fora, além dos 100% (ex.: Obra)">Acréscimo</button></div></td>
+      ${S.map((s) => etapasDa(f, s).length
+        ? `<td class="centro"><div class="hon-campo-pct" title="${escHtml(`${nomeFase(f)} em ${s.sigla}: % do honorário do projeto${f.acrescimo ? ' (acréscimo, além dos 100%)' : ''}`)}">
+            <input class="cel--fase" data-fase="${f.id}" data-srv="${s.id}" inputmode="decimal" value="${fmtNum(f.pesos[s.id])}" placeholder="—" aria-label="${escHtml(`${nomeFase(f)} em ${s.sigla}`)}"><span>%</span>
+            <span class="hon-passo"><button type="button" tabindex="-1" data-passo="1" data-fase="${f.id}" data-srv="${s.id}" aria-label="Aumentar 1 ponto">▴</button><button type="button" tabindex="-1" data-passo="-1" data-fase="${f.id}" data-srv="${s.id}" aria-label="Diminuir 1 ponto">▾</button></span></div></td>`
+        : '<td class="centro muted" title="nenhuma etapa desta fase vale para este serviço">–</td>').join('')}</tr>
+      ${etapas.map((e) => `<tr class="hon-etapa">
+        <td><span class="hon-sigla">${escHtml(e.sigla)}</span>${escHtml(e.nome)}</td><td class="hon-conta-col"></td>
+        ${S.map((s) => {
+          const x = e.servicos[s.id];
+          if (!x) return '<td class="centro muted" title="a etapa não vale para este serviço">–</td>';
+          const op = x.pertinencia === 'O';
+          return `<td class="centro"><select class="cel cel--fator${op ? ' is-opcional' : ''}" data-etapa="${e.id}" data-srv="${s.id}"
+              title="${escHtml(`${e.sigla} em ${s.sigla}${op ? ' (etapa opcional)' : ''}: peso dentro da fase`)}">
+              <option value="1" ${fator(x) === 1 ? 'selected' : ''}>1</option><option value="2" ${fator(x) === 2 ? 'selected' : ''}>2</option></select>
+            <span class="hon-partes${op ? ' is-opcional' : ''}" data-partes="${e.id}|${s.id}">${htmlPartes(e, f, s)}</span></td>`;
+        }).join('')}</tr>`).join('')}
+    </tbody>`;
+  }
+  const semRepartir = comPreco().filter((s) => !s.preco_por_etapa);
+  const el = document.getElementById('pesos');
+  el.innerHTML = `<table class="tabela matriz hon-matriz"><thead>
+      <tr><th rowspan="2">Fase / etapa</th><th rowspan="2" class="hon-conta-col">Entra como</th><th colspan="${S.length}" class="grupo-srv">Peso por serviço</th></tr>
+      <tr>${S.map((s) => `<th class="srv" title="${escHtml(s.nome)}">${escHtml(s.sigla)}</th>`).join('')}</tr></thead>
+    ${html}
+    <tfoot class="hon-total">
+      <tr><td><strong>Soma das fases</strong><span>deve dar 100%</span></td>
+        <td class="hon-conta-col"><div class="hon-seg hon-seg--escuro" role="radiogroup" aria-label="Etapas opcionais nas %">
+          <button type="button" role="radio" aria-checked="${!comOpcionais}" data-opcionais="sem" title="% das etapas contando só as pertinentes">Sem opcionais</button>
+          <button type="button" role="radio" aria-checked="${comOpcionais}" data-opcionais="com" title="% das etapas como se as opcionais também fossem contratadas">Com opcionais</button></div></td>
+        ${S.map((s) => `<td class="centro" data-total="${s.id}">${htmlTotal(s)}</td>`).join('')}</tr>
+    </tfoot></table>
+    <div class="hon-notas">
+      <section><h3>Como ler a tabela</h3><ul>
+        <li><span class="hon-ex hon-ex--pct">40<i>%</i></span>Na linha da fase: quanto a fase vale no honorário do projeto, por serviço. As setas sobem ou descem 1 ponto.</li>
+        <li><span class="hon-ex">Nos 100%</span>A fase é parte dos 100% do projeto. Acréscimo: soma por fora, além dos 100% (ex.: Obra).</li>
+        <li><span class="hon-ex">1 · 2</span>Na linha da etapa: o peso dela dentro da fase.</li>
+        <li><span class="hon-ex hon-ex--txt"><b>25%</b> da fase<br><b>10%</b> do projeto</span>Quanto a etapa leva. "Sem opcionais" (barra da soma) conta só as pertinentes; "Com opcionais", todas.</li>
+        <li><span class="hon-ex hon-ex--op">1</span>Tracejada: etapa opcional.</li>
+        <li><span class="hon-ex">–</span>A etapa não vale para o serviço (marcado no Plano Geral de Trabalho).</li>
+        <li><span class="hon-ex hon-ex--ruim">86%</span>Soma fora dos 100%: clique para ajustar.</li>
+      </ul></section>
+      <section><h3>Como o preço é calculado</h3><ul>
+        <li>As fases "nos 100%" somam 100%. Mudar o peso de uma delas tira (ou devolve) a diferença das outras do mesmo serviço, em partes iguais. Fase sem peso (—) fica fora dessa conta.</li>
+        <li>A fase de acréscimo (Obra) soma por fora, além dos 100%.</li>
+        <li>Dentro da fase, a etapa leva o seu peso ÷ a soma dos pesos das etapas contratadas. Etapa não contratada: o valor da fase se redistribui entre as que ficam.</li>
+        <li>Fase sem nenhuma etapa contratada fica de fora. Se ela vem antes de uma fase contratada (ex.: só a Legal), entra o acréscimo de "Fase anterior não contratada", lá em cima.</li>
+        ${semRepartir.length ? `<li>Preço único, sem repartição por etapa: ${escHtml(semRepartir.map((s) => s.sigla).join(', '))}.</li>` : ''}
+      </ul></section>
+    </div>`;
+  el.querySelectorAll('[data-abrir]').forEach((b) => b.onclick = () => {
+    const id = b.dataset.abrir;
+    if (abertas.has(id)) abertas.delete(id); else abertas.add(id);
+    lembrarAbertas();
+    el.querySelector(`[data-grupo="${id}"]`).classList.toggle('is-aberta', abertas.has(id));
+    b.setAttribute('aria-expanded', abertas.has(id));
+  });
+  const achar = (c) => ({ f: H.fases.find((x) => x.id === c.dataset.fase), s: S.find((x) => x.id === c.dataset.srv) });
+  el.querySelectorAll('.cel--fase').forEach((c) => {
+    c.onchange = () => {
+      const { f, s } = achar(c);
+      const v = lerNum(c.value);
+      if (Number.isNaN(v) || (v !== null && (v < 0 || v > 100))) { aviso('Peso da fase: número de 0 a 100.'); c.value = fmtNum(f.pesos[s.id]); return; }
+      mudarPesoFase(f, s, v);
+      c.value = fmtNum(f.pesos[s.id]);
+    };
+    c.onkeydown = (ev) => {
+      if (ev.key !== 'ArrowUp' && ev.key !== 'ArrowDown') return;
+      ev.preventDefault();
+      const { f, s } = achar(c);
+      const passo = (ev.key === 'ArrowUp' ? 1 : -1) * (ev.shiftKey ? 5 : 1);
+      mudarPesoFase(f, s, Math.min(100, Math.max(0, (f.pesos[s.id] || 0) + passo)));
+      c.value = fmtNum(f.pesos[s.id]);
+    };
+  });
+  el.querySelectorAll('[data-passo]').forEach((b) => b.onclick = () => {
+    const { f, s } = achar(b);
+    mudarPesoFase(f, s, Math.min(100, Math.max(0, (f.pesos[s.id] || 0) + Number(b.dataset.passo))));
+    const c = b.closest('.hon-campo-pct').querySelector('input');
+    c.value = fmtNum(f.pesos[s.id]);
+  });
+  el.querySelectorAll('[data-opcionais]').forEach((b) => b.onclick = () => {
+    comOpcionais = b.dataset.opcionais === 'com';
+    try { localStorage.setItem(CHAVE_OPCIONAIS, comOpcionais ? 'com' : 'sem'); } catch (_) { /* sem cópia */ }
+    el.querySelectorAll('[data-opcionais]').forEach((x) => x.setAttribute('aria-checked', x === b));
+    atualizarNumeros();
+  });
+  ligarCompletar(el);
+  el.querySelectorAll('.cel--fator').forEach((c) => c.onchange = async () => {
+    const e = H.etapas.find((x) => x.id === c.dataset.etapa);
+    const x = e.servicos[c.dataset.srv];
+    const v = Number(c.value);
+    c.disabled = true;
+    try {
+      await Universo.post('honorarios/pesos', { etapa_id: e.id, servico_id: c.dataset.srv, peso: v });
+      x.peso = v;
+      aviso(''); marcarPendente(); c.disabled = false; atualizarNumeros();
+    } catch (err) { aviso(mensagemDe(err)); c.disabled = false; }
+  });
+  el.querySelectorAll('[data-acrescimo]').forEach((b) => b.onclick = async () => {
+    const f = H.fases.find((x) => x.id === b.dataset.acrescimo);
+    const novo = Number(b.dataset.valor);
+    if (Number(!!f.acrescimo) === novo) return;
+    b.closest('.hon-seg').querySelectorAll('button').forEach((x) => { x.disabled = true; });
+    try {
+      if (aGravar.size) { clearTimeout(relogio); await gravarFila(); }
+      const r = await Universo.alterar('pgt-fases', f.id, { versao: f.versao, acrescimo: novo });
+      Object.assign(f, { acrescimo: r.acrescimo, versao: r.versao });
+      // entrou nos 100%: as outras cedem o peso dela; saiu: as que ficam recompõem os 100%
+      for (const s of S) if (etapasDa(f, s).length) for (const o of equilibrar(s, f)) gravarDepois(o, s.id);
+      aviso(''); marcarPendente(); desenharPesos();
+    } catch (err) { aviso(mensagemDe(err)); if (err.status === 409) carregar(); desenharPesos(); }
+  });
+}
+
+// ---------------------------------------------------------------- base de honorários (CUB vigente × fator) e tabelas
+async function carregarBH() {
+  try {
+    const [bases, dados] = await Promise.all([
+      comCopia('bases', () => Universo.get('bases'), (novo) => { B = novo; desenharBH(); }),
+      OdisseData.load()
+    ]);
+    const cub = dados.cub, fp = dados.fatorPercentual, red = dados.redutorRepeticao;
+    B = bases;
+    const r = cub.regioes[cub.regiao_ativa];
+    CUB = { regiao: cub.regiao_ativa, fonte: r.fonte, competencia: r.competencia_referencia, tabela: r.tabela };
+    CUB_TODO = cub;
+    desenharBH();
+    desenharTabelas(fp, red);
+    desenharCub(cub.regiao_ativa);
+  } catch (e) {
+    const msg = `<p class="small muted">Não consegui carregar as tipologias ou o CUB (${escHtml(mensagemDe(e))}).</p>`;
+    ['bh', 'tabelas', 'cub'].forEach((id) => { document.getElementById(id).innerHTML = msg; });
+  }
+}
+
+function desenharBH() {
+  const q = semAcento(document.getElementById('filtro-uso').value.trim());
+  const casa = (u) => !q || semAcento([u.descricao, u.item, u.cub_codigo].join(' ')).includes(q);
+  const vigente = (cod) => (CUB.tabela[cod] ? CUB.tabela[cod].honerado : null);
+  let html = '';
+  for (const g of GRUPOS) {
+    const cats = B.categorias.filter((c) => c.grupo === g.id);
+    if (!cats.length) continue;
+    let blocos = '';
+    for (const c of cats) {
+      const usos = B.usos.filter((u) => u.categoria_id === c.id && casa(u));
+      if (!usos.length) continue;
+      blocos += `<div class="cat-bloco" style="--g:${g.cor}"><h3>${escHtml(c.nome)}</h3>
+        <div class="rolagem"><table class="tabela usos">
+          <colgroup><col style="width:80px"><col><col style="width:110px"><col style="width:130px"><col style="width:80px"><col style="width:130px"></colgroup>
+          <thead><tr><th>Item CAU</th><th>Uso</th><th class="centro">Código do CUB</th><th class="num">CUB vigente</th><th class="centro">Fator</th>
+            <th class="num" title="Base de honorários = CUB vigente × fator de adequação">BH (R$/m²)</th></tr></thead>
+          <tbody>${usos.map((u) => {
+            const v = vigente(u.cub_codigo);
+            const usado = v ?? u.cub_referencia;
+            return `<tr><td class="codigo">${escHtml(u.item || '')}</td><td>${escHtml(u.descricao)}</td>
+              <td class="codigo centro">${escHtml(u.cub_codigo || '—')}</td>
+              <td class="num">${v !== null ? fmtReais(v) : `<span class="muted" title="código fora da tabela vigente: vale o CUB de referência do uso">${fmtReais(u.cub_referencia)}*</span>`}</td>
+              <td class="centro">${fmtNum(u.fator_adequacao, 2)}</td>
+              <td class="num"><strong>${usado !== null && u.fator_adequacao !== null ? fmtReais(usado * u.fator_adequacao) : '—'}</strong></td></tr>`;
+          }).join('')}</tbody></table></div></div>`;
+    }
+    if (blocos) html += `<div class="grupo-faixa" style="--g:${g.cor}">${escHtml(g.nome)}</div>${blocos}`;
+  }
+  document.getElementById('bh').innerHTML = (html || '<div class="vazio"><p>Nenhum uso com esse filtro.</p></div>') +
+    `<p class="field__hint">CUB vigente: ${escHtml(CUB.regiao)} · ${escHtml(CUB.competencia)} (aba <a href="#cub">Tabela do CUB</a>).
+      * código fora da tabela vigente: vale o CUB de referência do uso. Código do CUB, fator e enquadramento de cada uso são editados nas
+      <a href="https://projetos.odisse.com.br/pgt.html#servicos">Bases</a>, no Projetos.</p>
+    <div class="cub-codigos">
+      <h3>Códigos do CUB</h3>
+      <p class="field__hint">Nomenclatura da NBR 12.721 (ABNT), publicada todo mês pelos Sinduscons. O uso não deriva do CUB: ele aponta para um
+        dos 19 códigos e ajusta o valor com o seu fator de adequação. A letra no fim indica o padrão de acabamento (B baixo · N normal · A alto).</p>
+      <dl class="legenda legenda--compacta">
+        <dt>R-1</dt><dd>Residência unifamiliar</dd>
+        <dt>PP-4</dt><dd>Prédio popular (multifamiliar simples, 4 pavimentos)</dd>
+        <dt>R-8 · R-16</dt><dd>Residência multifamiliar, 8 ou 16 pavimentos</dd>
+        <dt>PIS</dt><dd>Projeto de interesse social</dd>
+        <dt>RP1Q</dt><dd>Residência popular de 1 quarto</dd>
+        <dt>CAL-8</dt><dd>Comercial andares livres (escritórios, planta aberta)</dd>
+        <dt>CSL-8 · CSL-16</dt><dd>Comercial salas e lojas</dd>
+        <dt>GI</dt><dd>Galpão industrial</dd>
+      </dl>
+    </div>`;
+}
+
+// Tabelas do CAU e do CUB: só leitura, no desenho das outras abas (cartões em cima, tabela, notas no fim).
+const fmtPct2 = (x) => `${fmtNum(x * 100, 2)}%`;
+const limiteArea = (l) => { const n = parseFloat(String(l).replace(/[^\d.]/g, '')); return Number.isNaN(n) ? null : n; };
+
+function desenharTabelas(fp, red) {
+  const el = document.getElementById('tabelas');
+  if (!fp) { el.innerHTML = '<p class="small muted">Não consegui ler as tabelas do CAU.</p>'; return; }
+  const CATS = [['baixo', 'Cat. 1', 'Baixo'], ['medio', 'Cat. 2', 'Médio'], ['alto', 'Cat. 3', 'Alto'], ['especial', 'Cat. 4', 'Especial']];
+  let antes = 0;
+  const linhasFp = fp.map((l) => {
+    const lim = limiteArea(l.area_limite);
+    const acima = lim === null || /maior|acima/i.test(String(l.area_limite));
+    const faixa = acima ? `Acima de ${fmtNum(antes, 0)} m²` : antes ? `${fmtNum(antes, 0)} a ${fmtNum(lim, 0)} m²` : `Até ${fmtNum(lim, 0)} m²`;
+    if (lim !== null) antes = lim;
+    return `<tr><td>${escHtml(faixa)}</td>${CATS.map(([k]) => `<td class="num">${l[k] != null ? fmtPct2(l[k]) : '—'}</td>`).join('')}</tr>`;
+  }).join('');
+  const linhasRed = (red || []).map((l) => {
+    const n = limiteArea(l.q);
+    const txt = n === 0 ? 'Nenhuma' : n === null ? String(l.q) : fmtNum(n, 0);
+    return `<tr><td>${escHtml(txt)}</td><td class="num">${fmtNum(l.r, 3)}</td><td class="num muted">${l.r < 1 ? `−${fmtNum((1 - l.r) * 100, 1)}%` : '—'}</td></tr>`;
+  }).join('');
+  el.innerHTML = `
+    <div class="ref-bloco">
+      <h2 class="ref-titulo">Fator percentual (<var>fp</var>)</h2>
+      <div class="rolagem"><table class="tabela ref-tabela">
+        <thead><tr><th>Área construída</th>${CATS.map(([, c, n]) => `<th class="num">${c}<span>${n}</span></th>`).join('')}</tr></thead>
+        <tbody>${linhasFp}</tbody></table></div>
+    </div>
+    <div class="ref-bloco">
+      <h2 class="ref-titulo">Redutor por repetição (<var>Rr</var>)</h2>
+      <div class="rolagem"><table class="tabela ref-tabela ref-tabela--estreita">
+        <thead><tr><th>Repetições<span>a partir de</span></th><th class="num">Redutor</th><th class="num">Desconto</th></tr></thead>
+        <tbody>${linhasRed}</tbody></table></div>
+    </div>
+    <div class="hon-notas hon-notas--simples">
+      <section><h3>Como ler as tabelas</h3><ul>
+        <li><span>A coluna do <var>fp</var> é a categoria do uso (1 a 4), definida nas <a href="https://projetos.odisse.com.br/pgt.html#servicos">Bases</a>; a linha é a faixa que comporta a área construída (<var>A</var>).</span></li>
+        <li><span>O redutor vale para a área de cálculo inteira, pela quantidade de unidades ou áreas que se repetem integralmente no projeto.</span></li>
+      </ul></section>
+      <section><h3>De onde vêm</h3><ul>
+        <li><span>Tabelas de honorários do CAU (fator percentual e redutor por repetição), sem alteração.</span></li>
+        <li><span>Onde entram na conta: aba <a href="#formula">Fórmula</a>.</span></li>
+      </ul></section>
+    </div>`;
+}
+
+// descrição pelo código (NBR 12.721): família + padrão de acabamento (B/N/A); a planilha de origem deixa várias em branco
+const CUB_FAMILIAS = { 'R-1': 'Residência unifamiliar', 'PP-4': 'Prédio popular, 4 pavimentos', 'R-8': 'Residência multifamiliar, 8 pavimentos',
+  'R-16': 'Residência multifamiliar, 16 pavimentos', PIS: 'Projeto de interesse social', RP1Q: 'Residência popular de 1 quarto',
+  'CAL-8': 'Comercial andares livres, 8 pavimentos', 'CSL-8': 'Comercial salas e lojas, 8 pavimentos', 'CSL-16': 'Comercial salas e lojas, 16 pavimentos', GI: 'Galpão industrial' };
+const CUB_PADROES = { B: 'padrão baixo', N: 'padrão normal', A: 'padrão alto' };
+function descricaoCub(cod, v) {
+  const m = String(cod).match(/^(.*?)(?:-([BNA]))?$/);
+  const fam = CUB_FAMILIAS[m[1]];
+  return fam ? fam + (m[2] ? ` · ${CUB_PADROES[m[2]]}` : '') : (v.padrao || '');
+}
+
+function desenharCub(regiao) {
+  const el = document.getElementById('cub');
+  const cub = CUB_TODO, r = cub.regioes[regiao];
+  const nomes = Object.keys(cub.regioes);
+  const SETORES = {};
+  for (const [cod, v] of Object.entries(r.tabela)) (SETORES[v.setor || 'Outros'] ||= []).push([cod, v]);
+  const reais = (n) => (n == null ? '—' : fmtReais(n));
+  el.innerHTML = `
+    <div class="hon-params">
+      <label class="hon-param hon-param--info"${nomes.length > 1 ? ' for="cub-regiao"' : ''}>
+        <span class="hon-param__rotulo">Região</span>
+        <span class="hon-param__nota">${nomes.length > 1
+          ? `<select id="cub-regiao">${nomes.map((n) => `<option value="${escHtml(n)}" ${n === regiao ? 'selected' : ''}>${escHtml(n)}${n === cub.regiao_ativa ? ' (em uso)' : ''}</option>`).join('')}</select>`
+          : `<b>${escHtml(regiao)}</b>${regiao === cub.regiao_ativa ? ' · em uso' : ''}`}</span>
+      </label>
+      <div class="hon-param hon-param--info">
+        <span class="hon-param__rotulo">Fonte e competência</span>
+        <span class="hon-param__nota"><b>${escHtml(r.fonte || '—')}</b> · ${escHtml(r.competencia_referencia || '—')}${r.pdf_origem ? ` · <a href="${escHtml(r.pdf_origem)}" target="_blank" rel="noopener">PDF de origem</a>` : ''}</span>
+      </div>
+    </div>
+    <div class="rolagem"><table class="tabela ref-tabela">
+      <thead><tr><th style="width:110px">Código</th><th>Descrição</th><th class="num">Honerado (R$/m²)</th><th class="num">Desonerado (R$/m²)</th></tr></thead>
+      ${Object.entries(SETORES).map(([setor, itens]) => `<tbody>
+        <tr class="ref-grupo"><td colspan="4">${escHtml(setor)}<span>${itens.length} ${itens.length === 1 ? 'código' : 'códigos'}</span></td></tr>
+        ${itens.map(([cod, v]) => `<tr><td class="codigo">${escHtml(cod)}</td><td>${escHtml(descricaoCub(cod, v))}</td>
+          <td class="num"><strong>${reais(v.honerado)}</strong></td><td class="num muted">${reais(v.desonerado)}</td></tr>`).join('')}
+      </tbody>`).join('')}
+    </table></div>
+    <div class="hon-notas hon-notas--simples">
+      <section><h3>Como ler a tabela</h3><ul>
+        <li><span>O cálculo usa o valor <b>honerado</b> do código que cada uso referencia; o desonerado fica só para consulta.</span></li>
+        <li><span>Base de honorários de cada uso = CUB honerado × fator de adequação: aba <a href="#bh">Base de honorários</a>, com a explicação dos códigos.</span></li>
+      </ul></section>
+      <section><h3>De onde vem</h3><ul>
+        <li><span>${escHtml(r.fonte || 'Sinduscon')}, NBR 12.721 (ABNT), atualizado pela rotina mensal do repositório.</span></li>
+        <li><span>Confira aqui se o orçamento está usando a competência certa.</span></li>
+      </ul></section>
+    </div>`;
+  const sel = el.querySelector('#cub-regiao');
+  if (sel) sel.onchange = (e) => desenharCub(e.target.value);
+}
+
+// ---------------------------------------------------------------- abas
+function ligarAbas() {
+  const botoes = [...document.querySelectorAll('.gestao__abas [data-aba]')];
+  const mostrar = (id) => {
+    botoes.forEach((b) => b.setAttribute('aria-selected', String(b.dataset.aba === id)));
+    document.querySelectorAll('[data-painel]').forEach((s) => { s.hidden = s.dataset.painel !== id; });
+    try { sessionStorage.setItem('aba:honorarios', id); } catch (_) { /* sem armazenamento */ }
+  };
+  botoes.forEach((b) => b.onclick = () => mostrar(b.dataset.aba));
+  // links internos (#pesos, #bh…) da aba Fórmula trocam de aba
+  window.addEventListener('hashchange', () => { const id = location.hash.slice(1); if (botoes.some((b) => b.dataset.aba === id)) mostrar(id); });
+  let inicial = location.hash.slice(1);
+  if (!botoes.some((b) => b.dataset.aba === inicial)) { try { inicial = sessionStorage.getItem('aba:honorarios') || ''; } catch (_) { inicial = ''; } }
+  mostrar(botoes.some((b) => b.dataset.aba === inicial) ? inicial : botoes[0].dataset.aba);
+}
+
+document.getElementById('filtro-uso').oninput = () => B && desenharBH();
+iniciar();
+</script>
+</body>
+</html>

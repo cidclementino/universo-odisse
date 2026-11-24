@@ -16,10 +16,10 @@ const COPIA = 'kpis';
 const LEMBRAR = 'universo:kpis:';
 const MARCA = 'https://marca.odisse.com.br/v1/documentos/';
 const JSPDF = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
-const FONTES = 'https://vendas.odisse.com.br/fonts-inter.js';
+const FONTES = '/vendas/fonts-inter.js';
 const METRICAS = 'https://marketing.odisse.com.br/#/metricas';
 const SITE_PAINEL = 'https://www.odisse.com.br/admin/';
-const FUNIL = 'https://vendas.odisse.com.br/crm.html';
+const FUNIL = '/vendas/crm.html';
 
 // Temas (como na planilha de KPIs). `ontem`: o tema traz a coluna com o número do dia anterior.
 const GRUPOS = [

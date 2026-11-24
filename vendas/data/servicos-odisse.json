@@ -1,0 +1,337 @@
+[
+  {
+    "id": "consultoria_remota",
+    "nome": "Consultoria Remota",
+    "ic_preset": {
+      "qtd_especialistas": "baixo",
+      "qtd_aprovacoes": "baixo",
+      "grau_resp_civil": "baixo",
+      "grau_intervencao_cliente": "medio",
+      "expectativa_plastica": "medio",
+      "grau_controle_custo": "baixo",
+      "indefinicao_escopo": "medio",
+      "indefinicao_prazo": "medio",
+      "demanda_midia": "baixo"
+    },
+    "etapas_default": [],
+    "macro_categorias": [],
+    "modificadores": [
+      {
+        "nome": "Consultoria Remota",
+        "valor": 0.15
+      }
+    ],
+    "formula_percentual_por_etapa": false,
+    "etapas_aplicaveis": []
+  },
+  {
+    "id": "viabilidade",
+    "nome": "Estudo de Viabilidade",
+    "ic_preset": {
+      "qtd_especialistas": "baixo",
+      "qtd_aprovacoes": "baixo",
+      "grau_resp_civil": "baixo",
+      "grau_intervencao_cliente": "medio",
+      "expectativa_plastica": "medio",
+      "grau_controle_custo": "alto",
+      "indefinicao_escopo": "alto",
+      "indefinicao_prazo": "medio",
+      "demanda_midia": "baixo"
+    },
+    "etapas_default": [
+      "programacao_projetual"
+    ],
+    "macro_categorias": [],
+    "modificadores": [
+      {
+        "nome": "Estudo de Viabilidade",
+        "valor": 0.2
+      }
+    ],
+    "formula_percentual_por_etapa": false,
+    "etapas_aplicaveis": [
+      "programacao_projetual"
+    ]
+  },
+  {
+    "id": "laudos",
+    "nome": "Laudos e Regularização Técnica",
+    "ic_preset": {
+      "qtd_especialistas": "baixo",
+      "qtd_aprovacoes": "baixo",
+      "grau_resp_civil": "medio",
+      "grau_intervencao_cliente": "baixo",
+      "expectativa_plastica": "medio",
+      "grau_controle_custo": "baixo",
+      "indefinicao_escopo": "baixo",
+      "indefinicao_prazo": "baixo",
+      "demanda_midia": "baixo"
+    },
+    "etapas_default": [],
+    "macro_categorias": [],
+    "modificadores": [
+      {
+        "nome": "Laudos e Regularização Técnica",
+        "valor": 0.15
+      }
+    ],
+    "formula_percentual_por_etapa": false,
+    "etapas_aplicaveis": []
+  },
+  {
+    "id": "interiores",
+    "nome": "Projeto de Interiores e Ambientação",
+    "ic_preset": {
+      "qtd_especialistas": "baixo",
+      "qtd_aprovacoes": "baixo",
+      "grau_resp_civil": "baixo",
+      "grau_intervencao_cliente": "alto",
+      "expectativa_plastica": "medio",
+      "grau_controle_custo": "medio",
+      "indefinicao_escopo": "medio",
+      "indefinicao_prazo": "medio",
+      "demanda_midia": "medio"
+    },
+    "etapas_default": [
+      "programacao_projetual_interiores",
+      "concepcao_esquematica_interiores",
+      "concepcao_basica_interiores",
+      "pre_executivo_interiores",
+      "projeto_executivo_interiores"
+    ],
+    "macro_categorias": [],
+    "modificadores": [
+      {
+        "nome": "Projeto de Interiores",
+        "valor": 1.5
+      },
+      {
+        "nome": "Ambientação",
+        "valor": 0.75
+      }
+    ],
+    "formula_percentual_por_etapa": true,
+    "etapas_aplicaveis": [
+      "programacao_projetual_interiores",
+      "concepcao_esquematica_interiores",
+      "concepcao_basica_interiores",
+      "pre_executivo_interiores",
+      "projeto_executivo_interiores"
+    ]
+  },
+  {
+    "id": "comercial",
+    "nome": "Projeto de Nova Edificação Comercial",
+    "ic_preset": {
+      "qtd_especialistas": "medio",
+      "qtd_aprovacoes": "medio",
+      "grau_resp_civil": "medio",
+      "grau_intervencao_cliente": "medio",
+      "expectativa_plastica": "medio",
+      "grau_controle_custo": "alto",
+      "indefinicao_escopo": "baixo",
+      "indefinicao_prazo": "alto",
+      "demanda_midia": "medio"
+    },
+    "etapas_default": [
+      "concepcao_basica",
+      "projeto_basico_legal",
+      "projeto_executivo_arquitetura",
+      "detalhamento_executivo"
+    ],
+    "macro_categorias": [
+      "Hospedagem",
+      "Comércio",
+      "Serviços",
+      "Diversos"
+    ],
+    "modificadores": [
+      {
+        "nome": "Nova Edificação",
+        "valor": 1.0
+      }
+    ],
+    "formula_percentual_por_etapa": true,
+    "etapas_aplicaveis": [
+      "programacao_projetual",
+      "concepcao_esquematica",
+      "concepcao_basica",
+      "projeto_basico_legal",
+      "pre_executivo",
+      "projeto_executivo_arquitetura",
+      "detalhamento_executivo"
+    ]
+  },
+  {
+    "id": "institucional",
+    "nome": "Projeto de Nova Edificação Institucional",
+    "ic_preset": {
+      "qtd_especialistas": "alto",
+      "qtd_aprovacoes": "alto",
+      "grau_resp_civil": "alto",
+      "grau_intervencao_cliente": "medio",
+      "expectativa_plastica": "medio",
+      "grau_controle_custo": "alto",
+      "indefinicao_escopo": "medio",
+      "indefinicao_prazo": "medio",
+      "demanda_midia": "medio"
+    },
+    "etapas_default": [
+      "programacao_projetual",
+      "concepcao_esquematica",
+      "concepcao_basica",
+      "projeto_basico_legal",
+      "pre_executivo",
+      "projeto_executivo_arquitetura",
+      "detalhamento_executivo"
+    ],
+    "macro_categorias": [
+      "Educação",
+      "Saúde",
+      "Esportes",
+      "Lazer",
+      "Cultura"
+    ],
+    "modificadores": [
+      {
+        "nome": "Nova Edificação",
+        "valor": 1.0
+      }
+    ],
+    "formula_percentual_por_etapa": true,
+    "etapas_aplicaveis": [
+      "programacao_projetual",
+      "concepcao_esquematica",
+      "concepcao_basica",
+      "projeto_basico_legal",
+      "pre_executivo",
+      "projeto_executivo_arquitetura",
+      "detalhamento_executivo"
+    ]
+  },
+  {
+    "id": "edificios_mistos",
+    "nome": "Projeto de Nova Edificação Multifamiliar e/ou Mista",
+    "ic_preset": {
+      "qtd_especialistas": "alto",
+      "qtd_aprovacoes": "medio",
+      "grau_resp_civil": "alto",
+      "grau_intervencao_cliente": "baixo",
+      "expectativa_plastica": "medio",
+      "grau_controle_custo": "medio",
+      "indefinicao_escopo": "medio",
+      "indefinicao_prazo": "alto",
+      "demanda_midia": "medio"
+    },
+    "etapas_default": [
+      "programacao_projetual",
+      "concepcao_esquematica",
+      "concepcao_basica",
+      "projeto_basico_legal",
+      "pre_executivo",
+      "projeto_executivo_arquitetura",
+      "detalhamento_executivo"
+    ],
+    "macro_categorias": [
+      "HabitacionalMultifamiliar",
+      "HabitaçõesEspeciais"
+    ],
+    "modificadores": [
+      {
+        "nome": "Nova Edificação",
+        "valor": 1.0
+      }
+    ],
+    "formula_percentual_por_etapa": true,
+    "etapas_aplicaveis": [
+      "programacao_projetual",
+      "concepcao_esquematica",
+      "concepcao_basica",
+      "projeto_basico_legal",
+      "pre_executivo",
+      "projeto_executivo_arquitetura",
+      "detalhamento_executivo"
+    ]
+  },
+  {
+    "id": "residencial",
+    "nome": "Projeto de Nova Edificação Residencial",
+    "ic_preset": {
+      "qtd_especialistas": "baixo",
+      "qtd_aprovacoes": "medio",
+      "grau_resp_civil": "medio",
+      "grau_intervencao_cliente": "alto",
+      "expectativa_plastica": "medio",
+      "grau_controle_custo": "medio",
+      "indefinicao_escopo": "medio",
+      "indefinicao_prazo": "medio",
+      "demanda_midia": "medio"
+    },
+    "etapas_default": [
+      "programacao_projetual",
+      "concepcao_esquematica",
+      "concepcao_basica",
+      "projeto_basico_legal",
+      "pre_executivo",
+      "projeto_executivo_arquitetura",
+      "detalhamento_executivo"
+    ],
+    "macro_categorias": [
+      "HabitacionalUnifamiliar"
+    ],
+    "modificadores": [
+      {
+        "nome": "Nova Edificação",
+        "valor": 1.0
+      }
+    ],
+    "formula_percentual_por_etapa": true,
+    "etapas_aplicaveis": [
+      "programacao_projetual",
+      "concepcao_esquematica",
+      "concepcao_basica",
+      "projeto_basico_legal",
+      "pre_executivo",
+      "projeto_executivo_arquitetura",
+      "detalhamento_executivo"
+    ]
+  },
+  {
+    "id": "reforma",
+    "nome": "Projeto de Reforma",
+    "ic_preset": {
+      "qtd_especialistas": "baixo",
+      "qtd_aprovacoes": "baixo",
+      "grau_resp_civil": "baixo",
+      "grau_intervencao_cliente": "alto",
+      "expectativa_plastica": "medio",
+      "grau_controle_custo": "alto",
+      "indefinicao_escopo": "alto",
+      "indefinicao_prazo": "alto",
+      "demanda_midia": "medio"
+    },
+    "etapas_default": [
+      "concepcao_basica",
+      "projeto_basico_legal",
+      "projeto_executivo_arquitetura",
+      "detalhamento_executivo"
+    ],
+    "macro_categorias": [],
+    "modificadores": [
+      {
+        "nome": "Reforma",
+        "valor": 1.25
+      }
+    ],
+    "formula_percentual_por_etapa": true,
+    "etapas_aplicaveis": [
+      "programacao_projetual",
+      "concepcao_esquematica",
+      "concepcao_basica",
+      "projeto_basico_legal",
+      "pre_executivo",
+      "projeto_executivo_arquitetura",
+      "detalhamento_executivo"
+    ]
+  }
+]

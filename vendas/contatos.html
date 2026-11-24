@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Contatos · Vendas — Odisse</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="https://marca.odisse.com.br/favicon/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="https://marca.odisse.com.br/favicon/favicon-32x32.png" sizes="32x32">
+<link rel="stylesheet" href="https://marca.odisse.com.br/v1/marca.css">
+<link rel="stylesheet" href="https://universo.odisse.com.br/base/v1/universo.css">
+<link rel="stylesheet" href="styles.css?v=1f3fa8b945">
+</head>
+<body>
+
+<div id="app" class="app app--no-sidebar" hidden>
+  <header class="topo" data-pagina="contatos"></header>
+  <script src="topo.js?v=164bd89cf9"></script>
+
+  <main class="crm contatos">
+    <div class="crm__barra">
+      <h1>Contatos</h1>
+      <input type="search" id="filtro" placeholder="Buscar por nome, e-mail, telefone, organização…">
+      <button class="btn btn--ghost btn--small" id="btn-duplicados" type="button" hidden>Possíveis duplicados</button>
+      <button class="btn btn--primary btn--small" id="btn-novo" type="button">Novo contato</button>
+    </div>
+    <div class="contatos__filtros">
+      <div class="abas" role="tablist" id="abas">
+        <button type="button" role="tab" data-tipo="" aria-selected="true">Todos <span></span></button>
+        <button type="button" role="tab" data-tipo="pessoa">Pessoas <span></span></button>
+        <button type="button" role="tab" data-tipo="organizacao">Organizações <span></span></button>
+      </div>
+      <label class="small muted"><input type="checkbox" id="so-abertas"> só com oportunidade em aberto</label>
+      <label class="small muted"><input type="checkbox" id="arquivados"> mostrar arquivados</label>
+    </div>
+    <div id="aviso"></div>
+    <div id="lista"><p class="muted">Carregando…</p></div>
+  </main>
+</div>
+
+<div id="painel-raiz"></div>
+
+<script src="config.js?v=07793b6f66"></script>
+<script src="auth.js?v=2a461f8bce"></script>
+<script>exigirAutenticacao();</script>
+<script src="store.js?v=66a6878146"></script>
+<script src="comercial.js?v=2dc7225c30"></script>
+<script src="ui.js?v=2dfbfc5119"></script>
+<script>
+// ==========================================================================
+// Contatos: pessoas e organizações do Universo, com as ligações entre elas
+// (atuações), as oportunidades de cada um (titular, co-cliente ou contato),
+// as interações e, para pessoas, os dados pessoais (só no vendas; cada
+// consulta fica registrada no histórico do Universo).
+// ==========================================================================
+
+const CAMPOS_PESSOA = [
+  ['nome', 'Nome', 'text', true], ['apelido', 'Apelido / como chamar', 'text'],
+  ['whatsapp', 'WhatsApp', 'tel'], ['telefone', 'Telefone', 'tel'],
+  ['email', 'E-mail', 'email'], ['instagram', 'Instagram', 'text']
+];
+const CAMPOS_ORG = [
+  ['nome', 'Nome', 'text', true], ['razao_social', 'Razão social', 'text'],
+  ['cnpj', 'CNPJ', 'text'], ['tipo', 'Tipo', 'tipo'],
+  ['telefone', 'Telefone', 'tel'], ['email', 'E-mail', 'email'],
+  ['site', 'Site', 'url'], ['instagram', 'Instagram', 'text'],
+  ['cidade', 'Cidade', 'text'], ['uf', 'UF', 'text']
+];
+const CAMPOS_SENSIVEIS = [
+  ['cpf', 'CPF', 'text'], ['rg', 'RG', 'text'], ['nascimento', 'Nascimento', 'date'],
+  ['cep', 'CEP', 'text'], ['logradouro', 'Logradouro', 'text'], ['numero', 'Número', 'text'],
+  ['complemento', 'Complemento', 'text'], ['bairro', 'Bairro', 'text'], ['cidade', 'Cidade', 'text'], ['uf', 'UF', 'text']
+];
+
+let PESSOAS = [], ORGS = [], TIPO = '';
+const avisar = avisoEm(document.getElementById('aviso'));
+
+// ---------------------------------------------------------------- lista
+
+// Abre na hora com a cópia local da lista (copia: true, só na entrada) e confere por baixo;
+// depois de gravar algo, lê direto do servidor.
+async function carregar({ copia = false } = {}) {
+  try {
+    const arq = document.getElementById('arquivados').checked;
+    const r = await comCopia('contatos' + (arq ? ':arquivados' : ''), () => Universo.get('comercial/contatos', arq ? { arquivados: 1 } : null),
+      (novo) => { PESSOAS = novo.pessoas; ORGS = novo.organizacoes; desenhar(); }, { fresco: !copia });
+    PESSOAS = r.pessoas; ORGS = r.organizacoes;
+    avisar('');
+    desenhar();
+  } catch (e) {
+    avisar(`Não consegui carregar os contatos (${mensagemDe(e)}).`);
+    document.getElementById('lista').innerHTML = '';
+  }
+}
+
+function textoDe(c) {
+  return semAcento([c.nome, c.apelido, c.razao_social, c.cnpj, c.email, c.telefone, c.whatsapp, c.instagram, c.cidade,
+    ...c.ligacoes.map(l => l.nome)].filter(Boolean).join(' '));
+}
+
+function desenhar() {
+  const q = semAcento(document.getElementById('filtro').value.trim());
+  const soAbertas = document.getElementById('so-abertas').checked;
+  const passa = (c) => (!soAbertas || c.n_abertas > 0) && (!q || q.split(/\s+/).every(t => textoDe(c).includes(t)));
+  const p = PESSOAS.filter(passa), o = ORGS.filter(passa);
+  const abas = document.querySelectorAll('#abas button');
+  abas[0].querySelector('span').textContent = p.length + o.length;
+  abas[1].querySelector('span').textContent = p.length;
+  abas[2].querySelector('span').textContent = o.length;
+  const itens = (TIPO === 'pessoa' ? p : TIPO === 'organizacao' ? o : [...p, ...o])
+    .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR', { sensitivity: 'base' }));
+
+  const lista = document.getElementById('lista');
+  if (!itens.length) {
+    lista.innerHTML = `<div class="vazio">${PESSOAS.length + ORGS.length ? 'Nenhum contato com esse filtro.' : 'Nenhum contato cadastrado ainda.'}</div>`;
+    return;
+  }
+  lista.innerHTML = `<table class="tabela tabela--linhas">
+    <thead><tr><th>Nome</th><th>Ligações</th><th>Contato</th><th style="text-align:right">Oportunidades</th></tr></thead>
+    <tbody>${itens.map(c => {
+      const org = c.tipo_contato === 'organizacao';
+      const tel = c.whatsapp || c.telefone;
+      return `<tr data-id="${c.id}" tabindex="0">
+        <td><strong>${escHtml(c.nome)}</strong>${org ? ' <span class="chip">organização</span>' : ''}${c.arquivado_em ? ' <span class="chip chip--perda">arquivado</span>' : ''}
+          ${c.apelido ? `<br><span class="small muted">${escHtml(c.apelido)}</span>` : ''}${org && (c.cidade || c.uf) ? `<br><span class="small muted">${escHtml([c.cidade, c.uf].filter(Boolean).join(' / '))}</span>` : ''}
+          ${c.ligacoes.length ? `<span class="so-movel small muted">${c.ligacoes.slice(0, 2).map(l => escHtml(l.nome)).join(', ')}${c.ligacoes.length > 2 ? '…' : ''}</span>` : ''}</td>
+        <td class="small">${c.ligacoes.slice(0, 3).map(l => `${escHtml(l.nome)} <span class="muted">· ${escHtml(nomeDe(PAPEIS_ATUACAO, l.papel).toLowerCase())}</span>`).join('<br>')}${c.ligacoes.length > 3 ? `<br><span class="muted">+${c.ligacoes.length - 3}</span>` : ''}</td>
+        <td class="small">${tel ? escHtml(Comercial.fmtTel(tel)) : ''}${tel && c.email ? '<br>' : ''}${c.email ? `<span class="muted">${escHtml(c.email)}</span>` : ''}</td>
+        <td class="tabular" style="text-align:right">${c.n_oportunidades ? `${c.n_abertas ? `<strong>${c.n_abertas}</strong> em aberto` : ''}${c.n_abertas && c.n_oportunidades > c.n_abertas ? ' · ' : ''}${c.n_oportunidades > c.n_abertas ? `<span class="muted">${c.n_oportunidades - c.n_abertas} fechada${c.n_oportunidades - c.n_abertas > 1 ? 's' : ''}</span>` : ''}` : '<span class="muted">—</span>'}</td>
+      </tr>`;
+    }).join('')}</tbody></table>`;
+  lista.querySelectorAll('tr[data-id]').forEach(tr => {
+    tr.onclick = (e) => { if (!e.target.closest('a')) abrirFicha(tr.dataset.id); };
+    tr.onkeydown = (e) => { if (e.key === 'Enter') abrirFicha(tr.dataset.id); };
+  });
+}
+
+// ---------------------------------------------------------------- formulário de cadastro
+
+function campoHtml([k, rot, tipo, obrig], valor) {
+  const v = valor === null || valor === undefined ? '' : valor;
+  if (tipo === 'tipo') return `<div class="field"><label class="field__label">${rot}</label><select name="${k}">${opcoes(TIPOS_ORG, v, '—')}</select></div>`;
+  const mostrado = (k === 'telefone' || k === 'whatsapp') && v ? Comercial.fmtTel(v) : k === 'instagram' && v ? '@' + v : v;
+  return `<div class="field"><label class="field__label">${rot}</label><input type="${tipo}" name="${k}" value="${escHtml(mostrado)}" ${obrig ? 'required' : ''}></div>`;
+}
+function formularioCadastro(campos, reg = {}) {
+  const pares = [];
+  const lista = campos.slice(1);
+  for (let i = 0; i < lista.length; i += 2) pares.push(`<div class="row-2">${campoHtml(lista[i], reg[lista[i][0]])}${lista[i + 1] ? campoHtml(lista[i + 1], reg[lista[i + 1][0]]) : ''}</div>`);
+  return campoHtml(campos[0], reg.nome) + pares.join('') +
+    `<div class="field"><label class="field__label">Observações</label><textarea name="observacoes" rows="3">${escHtml(reg.observacoes || '')}</textarea></div>`;
+}
+// Valores do formulário (campo vazio = null, para apagar de fato)
+function lerFormulario(form, campos) {
+  const out = {};
+  for (const [k] of campos) out[k] = form[k].value.trim() || null;
+  out.observacoes = form.observacoes.value.trim() || null;
+  return out;
+}
+
+// ---------------------------------------------------------------- ficha
+
+let FICHA = null;   // id aberto
+
+async function abrirFicha(id) {
+  FICHA = id;
+  if (location.hash !== '#' + id) history.replaceState(null, '', '#' + id);
+  const painel = abrirPainel('<p class="muted">Carregando…</p>', { aoFechar: () => { FICHA = null; } });
+  let f;
+  try {
+    f = await Universo.get('comercial/contatos/' + id);
+  } catch (e) {
+    painel.innerHTML = `<div class="painel__topo"><h2>Contato</h2><button class="painel__fechar" aria-label="Fechar">×</button></div>
+      <div class="aviso aviso--erro">Não consegui abrir (${escHtml(mensagemDe(e))}).</div>`;
+    painel.querySelector('.painel__fechar').onclick = fecharPainel;
+    return;
+  }
+  if (FICHA !== id) return;
+  const reg = f.registro;
+  const org = ehOrg(id);
+  const campos = org ? CAMPOS_ORG : CAMPOS_PESSOA;
+  const abertas = f.oportunidades.filter(o => !['ganha', 'perdida'].includes(o.etapa_funil));
+
+  painel.innerHTML = `
+    <div class="painel__topo">
+      <div>
+        <p class="small muted" style="margin:0 0 4px">${org ? `Organização${reg.tipo ? ' · ' + escHtml(nomeDe(TIPOS_ORG, reg.tipo)) : ''}` : 'Pessoa'}${reg.arquivado_em ? ' · <span class="chip chip--perda">arquivado</span>' : ''}</p>
+        <h2>${escHtml(reg.nome)}</h2>
+        <div class="meios" style="margin-top:6px">${meiosDeContato(reg)}</div>
+      </div>
+      <button class="painel__fechar" aria-label="Fechar">×</button>
+    </div>
+    <div id="ficha-aviso"></div>
+
+    <section>
+      <h3>Oportunidades</h3>
+      ${f.oportunidades.length ? `<ul class="lista-pessoas">${f.oportunidades.map(o => `
+        <li>
+          <div class="lista-pessoas__quem">
+            <a href="crm.html#${o.id}"><strong>${escHtml(o.titulo)}</strong></a>
+            <span class="chip ${o.etapa_funil === 'ganha' ? 'chip--ok' : o.etapa_funil === 'perdida' ? 'chip--perda' : ''}">${escHtml(nomeDe(ETAPAS_FUNIL, o.etapa_funil))}</span>
+            <div class="small muted">${[PAPEIS_NA_OPORTUNIDADE[o.papel], o.nucleo_id ? nomeDe(NUCLEOS, o.nucleo_id) : '',
+              o.ultima_proposta ? `${o.ultima_proposta.codigo} · ${fmtCentavos(o.ultima_proposta.valor_total)}` : (o.valor_estimado ? 'estimado ' + fmtCentavos(o.valor_estimado) : '')
+            ].filter(Boolean).map(escHtml).join(' · ')}</div>
+          </div>
+        </li>`).join('')}</ul>` : '<p class="small muted" style="margin:0">Nenhuma oportunidade.</p>'}
+      <div class="painel__acoes"><a class="btn btn--ghost btn--small" href="crm.html#nova=${id}">Nova oportunidade${org ? ' para esta organização' : ' com esta pessoa'}</a></div>
+    </section>
+
+    <section>
+      <h3>${org ? 'Pessoas' : 'Organizações'}</h3>
+      <ul class="lista-pessoas" id="ligacoes">${f.atuacoes.map(a => {
+        const outroId = org ? a.pessoa_id : a.organizacao_id;
+        const outroNome = org ? a.pessoa_nome : a.organizacao_nome;
+        const encerrada = !!a.ate;
+        return `<li class="${encerrada ? 'is-encerrada' : ''}" data-atu="${a.id}">
+          <div class="lista-pessoas__quem">
+            <a href="#${outroId}"><strong>${escHtml(outroNome)}</strong></a>
+            <span class="chip">${escHtml(nomeDe(PAPEIS_ATUACAO, a.papel).toLowerCase())}</span>${a.principal ? ' <span class="chip chip--cobre">principal</span>' : ''}
+            <div class="small muted">${[a.cargo, a.desde ? 'desde ' + fmtData(a.desde) : '', encerrada ? 'até ' + fmtData(a.ate) : ''].filter(Boolean).map(escHtml).join(' · ')}</div>
+            ${org && !encerrada ? `<div class="meios">${meiosDeContato({ whatsapp: a.pessoa_whatsapp, telefone: a.pessoa_telefone, email: a.pessoa_email })}</div>` : ''}
+          </div>
+          <div class="lista-pessoas__acoes">
+            <button type="button" class="btn-link" data-editar="${a.id}">editar</button>
+            ${encerrada ? '' : `<button type="button" class="btn-link" data-encerrar="${a.id}" title="Saiu da ${org ? 'organização' : 'função'}: guarda a ligação com data de fim">encerrar</button>`}
+            <button type="button" class="btn-link" data-tirar="${a.id}" title="Ligação feita por engano">tirar</button>
+          </div>
+        </li>`;
+      }).join('') || `<li class="small muted">Nenhuma ${org ? 'pessoa ligada' : 'organização ligada'}.</li>`}</ul>
+      <form class="ligar" id="f-ligar">
+        <div class="field busca-campo">
+          <input type="search" name="busca" placeholder="Ligar ${org ? 'uma pessoa' : 'a uma organização'}: buscar ou digitar o nome…">
+          <div class="busca-res" id="res-ligar"></div>
+        </div>
+      </form>
+    </section>
+
+    <section>
+      <h3>Cadastro</h3>
+      <form id="f-cad">
+        ${formularioCadastro(campos, reg)}
+        <div class="painel__acoes">
+          <button class="btn btn--primary btn--small" type="submit">Salvar</button>
+          ${reg.arquivado_em
+            ? '<button class="btn btn--ghost btn--small" type="button" id="btn-restaurar">Restaurar</button>'
+            : '<button class="btn btn--ghost btn--small" type="button" id="btn-arquivar">Arquivar</button>'}
+        </div>
+      </form>
+    </section>
+
+    ${org ? '' : `<section>
+      <h3>Dados pessoais</h3>
+      <p class="small muted" style="margin:0 0 10px">CPF, RG, nascimento e endereço residencial. Só o vendas vê; cada consulta fica registrada no Universo.</p>
+      <div id="sensiveis"><button class="btn btn--ghost btn--small" type="button" id="btn-sensiveis">Mostrar dados pessoais</button></div>
+    </section>`}
+
+    <section>
+      <h3>Interações</h3>
+      <ul class="lista-int">${f.interacoes.map(i => `
+        <li><span class="small">${fmtDia(i.data)} · ${escHtml(nomeDe(TIPOS_INTERACAO, i.tipo))}${i.oportunidade_titulo ? ` · <a href="crm.html#${i.sobre_id}">${escHtml(i.oportunidade_titulo)}</a>` : ''}</span><br>
+          ${i.resumo ? escHtml(i.resumo).replace(/\n/g, '<br>') : '<span class="small muted">sem resumo</span>'}
+          ${i.proxima_acao ? `<br><span class="small" style="color:var(--destaque-texto)">→ ${escHtml(i.proxima_acao)}${i.proxima_acao_em ? ' até ' + fmtDia(i.proxima_acao_em) : ''}</span>` : ''}
+        </li>`).join('') || '<li class="small muted">Nenhuma interação registrada. Elas são registradas na ficha de cada oportunidade, no Funil.</li>'}</ul>
+    </section>`;
+
+  painel.querySelector('.painel__fechar').onclick = fecharPainel;
+  const aviso = avisoEm(painel.querySelector('#ficha-aviso'));
+  const rota = org ? 'organizacoes' : 'pessoas';
+  const reabrir = async () => { await carregar(); await abrirFicha(id); };
+
+  // ---- cadastro
+  const fc = painel.querySelector('#f-cad');
+  fc.onsubmit = async (e) => {
+    e.preventDefault();
+    const botao = fc.querySelector('[type=submit]');
+    botao.disabled = true;
+    try {
+      await Universo.alterar(rota, id, { versao: reg.versao, ...lerFormulario(fc, campos) });
+      await reabrir();
+      avisoEm(document.querySelector('#ficha-aviso'))('Cadastro salvo.', 'ok');
+    } catch (err) {
+      botao.disabled = false;
+      aviso(mensagemDe(err));
+      if (err.status === 409 && err.dados.erro === 'conflito') setTimeout(reabrir, 1500);
+    }
+  };
+  const arq = painel.querySelector('#btn-arquivar');
+  if (arq) arq.onclick = async () => {
+    const msg = abertas.length
+      ? `${reg.nome} está em ${abertas.length} oportunidade(s) em aberto. Arquivar mesmo assim? As oportunidades continuam, e nada é apagado.`
+      : `Arquivar ${reg.nome}? Sai da lista de contatos e da busca, mas nada é apagado (dá para restaurar).`;
+    if (!confirm(msg)) return;
+    try { await Universo.post(`${rota}/${id}/arquivar`, { versao: reg.versao }); fecharPainel(); carregar(); } catch (err) { aviso(mensagemDe(err)); }
+  };
+  const rest = painel.querySelector('#btn-restaurar');
+  if (rest) rest.onclick = async () => {
+    try { await Universo.post(`${rota}/${id}/restaurar`, { versao: reg.versao }); await reabrir(); } catch (err) { aviso(mensagemDe(err)); }
+  };
+
+  // ---- ligações (atuações)
+  const fl = painel.querySelector('#f-ligar');
+  ligarBuscaContatos(fl.busca, painel.querySelector('#res-ligar'), {
+    tabelas: [org ? 'pessoas' : 'organizacoes'],
+    ignorar: f.atuacoes.filter(a => !a.ate).map(a => org ? a.pessoa_id : a.organizacao_id),
+    aoEscolher: (item) => formLigacao(null, { id: item.id, nome: item.titulo }),
+    rotuloNovo: org ? 'Cadastrar pessoa' : 'Cadastrar organização',
+    criarNovo: (nome) => formLigacao(null, { nome })
+  });
+
+  // formulário de ligação: nova (outro = {id?, nome}) ou edição (atuação existente)
+  function formLigacao(atu, outro) {
+    const nomeOutro = atu ? (org ? atu.pessoa_nome : atu.organizacao_nome) : outro.nome;
+    const html = `<div class="ligar__form">
+      <p style="margin:0 0 10px"><strong>${escHtml(nomeOutro)}</strong>${!atu && !outro.id ? ' <span class="chip">novo cadastro</span>' : ''}</p>
+      <div class="row-2">
+        <div class="field"><label class="field__label">Papel</label><select name="papel">${opcoes(PAPEIS_ATUACAO, atu ? atu.papel : (org ? 'contato' : 'contato'))}</select></div>
+        <div class="field"><label class="field__label">Cargo (opcional)</label><input type="text" name="cargo" value="${escHtml(atu && atu.cargo || '')}" placeholder="Ex.: diretora, gerente de obras"></div>
+      </div>
+      <div class="row-2">
+        <div class="field"><label class="field__label">Desde (opcional)</label><input type="date" name="desde" value="${escHtml(atu && atu.desde || '')}"></div>
+        <div class="field"><label class="field__label">Até (se já saiu)</label><input type="date" name="ate" value="${escHtml(atu && atu.ate || '')}"></div>
+      </div>
+      <label class="small check-simples"><input type="checkbox" name="principal" ${atu && atu.principal ? 'checked' : ''}> ${org ? 'contato principal desta organização' : 'ligação principal desta pessoa'}</label>
+      <div class="painel__acoes"><button class="btn btn--primary btn--small" type="submit">${atu ? 'Salvar ligação' : 'Ligar'}</button>
+        <button class="btn btn--ghost btn--small" type="button" data-cancelar>Cancelar</button></div>
+    </div>`;
+    const alvo = atu ? painel.querySelector(`[data-atu="${atu.id}"]`) : fl;
+    painel.querySelectorAll('.ligar--aberto').forEach(x => x.querySelector('[data-cancelar]').click());
+    const caixa = document.createElement('form');
+    caixa.className = 'ligar ligar--aberto';
+    caixa.innerHTML = html;
+    const envolto = atu ? document.createElement('li') : caixa;
+    if (atu) envolto.appendChild(caixa);
+    alvo.hidden = true;
+    alvo.after(envolto);
+    caixa.querySelector('[data-cancelar]').onclick = () => { envolto.remove(); alvo.hidden = false; };
+    caixa.onsubmit = async (e) => {
+      e.preventDefault();
+      const b = caixa.querySelector('[type=submit]');
+      b.disabled = true;
+      const dados = {
+        papel: caixa.papel.value, cargo: caixa.cargo.value.trim() || null,
+        desde: caixa.desde.value || null, ate: caixa.ate.value || null, principal: caixa.principal.checked ? 1 : 0
+      };
+      try {
+        if (atu) {
+          await Universo.alterar('atuacoes', atu.id, { versao: atu.versao, ...dados });
+        } else {
+          let outroId = outro.id;
+          if (!outroId) outroId = (await Comercial.criarContato(org ? 'pessoas' : 'organizacoes', { nome: outro.nome })).id;
+          await Universo.criar('atuacoes', { ...dados, pessoa_id: org ? outroId : id, organizacao_id: org ? id : outroId });
+        }
+        await reabrir();
+      } catch (err) { b.disabled = false; aviso(mensagemDe(err)); }
+    };
+  }
+  const atuDe = (aid) => f.atuacoes.find(a => a.id === aid);
+  painel.querySelectorAll('[data-editar]').forEach(b => b.onclick = () => formLigacao(atuDe(b.dataset.editar)));
+  painel.querySelectorAll('[data-encerrar]').forEach(b => b.onclick = async () => {
+    const a = atuDe(b.dataset.encerrar);
+    try { await Universo.alterar('atuacoes', a.id, { versao: a.versao, ate: hoje() }); await reabrir(); } catch (err) { aviso(mensagemDe(err)); }
+  });
+  painel.querySelectorAll('[data-tirar]').forEach(b => b.onclick = async () => {
+    const a = atuDe(b.dataset.tirar);
+    if (!confirm('Tirar esta ligação? Use "encerrar" se a pessoa só saiu de lá; "tirar" é para ligação feita por engano.')) return;
+    try { await Universo.post(`atuacoes/${a.id}/arquivar`, { versao: a.versao }); await reabrir(); } catch (err) { aviso(mensagemDe(err)); }
+  });
+
+  // ---- dados pessoais (pessoas-sensiveis: mesmo id da pessoa)
+  const bs = painel.querySelector('#btn-sensiveis');
+  if (bs) bs.onclick = async () => {
+    const caixa = painel.querySelector('#sensiveis');
+    caixa.innerHTML = '<p class="small muted">Carregando…</p>';
+    let sens;
+    try { sens = await Universo.talvez('pessoas-sensiveis', id); } catch (err) { caixa.innerHTML = ''; aviso(mensagemDe(err)); return; }
+    const v = sens || {};
+    const fmtCpf = (d) => d && d.length === 11 ? `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}` : (d || '');
+    const fmtCep = (d) => d && d.length === 8 ? `${d.slice(0, 5)}-${d.slice(5)}` : (d || '');
+    const val = (k) => k === 'cpf' ? fmtCpf(v.cpf) : k === 'cep' ? fmtCep(v.cep) : (v[k] || '');
+    const campo = ([k, rot, tipo]) => `<div class="field"><label class="field__label">${rot}</label><input type="${tipo}" name="${k}" value="${escHtml(val(k))}"></div>`;
+    caixa.innerHTML = `<form id="f-sens">
+      <div class="row-3">${CAMPOS_SENSIVEIS.slice(0, 3).map(campo).join('')}</div>
+      <div class="row-3">${campo(CAMPOS_SENSIVEIS[3])}<div style="grid-column: span 2">${campo(CAMPOS_SENSIVEIS[4])}</div></div>
+      <div class="row-3">${CAMPOS_SENSIVEIS.slice(5, 8).map(campo).join('')}</div>
+      <div class="row-2">${campo(CAMPOS_SENSIVEIS[8])}${campo(CAMPOS_SENSIVEIS[9])}</div>
+      <p class="field__hint" id="cep-status" style="margin:-6px 0 10px"></p>
+      <div class="painel__acoes"><button class="btn btn--primary btn--small" type="submit">Salvar dados pessoais</button></div>
+    </form>`;
+    const fs = caixa.querySelector('#f-sens');
+    fs.cep.oninput = async () => {
+      const d = fs.cep.value.replace(/\D/g, '');
+      if (d.length !== 8) return;
+      const st = caixa.querySelector('#cep-status');
+      st.textContent = 'Buscando endereço…';
+      const e = await consultarCep(d);
+      if (!e) { st.textContent = 'CEP não encontrado: preencha à mão.'; return; }
+      for (const k of ['logradouro', 'bairro', 'cidade', 'uf']) if (e[k]) fs[k].value = e[k];
+      st.textContent = 'Endereço preenchido pelo CEP: confira o número e o complemento.';
+      fs.numero.focus();
+    };
+    fs.onsubmit = async (e) => {
+      e.preventDefault();
+      const dados = {};
+      for (const [k] of CAMPOS_SENSIVEIS) dados[k] = fs[k].value.trim() || null;
+      try {
+        if (sens) await Universo.alterar('pessoas-sensiveis', id, { versao: sens.versao, ...dados });
+        else await Universo.criar('pessoas-sensiveis', { id, ...dados });
+        sens = await Universo.talvez('pessoas-sensiveis', id);
+        aviso('Dados pessoais salvos.', 'ok');
+      } catch (err) { aviso(mensagemDe(err)); }
+    };
+  };
+}
+
+// ---------------------------------------------------------------- novo contato
+
+function abrirNovo(tipoInicial = 'pessoa') {
+  const painel = abrirPainel(`
+    <div class="painel__topo"><h2>Novo contato</h2><button class="painel__fechar" aria-label="Fechar">×</button></div>
+    <div id="novo-aviso"></div>
+    <div class="segmented" style="margin-bottom:18px">
+      <input type="radio" name="tipo-novo" id="tn-p" value="pessoa" ${tipoInicial === 'pessoa' ? 'checked' : ''}><label for="tn-p">Pessoa</label>
+      <input type="radio" name="tipo-novo" id="tn-o" value="organizacao" ${tipoInicial === 'organizacao' ? 'checked' : ''}><label for="tn-o">Organização</label>
+    </div>
+    <form id="f-novo"></form>`);
+  const aviso = avisoEm(painel.querySelector('#novo-aviso'));
+  const form = painel.querySelector('#f-novo');
+  let org = null; // organização escolhida para a pessoa nova: { id?, nome }
+
+  function montar() {
+    const ehP = painel.querySelector('#tn-p').checked;
+    org = null;
+    form.innerHTML = formularioCadastro(ehP ? CAMPOS_PESSOA : CAMPOS_ORG) + (ehP ? `
+      <div class="field">
+        <label class="field__label">Organização onde atua (opcional)</label>
+        <div class="escolhido" id="org-escolhida" hidden></div>
+        <div id="org-busca"><input type="search" name="busca_org" placeholder="Buscar ou digitar o nome de uma nova…"><div class="busca-res" id="res-org"></div></div>
+      </div>
+      <div class="field" id="campo-papel" hidden><label class="field__label">Papel</label><select name="papel">${opcoes(PAPEIS_ATUACAO, 'contato')}</select></div>` : '') +
+      `<div class="painel__acoes"><button class="btn btn--primary btn--small" type="submit">Cadastrar</button></div>`;
+    if (ehP) {
+      const escolher = (o) => {
+        org = o;
+        const el = form.querySelector('#org-escolhida');
+        el.hidden = !o; form.querySelector('#org-busca').hidden = !!o; form.querySelector('#campo-papel').hidden = !o;
+        el.innerHTML = o ? `Organização: <strong>${escHtml(o.nome)}</strong>${o.id ? '' : ' <span class="chip">nova</span>'} <button type="button" class="btn-link">trocar</button>` : '';
+        if (o) el.querySelector('button').onclick = () => escolher(null);
+      };
+      ligarBuscaContatos(form.busca_org, form.querySelector('#res-org'), {
+        tabelas: ['organizacoes'], aoEscolher: (i) => escolher({ id: i.id, nome: i.titulo }),
+        rotuloNovo: 'Nova organização', criarNovo: (nome) => escolher({ nome })
+      });
+    }
+    form.nome.focus();
+  }
+  painel.querySelectorAll('[name=tipo-novo]').forEach(r => r.onchange = montar);
+  montar();
+
+  form.onsubmit = async (e) => {
+    e.preventDefault();
+    aviso('');
+    const ehP = painel.querySelector('#tn-p').checked;
+    const b = form.querySelector('[type=submit]');
+    b.disabled = true;
+    try {
+      const dados = lerFormulario(form, ehP ? CAMPOS_PESSOA : CAMPOS_ORG);
+      for (const k of Object.keys(dados)) if (dados[k] === null) delete dados[k];
+      const reg = await Comercial.criarContato(ehP ? 'pessoas' : 'organizacoes', dados);
+      if (ehP && org) {
+        const orgId = org.id || (await Comercial.criarContato('organizacoes', { nome: org.nome })).id;
+        await Universo.criar('atuacoes', { pessoa_id: reg.id, organizacao_id: orgId, papel: form.papel.value });
+      }
+      await carregar();
+      abrirFicha(reg.id);
+    } catch (err) { b.disabled = false; aviso(mensagemDe(err)); }
+  };
+}
+
+// ---------------------------------------------------------------- possíveis duplicados
+// O Universo não junta cadastros sozinho quando algo bate (nome, e-mail, telefone) mas outro
+// dado conflita: cria os dois e pede uma decisão aqui.
+const CAMPOS_COMPARAR = [
+  ['nome', 'Nome'], ['email', 'E-mail'], ['telefone', 'Telefone'], ['whatsapp', 'WhatsApp'],
+  ['instagram', 'Instagram'], ['cnpj', 'CNPJ'], ['razao_social', 'Razão social'], ['cidade', 'Cidade'], ['observacoes', 'Observações']
+];
+let PENDENTES = [];
+
+async function carregarDuplicados() {
+  try {
+    PENDENTES = (await Universo.listar('revisoes', { situacao: 'pendente', limite: 200 })).itens
+      .filter(r => r.tipo === 'duplicado_contato');
+  } catch (_) { PENDENTES = []; }
+  const b = document.getElementById('btn-duplicados');
+  b.hidden = !PENDENTES.length;
+  b.textContent = `Possíveis duplicados (${PENDENTES.length})`;
+}
+
+async function abrirDuplicados() {
+  const painel = abrirPainel(`
+    <div class="painel__topo">
+      <div><p class="small muted" style="margin:0 0 4px">Cadastros parecidos que o Universo não juntou sozinho</p><h2>Possíveis duplicados</h2></div>
+      <button class="painel__fechar" aria-label="Fechar">×</button>
+    </div>
+    <p class="small muted">Para cada par, diga se é a mesma pessoa (ou organização). Se for, escolha qual cadastro fica: ele é completado com o que só o outro tinha, e oportunidades, propostas, interações, ligações e dados pessoais passam para ele; o outro é arquivado (nada se apaga).</p>
+    <div id="dup-aviso"></div>
+    <div id="dup-lista"><p class="muted">Carregando…</p></div>`);
+  const lista = painel.querySelector('#dup-lista');
+  const aviso = avisoEm(painel.querySelector('#dup-aviso'));
+
+  async function desenharPares() {
+    await carregarDuplicados();
+    if (!PENDENTES.length) { lista.innerHTML = '<p class="aviso aviso--ok">Nenhum par pendente.</p>'; return; }
+    const pares = await Promise.all(PENDENTES.map(async (rev) => {
+      const ids = JSON.parse(rev.registros);
+      const regs = await Promise.all(ids.map(async (id) => {
+        try {
+          const ficha = await Universo.get('comercial/contatos/' + id);
+          return { ...ficha.registro, _ops: ficha.oportunidades.length };
+        } catch (e) { return { id, nome: '(não encontrado)', _ops: 0, _erro: true }; }
+      }));
+      return { rev, regs, campos: rev.campos ? JSON.parse(rev.campos) : {} };
+    }));
+    lista.innerHTML = pares.map(({ rev, regs, campos }, i) => {
+      const linhas = CAMPOS_COMPARAR.filter(([k]) => regs.some(r => r[k])).map(([k, rot]) => {
+        const st = campos[k];
+        const cor = st === 'conflito' ? 'color:var(--perigo)' : st === 'bate' ? 'color:var(--ok)' : '';
+        return `<tr><th style="${cor}">${rot}${st ? ` · ${st}` : ''}</th>${regs.map(r => `<td>${escHtml(k === 'telefone' || k === 'whatsapp' ? Comercial.fmtTel(r[k]) : r[k] || '—')}</td>`).join('')}</tr>`;
+      }).join('');
+      const tipo = regs[0].id && ehOrg(regs[0].id) ? 'organização' : 'pessoa';
+      return `<section class="dup" data-i="${i}">
+        <h3>Par ${i + 1} · ${tipo}${regs.some(r => r.arquivado_em) ? ' · um deles já está arquivado' : ''}</h3>
+        <table class="tabela"><thead><tr><th></th><th>Cadastro A</th><th>Cadastro B</th></tr></thead>
+          <tbody>${linhas}
+            <tr><th>Oportunidades</th>${regs.map(r => `<td>${r._ops}</td>`).join('')}</tr>
+            <tr><th>Criado em</th>${regs.map(r => `<td>${r.criado_em ? fmtData(r.criado_em) : '—'}</td>`).join('')}</tr>
+          </tbody></table>
+        <div class="painel__acoes">
+          <button class="btn btn--primary btn--small" data-manter="${regs[0].id}" ${regs[0]._erro || regs[0].arquivado_em ? 'disabled' : ''}>Mesma ${tipo}: ficar com A</button>
+          <button class="btn btn--primary btn--small" data-manter="${regs[1].id}" ${regs[1]._erro || regs[1].arquivado_em ? 'disabled' : ''}>Mesma ${tipo}: ficar com B</button>
+          <button class="btn btn--ghost btn--small" data-diferentes="1">São diferentes</button>
+        </div>
+      </section>`;
+    }).join('');
+    lista.querySelectorAll('.dup').forEach(sec => {
+      const { rev } = pares[Number(sec.dataset.i)];
+      const resolver = async (corpo) => {
+        sec.querySelectorAll('button').forEach(b => b.disabled = true);
+        try {
+          const r = await Universo.post(`revisoes/${rev.id}/resolver`, { versao: rev.versao, ...corpo });
+          aviso(r.situacao === 'mesmo'
+            ? `Cadastros juntados.${r.completados && r.completados.length ? ' Completado com: ' + r.completados.join(', ') + '.' : ''}${r.outras_resolvidas ? ` ${r.outras_resolvidas} outro(s) par(es) resolvido(s) junto.` : ''}`
+            : 'Registrado: são cadastros diferentes.', 'ok');
+          await desenharPares();
+          carregar();
+        } catch (e) {
+          aviso(mensagemDe(e));
+          sec.querySelectorAll('button').forEach(b => b.disabled = false);
+        }
+      };
+      sec.querySelectorAll('[data-manter]').forEach(b => b.onclick = () => resolver({ situacao: 'mesmo', manter: b.dataset.manter }));
+      sec.querySelector('[data-diferentes]').onclick = () => resolver({ situacao: 'diferentes' });
+    });
+  }
+  desenharPares();
+}
+
+// ---------------------------------------------------------------- início
+
+function abrirPeloEndereco() {
+  const m = location.hash.match(/^#((?:pes|org)_[\w]+)$/);
+  if (m && m[1] !== FICHA) abrirFicha(m[1]);
+}
+
+async function iniciar() {
+  document.getElementById('app').hidden = false;
+  document.getElementById('filtro').oninput = desenhar;
+  document.getElementById('so-abertas').onchange = desenhar;
+  document.getElementById('arquivados').onchange = carregar;
+  document.querySelectorAll('#abas button').forEach(b => b.onclick = () => {
+    TIPO = b.dataset.tipo;
+    document.querySelectorAll('#abas button').forEach(x => x.setAttribute('aria-selected', String(x === b)));
+    desenhar();
+  });
+  document.getElementById('btn-novo').onclick = () => abrirNovo(TIPO === 'organizacao' ? 'organizacao' : 'pessoa');
+  document.getElementById('btn-duplicados').onclick = abrirDuplicados;
+  window.addEventListener('hashchange', abrirPeloEndereco);
+  carregarDuplicados();
+  await carregar({ copia: true });
+  abrirPeloEndereco();
+}
+
+iniciar();
+</script>
+</body>
+</html>

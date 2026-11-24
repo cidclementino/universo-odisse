@@ -248,6 +248,11 @@ async function entrar() {
     return telaEntrada(`Não foi possível falar com o servidor do Universo (${r.status ? 'resposta ' + r.status : 'sem resposta'}${r.error ? ': ' + r.error : ''}). Tente de novo em instantes.`);
   }
   document.body.classList.remove('u-trancado');
+  // login único (24/11): quem chegou de uma ferramenta sem senha volta para a página onde estava
+  try {
+    const volta = sessionStorage.getItem('universo:volta');
+    if (volta) { sessionStorage.removeItem('universo:volta'); if (volta.startsWith('/') && !volta.startsWith('//')) { location.replace(volta); return; } }
+  } catch { /* segue no hub */ }
   try { await carregar(); } catch { vista.innerHTML = '<p class="u-apoio">Não foi possível carregar o Universo.</p>'; return; }
   if (!casca) {
     // padrão novo (Cid, 23–24/11): menu lateral por função, topo com "Ir para" e o conteúdo num painel

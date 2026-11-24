@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Migração das propostas · Vendas — Odisse</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="https://marca.odisse.com.br/favicon/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="https://marca.odisse.com.br/favicon/favicon-32x32.png" sizes="32x32">
+<link rel="stylesheet" href="https://marca.odisse.com.br/v1/marca.css">
+<link rel="stylesheet" href="https://universo.odisse.com.br/base/v1/universo.css">
+<link rel="stylesheet" href="styles.css?v=1f3fa8b945">
+</head>
+<body>
+
+<div id="app" class="app app--no-sidebar" hidden>
+  <header class="topo" data-pagina="migrar"></header>
+  <script src="topo.js?v=164bd89cf9"></script>
+
+  <main class="stage">
+    <div class="stage__col" style="max-width: 820px">
+      <p class="step__eyebrow">Uso único</p>
+      <h1 class="step__title">Trazer as propostas antigas para o Universo</h1>
+      <p class="step__desc">Cada proposta do histórico antigo vira, no Universo: um cliente (pessoa ou empresa, sem repetir quem já existe), uma oportunidade por cliente (na etapa "proposta") e a proposta com o número e o código originais. O PDF é remontado a partir dos dados salvos e guardado como o PDF da proposta, com a observação de que foi remontado. Pode rodar mais de uma vez: o que já veio é pulado.</p>
+
+      <div class="card" id="estado"><p class="muted">Conferindo…</p></div>
+
+      <div class="row-2" style="margin:20px 0">
+        <button class="btn btn--primary" id="btn-migrar" type="button" disabled>Migrar</button>
+        <button class="btn btn--ghost" id="btn-encerrar" type="button" disabled>Encerrar a numeração antiga</button>
+      </div>
+      <p class="field__hint">Encerrar só depois de tudo migrado: a partir daí, páginas antigas abertas em outro computador não conseguem mais numerar pelo sistema antigo.</p>
+      <div class="log" id="log" hidden></div>
+    </div>
+  </main>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="config.js?v=07793b6f66"></script>
+<script src="auth.js?v=2a461f8bce"></script>
+<script>exigirAutenticacao();</script>
+<script src="data-loader.js?v=b1b3a59ba0"></script>
+<script src="store.js?v=66a6878146"></script>
+<script src="comercial.js?v=2dc7225c30"></script>
+<script src="calc.js?v=83d8ae0b16"></script>
+<script src="fonts-inter.js?v=31c6429b0b"></script>
+<script src="pdf.js?v=54f7bd46cc"></script>
+<script>
+  const HOJE = new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10);
+  let DATA = null;
+  let KV = null;
+  let INDICE = [];
+  const normal = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+
+  function log(t) {
+    const el = document.getElementById('log');
+    el.hidden = false;
+    el.textContent += t + '\n';
+    el.scrollTop = el.scrollHeight;
+  }
+
+  async function kv(caminho, opcoes = {}) {
+    const res = await fetch(`${CONFIG.workerUrl}${caminho}`, { ...opcoes, headers: cabecalhosAuth(opcoes.headers) });
+    if (res.status === 401) { senhaRecusada(); throw new Error('senha recusada'); }
+    if (!res.ok) throw new Error(`API respondeu ${res.status}`);
+    return res.json();
+  }
+
+  // "PC-0007-2026" → 7 · "PC001/2026" → 1 · revisões "-R1" → { numero, revisao }
+  function lerNumero(codigo) {
+    const m = String(codigo).match(/^PC-?0*(\d+)[-\/](\d{4})(?:-R(\d+))?$/i);
+    if (!m) return null;
+    return { numero: parseInt(m[1], 10), revisao: m[3] ? parseInt(m[3], 10) : 0 };
+  }
+
+  async function jaImportada(codigo) {
+    const r = await Universo.listar('propostas', { importada_de: `kv:${codigo}`, arquivados: 1, limite: 1 });
+    return r.itens[0] || null;
+  }
+
+  async function conferir() {
+    const box = document.getElementById('estado');
+    try {
+      KV = await kv('/kv/estado');
+      const lista = await kv('/listar-propostas');
+      INDICE = (lista.propostas || []).slice().reverse(); // mais antigas primeiro
+      const num = await Universo.get('propostas/numeracao');
+      let feitas = 0, semPdf = 0;
+      for (const p of INDICE) {
+        const j = await jaImportada(p.numero);
+        if (j) { feitas++; if (!j.arquivo_pdf_id) semPdf++; }
+      }
+      box.innerHTML = `
+        <div class="data-row"><span class="data-row__label">Propostas no histórico antigo</span><span class="data-row__value tabular">${INDICE.length}</span></div>
+        <div class="data-row"><span class="data-row__label">Já no Universo</span><span class="data-row__value tabular">${feitas}${semPdf ? ` (${semPdf} sem PDF guardado)` : ''}</span></div>
+        <div class="data-row"><span class="data-row__label">Último número usado no sistema antigo</span><span class="data-row__value tabular">${KV.contador}</span></div>
+        <div class="data-row"><span class="data-row__label">Numeração do Universo</span><span class="data-row__value tabular">${num.valor === null ? 'ainda não ajustada' : 'continua do ' + num.valor}</span></div>
+        <div class="data-row"><span class="data-row__label">Numeração antiga</span><span class="data-row__value">${KV.encerrado ? 'encerrada em ' + new Date(KV.encerrado).toLocaleString('pt-BR') : 'ainda ativa'}</span></div>`;
+      document.getElementById('btn-migrar').disabled = feitas === INDICE.length && !semPdf && num.valor !== null && num.valor >= KV.contador;
+      document.getElementById('btn-encerrar').disabled = !!KV.encerrado || feitas !== INDICE.length || num.valor === null;
+    } catch (e) {
+      box.innerHTML = `<p class="aviso aviso--erro">Não consegui conferir (${escHtml(e.message)}).</p>`;
+    }
+  }
+
+  // uma oportunidade por cliente, reaproveitada entre as propostas dele
+  const oportunidadesPorCliente = {};
+  async function oportunidadeDo(clienteId, titulo) {
+    if (oportunidadesPorCliente[clienteId]) return oportunidadesPorCliente[clienteId];
+    const r = await Universo.listar('oportunidades', { cliente_id: clienteId, limite: 1 });
+    const id = r.itens[0] ? r.itens[0].id : (await Universo.criar('oportunidades', {
+      titulo, cliente_id: clienteId, contato_pessoa_id: clienteId.startsWith('pes_') ? clienteId : null,
+      nucleo_id: 'arquitetos', etapa_funil: 'proposta',
+      observacoes: 'Criada na migração das propostas antigas do vendas (nov/2026).'
+    })).id;
+    oportunidadesPorCliente[clienteId] = id;
+    return id;
+  }
+
+  async function migrarUma(item) {
+    const codigo = item.numero;
+    const existente = await jaImportada(codigo);
+    if (existente && existente.arquivo_pdf_id) { log(`${codigo}: já estava no Universo`); return 'pulada'; }
+    if (existente) return await completarPdf(existente);
+    const n = lerNumero(codigo);
+    if (!n) { log(`${codigo}: código em formato desconhecido — NÃO migrada`); return 'erro'; }
+    const res = await kv(`/proposta?numero=${encodeURIComponent(codigo)}`);
+    const s = res.snapshot;
+    if (!s || !s.cliente || !s.cliente.nome) { log(`${codigo}: sem dados do cliente — NÃO migrada`); return 'erro'; }
+
+    const clienteId = await Comercial.garantirCliente(s.cliente, { perguntar: false });
+    const servico = Comercial.nomeServico(s, DATA);
+    const oportunidadeId = await oportunidadeDo(clienteId, `${servico} — ${s.cliente.nome}`);
+    const r = s._calcResult;
+    const dia = s.dataProposta || (item.criado_em || '').slice(0, 10) || null;
+    const proposta = await Universo.criar('propostas', {
+      oportunidade_id: oportunidadeId,
+      importada_de: `kv:${codigo}`, numero: n.numero, revisao: n.revisao, codigo,
+      titulo: servico, data: dia,
+      valor_total: r ? centavos(r.valorFinal) : null,
+      situacao: 'enviada', enviada_em: dia,
+      calculo: Comercial.retrato(s),
+      referencias: {
+        ferramenta: 'vendas.odisse',
+        origem: 'histórico antigo (KV)',
+        observacao: 'Proposta anterior ao Universo: as versões das tabelas (CUB, data/) usadas no cálculo não foram registradas na época. O cálculo salvo está em "calculo".',
+        migrada_em: new Date().toISOString()
+      }
+    });
+
+    // PDF remontado com o modelo atual a partir dos dados salvos
+    try {
+      const estado = { ...s, numeroProposta: codigo };
+      const { doc } = OdissePdf.montar(estado, DATA);
+      await Comercial.congelarPdf(proposta.id, doc.output('blob'), `${codigo}_remontado.pdf`,
+        `Remontado em ${HOJE.split('-').reverse().join('/')} a partir dos dados salvos; pode diferir em detalhes do PDF enviado na época.`);
+      log(`${codigo}: migrada (${s.cliente.nome}) com PDF remontado`);
+    } catch (e) {
+      log(`${codigo}: migrada (${s.cliente.nome}), mas o PDF não foi guardado: ${e.message}`);
+    }
+    return 'ok';
+  }
+
+  // proposta já migrada cujo PDF não foi guardado: tenta de novo
+  async function completarPdf(p) {
+    try {
+      const estado = { ...JSON.parse(p.calculo), numeroProposta: p.codigo };
+      const { doc } = OdissePdf.montar(estado, DATA);
+      await Comercial.congelarPdf(p.id, doc.output('blob'), `${p.codigo}_remontado.pdf`,
+        `Remontado em ${HOJE.split('-').reverse().join('/')} a partir dos dados salvos; pode diferir em detalhes do PDF enviado na época.`);
+      log(`${p.codigo}: já estava no Universo; PDF remontado e guardado agora`);
+      return 'ok';
+    } catch (e) {
+      log(`${p.codigo}: já estava no Universo, mas o PDF ainda não foi guardado: ${e.message}`);
+      return 'erro';
+    }
+  }
+
+  async function migrar() {
+    const btn = document.getElementById('btn-migrar');
+    btn.disabled = true;
+    btn.textContent = 'Migrando…';
+    let ok = 0, puladas = 0, erros = 0;
+    try {
+      // a numeração do Universo continua do maior número do sistema antigo
+      const num = await Universo.post('propostas/numeracao', { minimo: KV.contador });
+      log(`Numeração do Universo ajustada: próximo número será ${num.valor + 1}.`);
+      for (const item of INDICE) {
+        try {
+          const r = await migrarUma(item);
+          if (r === 'ok') ok++; else if (r === 'pulada') puladas++; else erros++;
+        } catch (e) {
+          erros++;
+          log(`${item.numero}: ERRO — ${e.message}`);
+        }
+      }
+      log(`\nFim: ${ok} migradas, ${puladas} já estavam, ${erros} com problema.`);
+    } catch (e) {
+      log(`ERRO: ${e.message}`);
+    }
+    btn.textContent = 'Migrar';
+    await conferir();
+  }
+
+  async function encerrar() {
+    if (!confirm('Encerrar a numeração antiga? Depois disso, só o Universo numera propostas.')) return;
+    try {
+      await kv('/kv/encerrar', { method: 'POST' });
+      log('Numeração antiga encerrada.');
+    } catch (e) {
+      log(`ERRO ao encerrar: ${e.message}`);
+    }
+    await conferir();
+  }
+
+  async function iniciar() {
+    document.getElementById('app').hidden = false;
+    document.getElementById('btn-migrar').onclick = migrar;
+    document.getElementById('btn-encerrar').onclick = encerrar;
+    DATA = await OdisseData.load();
+    await conferir();
+  }
+
+  iniciar();
+</script>
+</body>
+</html>

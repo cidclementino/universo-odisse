@@ -1,0 +1,21 @@
+{
+  "titulo": "Assessoramento",
+  "descricao_abertura": "Durante o desenvolvimento e execução do projeto, a equipe do Odisse Arquitetos oferecerá o seguinte assessoramento técnico:",
+  "subitens": [
+    {
+      "id": "assess__1",
+      "texto_curto": "Acompanhamento mensal da execução da obra",
+      "texto_pdf": "Visitas mensais à obra, realizadas por um arquiteto da equipe, desde o início da execução até a conclusão, respeitado o limite de 4 anos."
+    },
+    {
+      "id": "assess__2",
+      "texto_curto": "Suporte técnico ao cliente/construtora",
+      "texto_pdf": "Suporte técnico ao cliente/construtora para esclarecimento de dúvidas sobre o projeto e elaboração de eventuais adendos ou croquis complementares."
+    },
+    {
+      "id": "assess__3",
+      "texto_curto": "Suporte técnico a fornecedores",
+      "texto_pdf": "Suporte técnico durante tratativas junto a fornecedores de serviços, elementos e materiais relacionados à arquitetura."
+    }
+  ]
+}
