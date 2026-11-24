@@ -14,4 +14,9 @@
   s.dataset.item = ITEM[pagina] || '';
   s.dataset.classe = 'ferramenta-projetos';
   document.head.appendChild(s);
+  // Na página do projeto (escopo e calendário largos), o menu lateral recolhe sozinho, como no editor do Marketing
+  // (Cid, 24/11/2026). Não grava a preferência do menu: nas outras páginas ele fica como a pessoa deixou.
+  if (pagina === 'projeto') {
+    window.addEventListener('universo:casca', () => document.querySelector('.ui-app')?.classList.add('is-recolhido'), { once: true });
+  }
 })();

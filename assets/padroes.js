@@ -23,7 +23,6 @@ const SV = '/catalogo/';
 
 // lugares (nome, ferramenta, endereço)
 const L = {
-  ferramentas: ['Ferramentas', 'Universo', H + '#/ferramentas'],
   canais: ['Canais', 'Universo', H + '#/canais'],
   empresa: ['Empresa', 'Universo', H + '#/empresa'],
   equipe: ['Equipe', 'Universo', H + '#/equipe'],
@@ -256,7 +255,7 @@ const DISPOSICOES = [
     { id: 'lista-em-tons', nome: 'Lista em tons', modelo: 'Ferramentas',
       para: 'Listas de navegação: o que se abre a partir daqui, em grupos coloridos.',
       nao: 'listas de registros (use Registro) nem dados (use Ficha).',
-      onde: { s: ['ferramentas', 'canais'] } },
+      onde: { s: ['canais'] } },
     { id: 'registro', nome: 'Registro', modelo: 'Propostas › Histórico', decisao: 'padrão próprio (Cid, 19/11)',
       para: 'Listas de registros que crescem: Filtros e Seletor no alto, Régua, linhas em cartões brancos, 10 por página com setas em caixa. Linha clicável abre o registro ou a Gaveta.',
       onde: { s: ['historico', 'catalogoServ'], v: ['contatos', 'projetos', 'emitidos'] },
@@ -379,10 +378,10 @@ const PECAS = [
       onde: { s: ['empresa', 'pessoa', 'marca', 'kpisMetas', 'produtoServ', 'montadorLp'], v: ['emissao', 'emissor'] } },
     { id: 'regua', nome: 'Régua', modelo: 'Ferramentas',
       para: 'Rótulos das colunas de uma lista: cartão translúcido, sem linha.',
-      onde: { s: ['ferramentas', 'canais'] } },
+      onde: { s: ['canais'] } },
     { id: 'etiqueta', nome: 'Etiqueta', modelo: null, decisao: 'levemente quadrada, raio 4 px; nada mais em pílula (Cid, 19/11)',
       para: 'Valores curtos de categoria e situação. Também as de língua (PT / EN), as contagens e o "aqui".',
-      onde: { a: ['ferramentas', 'canais', 'equipe', 'empresa', 'acervo', 'concursos', 'contatos'] },
+      onde: { a: ['canais', 'equipe', 'empresa', 'acervo', 'concursos', 'contatos'] },
       ajustar: 'As em pílula (hub) passam a raio 4; as retangulares antigas (.u-etiqueta, chips do vendas e do Radar) passam às mesmas cores e tamanhos.' },
     { id: 'faixa-de-criar', nome: 'Faixa de criar', modelo: null,
       para: 'Começar algo novo: um bloco por tipo (serviço, núcleo), lado a lado, acima do arquivo.',
@@ -410,7 +409,7 @@ const PECAS = [
       onde: { s: ['equipe', 'empresa'], v: ['vendasTodas', 'projetosTodas'] } },
     { id: 'caixa-de-comando', nome: 'Caixa de comando', modelo: 'Ferramentas',
       para: 'Editar e demais comandos do cartão: sempre numa caixa de 24 px, sempre visíveis, à esquerda.',
-      onde: { s: ['ferramentas', 'canais', 'cargos'], a: ['pgt', 'concursos'] },
+      onde: { s: ['canais', 'cargos'], a: ['pgt', 'concursos'] },
       ajustar: 'PGT (comandos sem caixa) e Radar (lápis só no hover).' },
     { id: 'barra-de-salvar', nome: 'Barra de salvar', modelo: 'Empresa',
       para: 'Presa ao pé, ardósia, só aparece com mudança: "N mudanças não salvas", Descartar e Salvar em Ocre. Variação Barra de emitir (Assistente): sempre visível no pé do formulário, com o que falta (leva ao passo), Salvar rascunho e Emitir em Ocre, que só se ativa com tudo preenchido.',

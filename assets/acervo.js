@@ -15,6 +15,7 @@
 
 import { lerCopia, gravarCopia, igual, imagemGuardada } from './memoria.js';
 import { prepararImagem } from '../base/v1/imagens.js';
+import { segmentado } from '../base/v2/componentes.js';
 
 const LEMBRAR = 'universo:acervo:';
 const POR_PAGINA = 60;
@@ -53,8 +54,8 @@ export function criarAcervo({ esc, api, apiBinario, toque }) {
 
   // ---- peças
   const etq = (t, tipo = '') => `<span class="acv-etq${tipo ? ' ' + tipo : ''}">${esc(t)}</span>`;
-  const seletor = (nome, opcoes, valor) => `<div class="pas-seletor" role="group" data-seletor="${nome}">${opcoes.map(([v, r]) =>
-    `<button type="button" data-valor="${esc(v)}" aria-pressed="${v === valor}"${v === valor ? ' class="ativo"' : ''}>${esc(r)}</button>`).join('')}</div>`;
+  // filtros no Segmentado da v2 (24/11/2026)
+  const seletor = (nome, opcoes, valor) => segmentado(opcoes.map(([id, rotulo]) => ({ id, rotulo })), valor, nome);
 
   function opcoesAlvo(valor, { vazio = 'Todos os projetos, objetos e coleções', comSem = true } = {}) {
     const op = (v, r) => `<option value="${esc(v)}"${v === valor ? ' selected' : ''}>${esc(r)}</option>`;
@@ -373,7 +374,7 @@ export function criarAcervo({ esc, api, apiBinario, toque }) {
 
   function ligarEventos() {
     raiz.addEventListener('click', async (ev) => {
-      const sel = ev.target.closest('[data-seletor] button');
+      const sel = ev.target.closest('[data-segmentado]');
       if (sel) { mudarFiltros({ publica: sel.dataset.valor }); return; }
       const lt = ev.target.closest('[data-lote]');
       if (lt && lt.tagName === 'BUTTON') {

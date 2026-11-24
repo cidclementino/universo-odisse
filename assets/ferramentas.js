@@ -1,4 +1,5 @@
-// Página Ferramentas do hub (#/ferramentas): cartões empilhados por ramo, no desenho dos cartões do PGT (Cid, 19/11).
+// Lista de cartões por grupo (hoje só Perfil › Canais; a página Ferramentas saiu em 24/11/2026, o menu lateral faz o papel dela),
+// no desenho dos cartões do PGT (Cid, 19/11):
 //   - uma faixa de título por ramo, recolhível (seta › em SVG que gira; aberto/fechado lembrado neste computador);
 //   - cor do ramo da paleta da Marca: bloco com fundo no tom claro, faixa de título no tom forte, cartões brancos; SEM barra à esquerda;
 //   - a linha inteira leva à ferramenta, exceto o lápis e o texto em edição;
@@ -15,7 +16,6 @@ const COPIA = 'ferramentas:textos';
 // endereço fora desta página (outra ferramenta ou site) → nova aba
 const fora = (url) => { try { return new URL(url, location.href).origin !== location.origin; } catch { return false; } };
 const SETA = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-const FECHADOS = 'universo:ferramentas:fechados';
 const ESCURAS = new Set(['ardosia', 'terra', 'grafite']); // como no PGT: cor escura entra clareada (45%)
 
 // descrições editadas por cima do mapa (também usadas no Início)
@@ -28,12 +28,6 @@ export function aplicarTextos(mapa, textos) {
   }
 }
 export const textosGuardados = () => lerCopia(COPIA) || [];
-
-// Ferramentas (padrão): um grupo por ramo, com os itens da seção Ferramentas do mapa.
-const FERRAMENTAS = {
-  titulo: 'Ferramentas', colunas: ['Ferramenta', 'O que faz', 'Onde', 'Estado'], fechados: FECHADOS, unidade: ['ferramenta', 'ferramentas'],
-  grupos: (mapa) => (mapa.ramos || []).map((r) => ({ id: r.id, nome: r.nome, cor: r.cor, itens: mapa.itens.filter((f) => f.secao === 'ferramentas' && f.ramo === r.id) })),
-};
 
 // Canais (O Estúdio › Canais): sites do mapa e redes do odisse.json, no mesmo desenho da lista de Ferramentas.
 const NOMES_REDES = { instagram: 'Instagram', tiktok: 'TikTok', youtube: 'YouTube', substack: 'Substack', pinterest: 'Pinterest', linkedin: 'LinkedIn', behance: 'Behance' };
@@ -57,7 +51,7 @@ export function configCanais(lerOdisse) {
   };
 }
 
-export function criarFerramentas({ esc, api, toque, lerMapa, config = FERRAMENTAS }) {
+export function criarFerramentas({ esc, api, toque, lerMapa, config }) {
   let textos = textosGuardados();
   const atuais = new Map(); // id → item do que está desenhado (para o ✎)
   const fechados = () => { try { return new Set(JSON.parse(localStorage.getItem(config.fechados) || '[]')); } catch { return new Set(); } };

@@ -16,7 +16,7 @@
 //   N além do previsto  arquivos soltos acima do que a norma admite na pasta
 
 import { lerCopia, gravarCopia, igual } from './memoria.js';
-import { numeros } from '../base/v2/componentes.js';
+import { numeros, segmentado } from '../base/v2/componentes.js';
 
 const COPIA = 'pastas';
 const LEMBRAR = 'universo:pastas:';
@@ -90,8 +90,8 @@ export function criarPastas({ esc, api, toque }) {
   const abertas = () => new Set(lembrar.ler('abertas:' + atual, null) ?? []);
   const guardarAbertas = (s) => lembrar.gravar('abertas:' + atual, [...s]);
 
-  const seletor = (nome, opcoes, valor) => `<div class="pas-seletor" role="group" data-seletor="${nome}">${opcoes.map(([v, r]) =>
-    `<button type="button" data-valor="${esc(v)}" aria-pressed="${v === valor}"${v === valor ? ' class="ativo"' : ''}>${esc(r)}</button>`).join('')}</div>`;
+  // filtros no Segmentado da v2 (24/11/2026)
+  const seletor = (nome, opcoes, valor) => segmentado(opcoes.map(([id, rotulo]) => ({ id, rotulo })), valor, nome);
 
   const etq = (t, tipo = '') => `<span class="pas-etq${tipo ? ' ' + tipo : ''}">${esc(t)}</span>`;
 
@@ -211,13 +211,13 @@ export function criarPastas({ esc, api, toque }) {
     desenhar();
     buscar();
     raiz.addEventListener('click', (ev) => {
-      const sel = ev.target.closest('[data-seletor] button');
+      const sel = ev.target.closest('[data-segmentado]');
       if (sel) {
-        const qual = sel.parentElement.dataset.seletor;
+        const qual = sel.dataset.segmentado;
         if (qual === 'estrutura') { atual = sel.dataset.valor; lembrar.gravar('estrutura', atual); }
         if (qual === 'filtro') { filtro = sel.dataset.valor; lembrar.gravar('filtro', filtro); }
         desenhar();
-        raiz.querySelector(`[data-seletor="${qual}"] [data-valor="${CSS.escape(sel.dataset.valor)}"]`)?.focus();
+        raiz.querySelector(`[data-segmentado="${qual}"][data-valor="${CSS.escape(sel.dataset.valor)}"]`)?.focus();
         return;
       }
       const acao = ev.target.closest('[data-acao]')?.dataset.acao;
