@@ -4,7 +4,7 @@
 
 import { NUCLEOS, ORDEM_NUCLEOS, padroesDoNucleo, COR, tintaSobre } from './nucleos.js';
 import {
-  modelosDo, modeloDe, codigoDe, slotsDe, migrarCard, opcoesDe, opcoesDoModelo, SEQUENCIAS, SEQUENCIA_PIN, GRUPOS, grupoDe, renderCard, exemploDe, ajustarLayout, ajustar, crescer, refluir, textosDe, estruturaDe, LARG,
+  modelosDo, modeloDe, codigoDe, slotsDe, migrarCard, opcoesDe, opcoesDoModelo, SEQUENCIAS, SEQUENCIA_PIN, GRUPOS, grupoDe, renderCard, exemploDe, ajustarLayout, ajustar, crescer, refluir, textosDe, estruturaDe, OP_VEU, LARG,
 } from './templates.js';
 import * as pinterest from './pinterest.js';
 import * as pool from './pool.js';
@@ -629,7 +629,8 @@ function aplicarModelo(id) {
   }
   c.modelo = id;
   c.campos = campos;
-  c.opcoes = c.opcoes?.carimbo ? { carimbo: c.opcoes.carimbo } : {}; // o carimbo passa de um modelo para outro
+  // o carimbo e o véu passam de um modelo para outro
+  c.opcoes = Object.fromEntries(['carimbo', 'veu'].filter((k) => c.opcoes?.[k]).map((k) => [k, c.opcoes[k]]));
   salvar();
   renderTrilho();
   $$('.modelo', $('#modelos')).forEach((b) => b.classList.toggle('ativo', b.dataset.modelo === id));
@@ -821,9 +822,15 @@ function renderOpcoes() {
     return;
   }
   const ops = opcoesDe(m, c, nucleo());
+  // Véu: só nos cards que desenham algum gradiente sobre a imagem; vale só para este card
+  const lista = opcoesDoModelo(m, nucleo(), c);
+  if (estruturaDe({ card: c, nucleo: nucleo(), globais: pub.globais }).veu) {
+    lista.push(OP_VEU);
+    ops.veu = c.opcoes?.veu ?? OP_VEU.padrao;
+  }
   el.hidden = false;
-  el.innerHTML = `<h3>Personalização${info('Opções de composição deste card. O preenchimento pinta o fundo do card e o carimbo cheio; as cores vêm da Marca, por núcleo.')}</h3>
-    ${opcoesDoModelo(m, nucleo(), c).map((d) => `<div class="opcao"><span>${d.rot}</span>
+  el.innerHTML = `<h3>Personalização${info('Opções de composição deste card. O preenchimento pinta o fundo do card e o carimbo cheio; as cores vêm da Marca, por núcleo. O véu é a opacidade do gradiente do núcleo sobre a imagem, só neste card.')}</h3>
+    ${lista.map((d) => `<div class="opcao"><span>${d.rot}</span>
       <div class="seg" role="group" aria-label="${d.rot}">${d.valores.map(([v, rot, hex]) =>
         `<button class="${ops[d.k] === v ? 'ativo' : ''}" data-op="${d.k}" data-v="${v}" aria-pressed="${ops[d.k] === v}">${hex ? `<i class="amostra" style="background:${hex}"></i>` : ''}${rot}</button>`).join('')}</div></div>`).join('')}`;
   renderTextos(c);
