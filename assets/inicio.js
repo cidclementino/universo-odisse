@@ -23,7 +23,7 @@ const INTERVALO = 2 * 3600 * 1000;
 const RADAR = 'https://radar.odisse.com.br';
 const CALENDARIO = 'https://marketing.odisse.com.br/#/calendario';
 const VENDAS = '/vendas/';
-const PROJETO = 'https://projetos.odisse.com.br/projeto.html#';
+const PROJETO = '/projetos/projeto.html#';
 const FOLLOW_UP = 7; // dias sem resposta para a proposta pedir follow-up (sugestão do Claude, 24/11; a confirmar)
 
 const NOME_MES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
@@ -184,7 +184,7 @@ export function criarInicio({ api, toque, lerCasca = () => null }) {
   function projetos(d) {
     if (d.projetos?.erro) return secao({ titulo: 'Projetos em andamento', corpo: '<p class="ui-carregando">Não foi possível ler os projetos agora.</p>' });
     const its = d.projetos?.itens || [];
-    return secao({ titulo: 'Projetos em andamento', n: its.length, lado: link('Abrir Projetos', 'https://projetos.odisse.com.br/'), corpo: bandeja(lista({
+    return secao({ titulo: 'Projetos em andamento', n: its.length, lado: link('Abrir Projetos', '/projetos/'), corpo: bandeja(lista({
       colunas: 'minmax(0,1.6fr) minmax(0,1fr) minmax(0,1.4fr) 112px 120px', colunasCelular: 'minmax(0,1fr) 96px',
       regua: [{ texto: 'Projeto' }, { texto: 'Etapa', celular: false }, { texto: 'Próximo marco', celular: false }, { texto: 'Quando' }, { texto: 'Entregas', celular: false }],
       vazio: 'Nenhum projeto ativo com escopo gerado.',

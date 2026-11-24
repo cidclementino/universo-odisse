@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Horas · Projetos — Odisse</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="https://marca.odisse.com.br/favicon/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="https://marca.odisse.com.br/favicon/favicon-32x32.png" sizes="32x32">
+<link rel="stylesheet" href="https://marca.odisse.com.br/v1/marca.css">
+<link rel="stylesheet" href="https://universo.odisse.com.br/base/v1/universo.css">
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="projetos.css">
+</head>
+<body>
+
+<div id="app" class="app app--no-sidebar">
+  <header class="topo" data-pagina="horas"></header>
+  <script src="topo.js"></script>
+  <main class="ficha">
+    <div class="crm__barra" style="padding-bottom:16px">
+      <h1>Horas</h1>
+      <select id="quem" aria-label="Quem"></select>
+      <button class="btn btn--ghost btn--small" id="ant" type="button">← semana anterior</button>
+      <strong id="rotulo-semana" class="small"></strong>
+      <button class="btn btn--ghost btn--small" id="prox" type="button">próxima semana →</button>
+    </div>
+    <div id="aviso"></div>
+    <div class="semana" id="semana"></div>
+    <section>
+      <h2>Lançar</h2>
+      <form id="f-hora" class="form-hora">
+        <div class="field"><label class="field__label">Projeto</label><select name="projeto_id" required></select></div>
+        <div class="field"><label class="field__label">Dia</label><input type="date" name="data" required></div>
+        <div class="field"><label class="field__label">Etapa</label><select name="etapa_id"><option value="">— sem etapa —</option></select></div>
+        <div class="field"><label class="field__label">Duração</label><input type="text" name="duracao" placeholder="2h30" required></div>
+        <div class="field desc"><label class="field__label">O que foi feito</label><input type="text" name="descricao" placeholder="Opcional"></div>
+        <div><button class="btn btn--primary btn--small" type="submit">Lançar</button></div>
+      </form>
+    </section>
+    <section>
+      <h2>Lançamentos da semana</h2>
+      <div id="lista"></div>
+    </section>
+  </main>
+</div>
+
+<div id="painel-raiz"></div>
+
+<script src="config.js"></script>
+<script src="auth.js"></script>
+<script>exigirAutenticacao();</script>
+<script src="base.js"></script>
+<script>
+// Semana de uma pessoa: total por dia, lançamentos e lançamento rápido em qualquer projeto ativo.
+let PAINEL = null, SEG = segundaDe(hoje()), ITENS = [];
+const etapasCache = {};
+const aviso = avisoEm(document.getElementById('aviso'));
+const f = document.getElementById('f-hora');
+const DIAS = ['seg', 'ter', 'qua', 'qui', 'sex', 'sáb', 'dom'];
+
+// Abre com o que ficou guardado neste computador e se atualiza quando o Universo responde (Universo.lerComCache).
+async function iniciar() {
+  try { await Universo.lerComCache('producao/painel', (d) => { PAINEL = d; montar(); }); }
+  catch (e) { return aviso(`Não consegui carregar (${mensagemDe(e)}).`); }
+}
+
+let montado = false;
+function montar() {
+  const ativos = PAINEL.equipe.filter(q => q.ativo);
+  if (!ativos.length) { document.querySelector('main').innerHTML = '<p>Cadastre a equipe em <a href="https://universo.odisse.com.br/#/equipe">Equipe (no Universo)</a> para lançar horas.</p>'; return; }
+  const quem = document.getElementById('quem');
+  const ultimo = quem.value || localStorage.getItem('projetos-quem');
+  quem.innerHTML = ativos.map(q => `<option value="${q.id}" ${q.id === ultimo ? 'selected' : ''}>${escHtml(q.nome)}</option>`).join('');
+  quem.onchange = () => { localStorage.setItem('projetos-quem', quem.value); carregar(); };
+  const projs = PAINEL.itens.filter(p => p.situacao === 'ativo');
+  const projAtual = f.projeto_id.value;
+  f.projeto_id.innerHTML = projs.map(p => `<option value="${p.id}" ${p.id === projAtual ? 'selected' : ''}>${escHtml(p.codigo)} · ${escHtml(p.nome)}</option>`).join('');
+  f.projeto_id.onchange = carregarEtapas;
+  if (montado) return;          // a segunda chegada (resposta nova) só atualiza as listas
+  montado = true;
+  f.data.value = hoje();
+  carregarEtapas();
+  carregar();
+}
+
+async function carregarEtapas() {
+  const pid = f.projeto_id.value;
+  if (!pid) return;
+  const pintar = (es) => {
+    if (f.projeto_id.value !== pid) return;   // trocou de projeto enquanto esperava
+    const escolhida = f.etapa_id.dataset.projeto === pid ? f.etapa_id.value : null;
+    const atual = es.find(e => e.id === escolhida) || es.find(e => e.situacao === 'em_andamento') || es.find(e => e.situacao !== 'concluida');
+    f.etapa_id.dataset.projeto = pid;
+    f.etapa_id.innerHTML = '<option value="">— sem etapa —</option>' + es.map(e => `<option value="${e.id}" ${atual && atual.id === e.id ? 'selected' : ''}>${escHtml(e.nome)}</option>`).join('');
+  };
+  if (etapasCache[pid]) return pintar(etapasCache[pid]);
+  try {
+    await Universo.lerComCache(`etapas?projeto_id=${encodeURIComponent(pid)}&limite=100`, (d) => { etapasCache[pid] = d.itens; pintar(d.itens); });
+  } catch (e) { aviso(mensagemDe(e)); }
+}
+
+// soNovo: depois de lançar ou tirar horas, ignora o guardado.
+async function carregar({ soNovo = false } = {}) {
+  const ate = somarDias(SEG, 6);
+  document.getElementById('rotulo-semana').textContent = `${fmtDia(SEG)} – ${fmtDia(ate)}`;
+  const caminho = `producao/horas?de=${SEG}&ate=${ate}&equipe_id=${encodeURIComponent(document.getElementById('quem').value)}`;
+  carregar.atual = caminho;
+  try {
+    await Universo.lerComCache(caminho, (d) => {
+      if (carregar.atual !== caminho) return;   // mudou de semana ou de pessoa enquanto esperava
+      ITENS = d.itens;
+      desenharSemana();
+    }, { soNovo });
+  } catch (e) { aviso(mensagemDe(e)); }
+}
+
+function desenharSemana() {
+  const ate = somarDias(SEG, 6);
+  const porDia = {};
+  for (const h of ITENS) porDia[h.data] = (porDia[h.data] || 0) + h.minutos;
+  document.getElementById('semana').innerHTML = DIAS.map((d, i) => {
+    const dia = somarDias(SEG, i);
+    return `<div class="semana__dia ${dia === hoje() ? 'is-hoje' : ''}"><b>${d} ${fmtDia(dia)}</b><span>${porDia[dia] ? fmtMin(porDia[dia]) : '—'}</span></div>`;
+  }).join('');
+  const total = ITENS.reduce((s, h) => s + h.minutos, 0);
+  document.getElementById('lista').innerHTML = ITENS.length ? `<table class="tabela">
+    <thead><tr><th>Dia</th><th>Projeto</th><th>Etapa</th><th>O que</th><th style="text-align:right">Duração</th><th></th></tr></thead>
+    <tbody>${ITENS.map(h => `<tr><td class="tabular">${fmtDia(h.data)}</td>
+      <td><a href="projeto.html#${h.projeto_id}">${escHtml(h.projeto_codigo)} · ${escHtml(h.projeto_nome)}</a></td>
+      <td class="small">${escHtml(h.etapa_nome || '—')}</td><td class="small">${escHtml(h.descricao || '')}</td>
+      <td class="tabular" style="text-align:right">${fmtMin(h.minutos)}</td>
+      <td><button type="button" class="btn-link" data-hora="${h.id}" data-versao="${h.versao}">tirar</button></td></tr>`).join('')}
+      <tr><td colspan="4"><strong>Total da semana</strong></td><td class="tabular" style="text-align:right"><strong>${fmtMin(total)}</strong></td><td></td></tr>
+    </tbody></table>` : '<p class="small muted">Nada lançado nesta semana.</p>';
+  document.querySelectorAll('[data-hora]').forEach(b => b.onclick = async () => {
+    if (!confirm('Tirar este lançamento de horas?')) return;
+    try { await Universo.post(`horas/${b.dataset.hora}/arquivar`, { versao: Number(b.dataset.versao) }); carregar({ soNovo: true }); } catch (e) { aviso(mensagemDe(e)); }
+  });
+}
+
+f.onsubmit = async (ev) => {
+  ev.preventDefault();
+  const minutos = lerDuracao(f.duracao.value);
+  if (!minutos) return aviso('Duração: use 2h30, 2:30, 1,5 ou 45min.');
+  try {
+    await Universo.criar('horas', { equipe_id: document.getElementById('quem').value, projeto_id: f.projeto_id.value,
+      etapa_id: f.etapa_id.value || null, data: f.data.value, minutos, descricao: f.descricao.value || null });
+    f.duracao.value = ''; f.descricao.value = '';
+    aviso('');
+    SEG = segundaDe(f.data.value);
+    carregar({ soNovo: true });
+  } catch (e) { aviso(mensagemDe(e)); }
+};
+document.getElementById('ant').onclick = () => { SEG = somarDias(SEG, -7); carregar(); };
+document.getElementById('prox').onclick = () => { SEG = somarDias(SEG, 7); carregar(); };
+iniciar();
+</script>
+</body>
+</html>

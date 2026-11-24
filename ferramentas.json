@@ -215,10 +215,10 @@
       "secao": "ferramentas",
       "ramo": "producao",
       "descricao": "Define fases, etapas e entregas de cada serviço",
-      "url": "https://projetos.odisse.com.br/pgt.html",
+      "url": "https://universo.odisse.com.br/projetos/pgt.html",
       "hosts": [
-        "projetos.odisse.com.br/pgt.html",
-        "projetos.odisse.com.br/bases.html"
+        "universo.odisse.com.br/projetos/pgt.html",
+        "universo.odisse.com.br/projetos/bases.html"
       ],
       "acesso": "interna",
       "status": "no-ar"
@@ -229,9 +229,10 @@
       "secao": "ferramentas",
       "ramo": "producao",
       "descricao": "Acompanha os projetos contratados, etapa a etapa",
-      "url": "https://projetos.odisse.com.br/",
+      "url": "https://universo.odisse.com.br/projetos/",
       "hosts": [
-        "projetos.odisse.com.br"
+        "universo.odisse.com.br/projetos/index.html",
+        "universo.odisse.com.br/projetos/projeto.html"
       ],
       "acesso": "interna",
       "status": "no-ar"
@@ -242,9 +243,9 @@
       "secao": "ferramentas",
       "ramo": "producao",
       "descricao": "Registra as horas de cada pessoa por projeto",
-      "url": "https://projetos.odisse.com.br/horas.html",
+      "url": "https://universo.odisse.com.br/projetos/horas.html",
       "hosts": [
-        "projetos.odisse.com.br/horas.html"
+        "universo.odisse.com.br/projetos/horas.html"
       ],
       "acesso": "interna",
       "status": "no-ar"

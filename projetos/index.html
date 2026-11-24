@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Projetos — Odisse</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="https://marca.odisse.com.br/favicon/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="https://marca.odisse.com.br/favicon/favicon-32x32.png" sizes="32x32">
+<link rel="stylesheet" href="https://marca.odisse.com.br/v1/marca.css">
+<link rel="stylesheet" href="https://universo.odisse.com.br/base/v1/universo.css">
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="projetos.css">
+<script>
+  // links antigos e do vendas: projetos.odisse.com.br/#prj_… abre a ficha
+  if (/^#prj_/.test(location.hash)) location.replace('projeto.html' + location.hash);
+</script>
+</head>
+<body>
+
+<div id="app" class="app app--no-sidebar">
+  <header class="topo" data-pagina="projetos"></header>
+  <script src="topo.js"></script>
+
+  <main class="crm">
+    <div class="crm__barra">
+      <h1>Projetos</h1>
+      <input type="search" id="filtro" placeholder="Filtrar por código, nome, cliente ou bairro">
+      <select id="filtro-situacao">
+        <option value="andamento">Em andamento</option>
+        <option value="todos">Todos</option>
+        <option value="concluido">Concluídos</option>
+        <option value="cancelado">Cancelados</option>
+      </select>
+      <select id="filtro-nucleo"><option value="">Todos os núcleos</option></select>
+      <button class="btn btn--primary btn--small" id="btn-novo" type="button">Novo projeto</button>
+    </div>
+    <div id="aviso"></div>
+    <div class="crm__resumo" id="resumo"></div>
+    <div id="lista"><p class="muted">Carregando…</p></div>
+    <p class="field__hint">Projetos novos nascem no vendas, ao registrar o contrato assinado no Funil. Aqui se cadastram à mão os que já existiam antes do Universo.</p>
+  </main>
+</div>
+
+<div id="painel-raiz"></div>
+
+<script src="config.js"></script>
+<script src="auth.js"></script>
+<script>exigirAutenticacao();</script>
+<script src="base.js"></script>
+<script>
+let PAINEL = null;   // { itens, equipe }
+let TODOS = false;   // já carregou concluídos/cancelados?
+const aviso = avisoEm(document.getElementById('aviso'));
+document.getElementById('filtro-nucleo').innerHTML += NUCLEOS.map(n => `<option value="${n.id}">${escHtml(n.nome)}</option>`).join('');
+
+async function carregar() {
+  const sit = document.getElementById('filtro-situacao').value;
+  const precisaTodos = sit !== 'andamento';
+  try {
+    // abre com o que está guardado neste computador e atualiza quando o Universo responde
+    await Universo.lerComCache(precisaTodos ? 'producao/painel?todos=1' : 'producao/painel', (d) => { PAINEL = d; TODOS = precisaTodos; desenhar(); });
+  } catch (e) { aviso(`Não consegui carregar os projetos (${mensagemDe(e)}).`); }
+}
+
+function filtrados() {
+  const q = semAcento(document.getElementById('filtro').value.trim());
+  const sit = document.getElementById('filtro-situacao').value;
+  const nuc = document.getElementById('filtro-nucleo').value;
+  return PAINEL.itens.filter(p => {
+    if (sit === 'andamento' && !['ativo', 'pausado'].includes(p.situacao)) return false;
+    if (['concluido', 'cancelado'].includes(sit) && p.situacao !== sit) return false;
+    if (nuc && p.nucleo_id !== nuc) return false;
+    if (!q) return true;
+    return semAcento([p.codigo, p.nome, p.nome_publico, p.cliente_nome, ...(p.coclientes || []), p.bairro, p.cidade, p.servico].join(' ')).includes(q);
+  });
+}
+
+function clientes(p) {
+  const outros = p.coclientes || [];
+  if (!p.cliente_nome) return outros.join(' + ');
+  return outros.length ? (outros.length === 1 ? `${p.cliente_nome} + ${outros[0]}` : `${p.cliente_nome} + ${outros.length}`) : p.cliente_nome;
+}
+
+function atrasada(e) { return e && e.fim_previsto && e.fim_previsto < hoje() && e.situacao !== 'concluida'; }
+
+function desenhar() {
+  const itens = filtrados();
+  const ativos = PAINEL.itens.filter(p => p.situacao === 'ativo');
+  const comAtraso = ativos.filter(p => atrasada(p.etapa_atual));
+  const min30 = PAINEL.itens.reduce((s, p) => s + (p.minutos_30d || 0), 0);
+  document.getElementById('resumo').innerHTML = `
+    <div><strong>${ativos.length}</strong>ativos</div>
+    <div><strong>${PAINEL.itens.filter(p => p.situacao === 'pausado').length}</strong>pausados</div>
+    <div><strong>${comAtraso.length}</strong>com etapa atrasada</div>
+    <div><strong>${fmtMin(min30)}</strong>apontadas em 30 dias</div>`;
+  const lista = document.getElementById('lista');
+  if (!itens.length) {
+    lista.innerHTML = `<div class="vazio"><p>${PAINEL.itens.length ? 'Nenhum projeto com esses filtros.' : 'Nenhum projeto ainda. Registre um contrato assinado no Funil do vendas ou cadastre aqui os projetos que já existiam.'}</p></div>`;
+    return;
+  }
+  lista.innerHTML = `<table class="tabela tabela--linhas">
+    <thead><tr><th>Projeto</th><th>Etapa atual</th><th>Etapas</th><th>Previsão</th><th style="text-align:right">Horas</th></tr></thead>
+    <tbody>${itens.map(p => {
+      const e = p.etapa_atual;
+      return `<tr tabindex="0" data-id="${p.id}">
+        <td><strong>${escHtml(p.codigo)} · ${escHtml(p.nome)}</strong> ${p.situacao !== 'ativo' ? chipSituacao(p.situacao) : ''}<br>
+          <span class="small muted">${escHtml([clientes(p), p.bairro, p.cidade].filter(Boolean).join(' · ')) || '&nbsp;'}</span></td>
+        <td>${e ? `${escHtml(e.nome)} ${chipSituacao(e.situacao)}<br><span class="small ${atrasada(e) ? '' : 'muted'}" ${atrasada(e) ? 'style="color:var(--perigo)"' : ''}>${e.fim_previsto ? (atrasada(e) ? 'atrasada: era até ' : 'até ') + fmtDia(e.fim_previsto) : ''}</span>`
+          : `<span class="small muted">${p.n_etapas ? 'todas concluídas' : 'sem etapas'}</span>`}</td>
+        <td class="tabular">${p.n_etapas ? `${p.n_concluidas}/${p.n_etapas}` : '—'}</td>
+        <td class="tabular">${p.previsao_fim ? fmtData(p.previsao_fim) : '—'}</td>
+        <td class="tabular" style="text-align:right">${p.minutos ? fmtMin(p.minutos) : '—'}${p.minutos_30d ? `<br><span class="small muted">${fmtMin(p.minutos_30d)} em 30 dias</span>` : ''}</td>
+      </tr>`;
+    }).join('')}</tbody></table>`;
+  lista.querySelectorAll('tr[data-id]').forEach(tr => {
+    const ir = () => { location.href = 'projeto.html#' + tr.dataset.id; };
+    tr.onclick = ir;
+    tr.onkeydown = (ev) => { if (ev.key === 'Enter') ir(); };
+  });
+}
+
+// ---- novo projeto (cadastro manual)
+function abrirNovo() {
+  let clienteId = null;
+  const painel = abrirPainel(`
+    <div class="painel__topo"><h2>Novo projeto</h2><button class="painel__fechar" aria-label="Fechar">×</button></div>
+    <div id="novo-aviso"></div>
+    <p class="small muted">Para projetos que já existiam antes do Universo. Os novos nascem no Funil do vendas, ao registrar o contrato assinado.</p>
+    <form id="f-novo">
+      <div class="row-2">
+        <div class="field"><label class="field__label">Código (se já tiver)</label><input type="text" name="codigo" placeholder="OA-2026-031" pattern="(OA-|oa-)?\\d{4}-\\d{3,4}">
+          <p class="field__hint">Vazio = próximo código do ano.</p></div>
+        <div class="field"><label class="field__label">Núcleo</label><select name="nucleo_id">${opcoes(NUCLEOS, 'arquitetos')}</select></div>
+      </div>
+      <div class="field"><label class="field__label">Nome</label><input type="text" name="nome" required placeholder="Ex.: Retrofit AVS"></div>
+      <div class="field">
+        <label class="field__label">Cliente (titular)</label>
+        <div class="escolhido" id="cliente-escolhido" hidden></div>
+        <div id="cliente-busca"><input type="search" id="busca-cliente" placeholder="Buscar pessoa ou organização…"><div class="busca-res" id="res-cliente"></div></div>
+        <p class="field__hint">Quem ainda não está cadastrado entra pelos Contatos do vendas.</p>
+      </div>
+      <div class="row-2">
+        <div class="field"><label class="field__label">Situação</label><select name="situacao">${opcoes(SITUACOES_PROJETO, 'ativo')}</select></div>
+        <div class="field"><label class="field__label">Início</label><input type="date" name="inicio"></div>
+      </div>
+      <div class="row-2">
+        <div class="field"><label class="field__label">Serviço</label><input type="text" name="servico" placeholder="Projeto residencial, interiores…"></div>
+        <div class="field"><label class="field__label">Área (m²)</label><input type="text" inputmode="decimal" name="area_m2"></div>
+      </div>
+      <div class="row-2">
+        <div class="field"><label class="field__label">Bairro</label><input type="text" name="bairro"></div>
+        <div class="field"><label class="field__label">Cidade / UF</label><input type="text" name="cidade_uf" placeholder="João Pessoa/PB"></div>
+      </div>
+      <div class="painel__acoes"><button class="btn btn--primary btn--small" type="submit">Criar projeto</button></div>
+    </form>`);
+  const av = avisoEm(painel.querySelector('#novo-aviso'));
+  const escolhido = painel.querySelector('#cliente-escolhido');
+  ligarBuscaContatos(painel.querySelector('#busca-cliente'), painel.querySelector('#res-cliente'), {
+    aoEscolher: (item) => {
+      clienteId = item.id;
+      escolhido.hidden = false;
+      painel.querySelector('#cliente-busca').hidden = true;
+      escolhido.innerHTML = `<strong>${escHtml(item.titulo)}</strong> <button type="button" class="btn-link">trocar</button>`;
+      escolhido.querySelector('button').onclick = () => { clienteId = null; escolhido.hidden = true; painel.querySelector('#cliente-busca').hidden = false; };
+    }
+  });
+  const f = painel.querySelector('#f-novo');
+  f.onsubmit = async (e) => {
+    e.preventDefault();
+    const m = f.cidade_uf.value.trim().match(/^(.*?)\s*[–\-\/,]\s*([A-Za-z]{2})$/);
+    try {
+      const reg = await Universo.criar('projetos', {
+        codigo: f.codigo.value.trim() || null, nome: f.nome.value, nucleo_id: f.nucleo_id.value, cliente_id: clienteId,
+        situacao: f.situacao.value, inicio: f.inicio.value || null, servico: f.servico.value || null,
+        area_m2: f.area_m2.value ? Number(f.area_m2.value.replace(',', '.')) : null, bairro: f.bairro.value || null,
+        cidade: m ? m[1] : (f.cidade_uf.value.trim() || null), uf: m ? m[2].toUpperCase() : null
+      });
+      location.href = 'projeto.html#' + reg.id;
+    } catch (err) { av(mensagemDe(err)); }
+  };
+}
+
+document.getElementById('btn-novo').onclick = abrirNovo;
+document.getElementById('filtro').oninput = () => PAINEL && desenhar();
+document.getElementById('filtro-nucleo').onchange = () => PAINEL && desenhar();
+document.getElementById('filtro-situacao').onchange = () => {
+  if (document.getElementById('filtro-situacao').value !== 'andamento' && !TODOS) carregar(); else if (PAINEL) desenhar();
+};
+carregar();
+</script>
+</body>
+</html>
