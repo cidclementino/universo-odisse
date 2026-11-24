@@ -53,9 +53,27 @@ Onde a barra aparece:
 
 Os sites públicos (odisse.com.br, projetos, Herma) **não** usam `universo.css` nem a barra; usam só a marca.
 
+## Padrão novo: `base/v2` (Cid, 23–24/11/2026)
+
+Menu lateral por função, topo com "Ir para" (Ctrl K) e o conteúdo num painel branco sobre a ardósia. As peças têm um código só:
+
+```html
+<link rel="stylesheet" href="https://marca.odisse.com.br/v1/marca.css">
+<link rel="stylesheet" href="https://universo.odisse.com.br/base/v2/universo.css">
+<script type="module">
+  import { montarCasca, numeros, lista, gaveta } from 'https://universo.odisse.com.br/base/v2/componentes.js';
+  const casca = await montarCasca({ conteudo: document.querySelector('main') }); // menu lido de ferramentas.json › menu
+</script>
+```
+
+- **Mexeu no padrão, mexeu em todas as páginas**: as páginas chamam as funções de `componentes.js` e não redesenham as peças `ui-*` no próprio CSS (o teste `worker/testes/v2-sem-sobrescrita.test.mjs` barra o deploy). Variação é opção da função.
+- **Cores por função** (`--ui-fundo`, `--ui-texto`, `--ui-bandeja`…), raios concêntricos (12 → 8 → 4), alturas fixas (topo 44, menu 30, linha 42).
+- **Menu**: `ferramentas.json › menu` (topo, grupos, Emitir documento). Contagens e a árvore de projetos vêm da leitura da Início.
+- O catálogo vivo fica em Biblioteca › Padrões de interface. As ferramentas migram da `v1` para a `v2` uma a uma; a `v1` e a barra (`base/v1/barra.js`) seguem no ar até a última migrar.
+
 ## Adicionar ou mudar um item
 
-Editar `ferramentas.json`. Campos de cada item: `id`, `nome`, `descricao`, `secao`, `ramo` (só nas Ferramentas: marketing, comercial, produção, gestão — vira o rótulo do cartão; a página é uma grade só, na ordem de `ramos`) ou `grupo` (Canais e Biblioteca), `url`, `hosts` (endereços que identificam a ferramenta, para a barra marcar a seção certa), `extra` (links secundários, ex.: o painel do site), `acesso` (`interna` ou `publica`) e `status` (`no-ar` ou `em-breve`). Itens em breve aparecem nas páginas, mas não no menu "Ir para".
+Editar `ferramentas.json`. Campos de cada item: `id`, `nome`, `descricao`, `secao`, `ramo` (só nas Ferramentas: marketing, comercial, produção, gestão — vira o rótulo do cartão; a página é uma grade só, na ordem de `ramos`) ou `grupo` (Canais e Biblioteca), `url`, `hosts` (endereços que identificam a ferramenta, para a barra marcar a seção certa), `extra` (links secundários, ex.: o painel do site), `acesso` (`interna` ou `publica`) e `status` (`no-ar` ou `em-breve`). Itens em breve aparecem nas páginas, mas não no menu "Ir para". O menu lateral da v2 tem a sua ordem e os seus nomes curtos em `menu`.
 
 ## Regras
 

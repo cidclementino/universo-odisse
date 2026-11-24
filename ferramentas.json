@@ -1,33 +1,113 @@
 {
-  "versao": 2,
+  "versao": 3,
   "secoes": [
-    {"id": "inicio", "nome": "Início", "descricao": "O que importa hoje"},
+    {
+      "id": "inicio",
+      "nome": "Início",
+      "descricao": "O que importa hoje"
+    },
     {
       "id": "kpis",
       "nome": "KPIs",
       "descricao": "Como o estúdio está indo"
     },
-    {"id": "financeiro", "nome": "Financeiro", "descricao": "Despesas fixas e previsão de custos do ano"},
-    {"id": "ferramentas", "nome": "Ferramentas", "descricao": "Onde se trabalha"},
-    {"id": "estudio", "nome": "O Estúdio", "descricao": "Quem somos", "rota": "empresa"},
-    {"id": "empresa", "nome": "Empresa", "descricao": "Dados da empresa e textos de apresentação", "pai": "estudio"},
-    {"id": "equipe", "nome": "Equipe", "descricao": "Quem faz", "pai": "estudio"},
-    {"id": "marca", "nome": "Marca", "descricao": "Núcleos, cores, tipografia e logos", "pai": "estudio"},
-    {"id": "canais", "nome": "Canais", "descricao": "O que o público vê", "pai": "estudio"},
-    {"id": "credenciais", "nome": "Credenciais", "descricao": "Documentos para editais e concursos", "pai": "estudio"},
-    {"id": "biblioteca", "nome": "Biblioteca", "descricao": "O que se reutiliza"},
-    {"id": "emissao", "nome": "Emissão de documentos avulsos", "descricao": "Cartas, ofícios, declarações e memorandos", "rota": "documentos", "separada": true}
+    {
+      "id": "financeiro",
+      "nome": "Financeiro",
+      "descricao": "Despesas fixas e previsão de custos do ano"
+    },
+    {
+      "id": "ferramentas",
+      "nome": "Ferramentas",
+      "descricao": "Onde se trabalha"
+    },
+    {
+      "id": "estudio",
+      "nome": "O Estúdio",
+      "descricao": "Quem somos",
+      "rota": "empresa"
+    },
+    {
+      "id": "empresa",
+      "nome": "Empresa",
+      "descricao": "Dados da empresa e textos de apresentação",
+      "pai": "estudio"
+    },
+    {
+      "id": "equipe",
+      "nome": "Equipe",
+      "descricao": "Quem faz",
+      "pai": "estudio"
+    },
+    {
+      "id": "marca",
+      "nome": "Marca",
+      "descricao": "Núcleos, cores, tipografia e logos",
+      "pai": "estudio"
+    },
+    {
+      "id": "canais",
+      "nome": "Canais",
+      "descricao": "O que o público vê",
+      "pai": "estudio"
+    },
+    {
+      "id": "credenciais",
+      "nome": "Credenciais",
+      "descricao": "Documentos para editais e concursos",
+      "pai": "estudio"
+    },
+    {
+      "id": "biblioteca",
+      "nome": "Biblioteca",
+      "descricao": "O que se reutiliza"
+    },
+    {
+      "id": "emissao",
+      "nome": "Emissão de documentos avulsos",
+      "descricao": "Cartas, ofícios, declarações e memorandos",
+      "rota": "documentos",
+      "separada": true
+    }
   ],
   "ramos": [
-    {"id": "marketing", "cor": "ambar", "nome": "Marketing"},
-    {"id": "comercial", "cor": "ocre", "nome": "Comercial"},
-    {"id": "producao", "cor": "ardosia", "nome": "Produção"},
-    {"id": "gestao", "cor": "terra", "nome": "Gestão"}
+    {
+      "id": "marketing",
+      "cor": "ambar",
+      "nome": "Marketing"
+    },
+    {
+      "id": "comercial",
+      "cor": "ocre",
+      "nome": "Comercial"
+    },
+    {
+      "id": "producao",
+      "cor": "ardosia",
+      "nome": "Produção"
+    },
+    {
+      "id": "gestao",
+      "cor": "terra",
+      "nome": "Gestão"
+    }
   ],
   "grupos": [
-    {"id": "sites", "secao": "canais", "nome": "Sites"},
-    {"id": "redes", "secao": "canais", "nome": "Redes e publicações"},
-    {"id": "acervo", "secao": "biblioteca", "nome": "Acervo e referências"}
+    {
+      "id": "sites",
+      "secao": "canais",
+      "nome": "Sites"
+    },
+    {
+      "id": "redes",
+      "secao": "canais",
+      "nome": "Redes e publicações"
+    },
+    {
+      "id": "acervo",
+      "secao": "biblioteca",
+      "nome": "Acervo e referências"
+    }
   ],
   "itens": [
     {
@@ -38,7 +118,7 @@
       "descricao": "Monta posts 3:4 e pins 2:3 por núcleo",
       "url": "https://marketing.odisse.com.br/#/publicacoes",
       "hosts": [
-            "marketing.odisse.com.br"
+        "marketing.odisse.com.br"
       ],
       "acesso": "interna",
       "status": "no-ar"
@@ -61,7 +141,7 @@
       "descricao": "Acompanha as oportunidades, do pedido ao contrato",
       "url": "https://vendas.odisse.com.br/crm.html",
       "hosts": [
-            "vendas.odisse.com.br/crm.html"
+        "vendas.odisse.com.br/crm.html"
       ],
       "acesso": "interna",
       "status": "no-ar"
@@ -74,7 +154,7 @@
       "descricao": "Cadastro de clientes, parceiros e organizações",
       "url": "https://vendas.odisse.com.br/contatos.html",
       "hosts": [
-            "vendas.odisse.com.br/contatos.html"
+        "vendas.odisse.com.br/contatos.html"
       ],
       "acesso": "interna",
       "status": "no-ar"
@@ -87,7 +167,7 @@
       "descricao": "Emite propostas e simulações de honorários",
       "url": "https://vendas.odisse.com.br/",
       "hosts": [
-            "vendas.odisse.com.br"
+        "vendas.odisse.com.br"
       ],
       "acesso": "interna",
       "status": "no-ar"
@@ -100,7 +180,7 @@
       "descricao": "Encontra terrenos, corretores e concursos",
       "url": "https://radar.odisse.com.br/",
       "hosts": [
-            "radar.odisse.com.br"
+        "radar.odisse.com.br"
       ],
       "acesso": "interna",
       "status": "no-ar"
@@ -122,7 +202,11 @@
       "ramo": "comercial",
       "descricao": "Emite e registra os contratos assinados",
       "acesso": "interna",
-      "status": "em-breve"
+      "status": "no-ar",
+      "url": "https://vendas.odisse.com.br/contratos.html",
+      "hosts": [
+        "vendas.odisse.com.br/contratos.html"
+      ]
     },
     {
       "id": "pgt",
@@ -132,8 +216,8 @@
       "descricao": "Define fases, etapas e entregas de cada serviço",
       "url": "https://projetos.odisse.com.br/pgt.html",
       "hosts": [
-            "projetos.odisse.com.br/pgt.html",
-            "projetos.odisse.com.br/bases.html"
+        "projetos.odisse.com.br/pgt.html",
+        "projetos.odisse.com.br/bases.html"
       ],
       "acesso": "interna",
       "status": "no-ar"
@@ -146,7 +230,7 @@
       "descricao": "Acompanha os projetos contratados, etapa a etapa",
       "url": "https://projetos.odisse.com.br/",
       "hosts": [
-            "projetos.odisse.com.br"
+        "projetos.odisse.com.br"
       ],
       "acesso": "interna",
       "status": "no-ar"
@@ -159,7 +243,7 @@
       "descricao": "Registra as horas de cada pessoa por projeto",
       "url": "https://projetos.odisse.com.br/horas.html",
       "hosts": [
-            "projetos.odisse.com.br/horas.html"
+        "projetos.odisse.com.br/horas.html"
       ],
       "acesso": "interna",
       "status": "no-ar"
@@ -219,13 +303,13 @@
       "descricao": "Projetos, sobre, contato e Elaia",
       "url": "https://www.odisse.com.br/",
       "hosts": [
-            "odisse.com.br/admin"
+        "odisse.com.br/admin"
       ],
       "extra": [
-            {
-                  "nome": "Painel do site",
-                  "url": "https://www.odisse.com.br/admin/"
-            }
+        {
+          "nome": "Painel do site",
+          "url": "https://www.odisse.com.br/admin/"
+        }
       ],
       "acesso": "publica",
       "status": "no-ar"
@@ -238,7 +322,7 @@
       "descricao": "Projeto residencial e interiores",
       "url": "https://servicos.odisse.com.br/",
       "hosts": [
-            "servicos.odisse.com.br"
+        "servicos.odisse.com.br"
       ],
       "acesso": "publica",
       "status": "no-ar"
@@ -251,7 +335,7 @@
       "descricao": "Leitura pública do potencial construtivo dos lotes",
       "url": "https://herma.odisse.com.br/",
       "hosts": [
-            "herma.odisse.com.br"
+        "herma.odisse.com.br"
       ],
       "acesso": "publica",
       "status": "no-ar"
@@ -342,5 +426,161 @@
       "acesso": "interna",
       "status": "em-breve"
     }
-  ]
+  ],
+  "menu": {
+    "_nota": "Menu lateral da casca v2 (base/v2/componentes.js; Cid, 23–24/11). Ordem e nomes curtos do menu; o resto (descrição, hosts, status) vem de 'itens'. 'rota' = página do hub (#/…); 'url' = ferramenta em outro endereço; 'arvore' = subitens vindos do servidor (projetos ativos).",
+    "topo": [
+      {
+        "id": "inicio",
+        "nome": "Início",
+        "icone": "inicio",
+        "rota": "inicio",
+        "contagem": "inicio"
+      },
+      {
+        "id": "kpis",
+        "nome": "KPIs",
+        "icone": "kpis",
+        "rota": "kpis"
+      },
+      {
+        "id": "financeiro",
+        "nome": "Financeiro",
+        "icone": "financeiro",
+        "rota": "financeiro"
+      }
+    ],
+    "grupos": [
+      {
+        "nome": "Comercial",
+        "itens": [
+          {
+            "id": "contatos",
+            "nome": "Contatos",
+            "icone": "contatos"
+          },
+          {
+            "id": "funil",
+            "nome": "Funil",
+            "icone": "funil"
+          },
+          {
+            "id": "propostas",
+            "nome": "Propostas",
+            "icone": "propostas"
+          },
+          {
+            "id": "contratos",
+            "nome": "Contratos",
+            "icone": "contratos"
+          },
+          {
+            "id": "radar",
+            "nome": "Radar",
+            "icone": "radar",
+            "contagem": "radar"
+          },
+          {
+            "id": "precos",
+            "nome": "Mapa de preços",
+            "icone": "precos",
+            "rota": "precos"
+          }
+        ]
+      },
+      {
+        "nome": "Produção",
+        "itens": [
+          {
+            "id": "pgt",
+            "nome": "Plano Geral de Trabalho",
+            "icone": "pgt"
+          },
+          {
+            "id": "projetos",
+            "nome": "Projetos",
+            "icone": "projetos",
+            "arvore": "projetos"
+          },
+          {
+            "id": "horas",
+            "nome": "Gestor de horas",
+            "icone": "horas"
+          }
+        ]
+      },
+      {
+        "nome": "Produtos",
+        "itens": [
+          {
+            "id": "catalogo",
+            "nome": "Catálogo de serviços",
+            "icone": "catalogo",
+            "url": "https://servicos.odisse.com.br/painel/",
+            "hosts": [
+              "servicos.odisse.com.br/painel"
+            ]
+          }
+        ]
+      },
+      {
+        "nome": "Marketing",
+        "itens": [
+          {
+            "id": "estrategia",
+            "nome": "Estratégia",
+            "icone": "estrategia",
+            "url": "https://marketing.odisse.com.br/#/estrategia"
+          },
+          {
+            "id": "calendario",
+            "nome": "Calendário editorial",
+            "icone": "calendario",
+            "contagem": "calendario"
+          },
+          {
+            "id": "publicacoes",
+            "nome": "Publicações",
+            "icone": "publicacoes"
+          }
+        ]
+      },
+      {
+        "nome": "Estúdio",
+        "itens": [
+          {
+            "id": "perfil",
+            "nome": "Perfil",
+            "icone": "perfil",
+            "rota": "empresa",
+            "rotas": [
+              "empresa",
+              "equipe",
+              "marca",
+              "canais",
+              "credenciais"
+            ]
+          },
+          {
+            "id": "biblioteca",
+            "nome": "Biblioteca",
+            "icone": "biblioteca",
+            "rota": "biblioteca",
+            "rotas": [
+              "biblioteca",
+              "padroes",
+              "pastas",
+              "acervo"
+            ]
+          }
+        ]
+      }
+    ],
+    "emitir": {
+      "id": "emissao",
+      "nome": "Emitir documento avulso",
+      "icone": "emitir",
+      "rota": "documentos"
+    }
+  }
 }

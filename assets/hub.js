@@ -17,6 +17,9 @@ import { criarAcervo } from './acervo.js';
 import { criarKpis } from './kpis.js';
 import { criarCredenciais } from './credenciais.js';
 import { criarFinanceiro } from './financeiro.js';
+import { contagensDe, arvoreDe } from './inicio.js';
+import { lerCopia } from './memoria.js';
+import { montarCasca } from '../base/v2/componentes.js';
 
 const MARCA = 'https://marca.odisse.com.br/';
 const API = 'https://universo-hub.reservaprojectbasework.workers.dev';
@@ -113,7 +116,8 @@ const equipe = criarEquipe({ esc, api, apiBinario, toque, cred });
 const ferramentas = criarFerramentas({ esc, api, toque, lerMapa: () => MAPA });
 const canais = criarFerramentas({ esc, api, toque, lerMapa: () => MAPA, config: configCanais(() => ODISSE) });
 const padroes = criarPadroes({ esc });
-const inicio = criarInicio({ esc, api, toque });
+let casca = null; // menu lateral, topo e painel (base/v2; Cid, 24/11)
+const inicio = criarInicio({ api, toque, lerCasca: () => casca });
 const precos = criarPrecos({ esc, api });
 const pastas = criarPastas({ esc, api, toque });
 const kpis = criarKpis({ esc, api, toque });
@@ -240,8 +244,7 @@ function mostrar() {
   const r = rota();
   const sec = MAPA.secoes.find((s) => s.id === r) || MAPA.secoes.find((s) => s.rota === r) || { nome: { padroes: 'Padrões de interface', precos: 'Mapa de preços', pastas: 'Estrutura de pastas', acervo: 'Acervo de imagens' }[r] || 'Documentos' };
   document.title = (r === 'inicio' ? 'Universo' : sec.nome + ' — Universo') + ' — Odisse';
-  vista.innerHTML = (ESTUDIO.includes(r) ? abasEstudio(r) : '') + PAGINAS[r]() +
-    '<footer class="rodape-hub"><button class="u-botao" data-acao="sair">Sair do Universo</button></footer>';
+  vista.innerHTML = (ESTUDIO.includes(r) ? abasEstudio(r) : '') + PAGINAS[r]();
   depois(r);
   window.scrollTo(0, 0);
 }
@@ -280,16 +283,21 @@ async function entrar() {
   }
   document.body.classList.remove('u-trancado');
   try { await carregar(); } catch { vista.innerHTML = '<p class="u-apoio">Não foi possível carregar o Universo.</p>'; return; }
+  if (!casca) {
+    // padrão novo (Cid, 23–24/11): menu lateral por função, topo com "Ir para" e o conteúdo num painel
+    casca = await montarCasca({ conteudo: vista, hub: true, mapa: MAPA, aoSair: sair });
+    const copia = lerCopia('inicio');
+    casca.contar(contagensDe(copia));
+    casca.arvore('projetos', arvoreDe(copia));
+  }
   mostrar();
   if (!entrar.ligado) { window.addEventListener('hashchange', mostrar); entrar.ligado = true; }
 }
 
 function sair() {
   senha.gravar('');
-  telaEntrada();
   history.replaceState(null, '', location.pathname + location.search + '#/');
+  location.reload(); // volta à tela de entrada, sem o menu
 }
-
-document.addEventListener('click', (ev) => { if (ev.target.closest('[data-acao="sair"]')) sair(); });
 
 entrar();

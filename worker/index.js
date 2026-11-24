@@ -26,7 +26,7 @@
 //                       409 se alguém salvou antes (sha diferente). Se a paleta, os papéis ou as cores
 //                       dos núcleos mudarem, o mesmo commit reescreve os valores do v1/marca.css.
 // Início (exige a senha da equipe; ver inicio.js):
-//   GET  /api/inicio           -> panorama do dia (Radar, publicações, Instagram e site de ontem)
+//   GET  /api/inicio           -> panorama do dia (Radar, publicações, credenciais, balanço, propostas, projetos, metas)
 //   POST /api/inicio/publicar  <- { tipo: 'item'|'pauta', id } -> confirma a publicação no marketing
 // KPIs (exigem a senha da equipe; ver kpis.js): GET /api/kpis, GET /api/kpis/balanco, PUT /api/kpis/metas,
 //   POST /api/kpis/fechar. Cron diário (wrangler.toml): números de ontem dos canais e, no dia 1º, o balanço.
