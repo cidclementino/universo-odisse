@@ -9,7 +9,7 @@
   <script type="importmap">
   {
     "imports": {
-      "./assets/js/app.js": "./assets/js/app.js?v=5bd5ef7fc1",
+      "./assets/js/app.js": "./assets/js/app.js?v=2f46c43b8a",
       "./assets/js/grade.js": "./assets/js/grade.js?v=cd5de68ccd",
       "./assets/js/imaging.js": "./assets/js/imaging.js?v=0055923bbd",
       "./assets/js/marca.js": "./assets/js/marca.js?v=7a8a4998bf",
@@ -37,7 +37,7 @@
   <link rel="stylesheet" href="assets/css/card.css?v=03e46c1ae1">
   <!-- Casca do Universo: o Marketing mora em /marketing/ -->
   <script src="/base/v2/casca.js" data-classe="ferramenta-marketing"></script>
-  <link rel="stylesheet" href="assets/css/app.css?v=6b7ad3b5f5">
+  <link rel="stylesheet" href="assets/css/app.css?v=88c19117d8">
 </head>
 <body class="vista-inicio">
   <!-- ===================== INÍCIO: criar + arquivo (peças da v2, desenhado por app.js) ===================== -->
@@ -57,23 +57,19 @@
 
   <!-- ===================== EDITOR ===================== -->
   <div class="pub-barra" id="pubBarra">
-    <a class="voltar" id="btVoltar" href="#/publicacoes"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg><span id="voltarRot">Publicações</span></a>
+    <div class="pub-esq">
+      <a class="voltar" id="btVoltar" href="#/publicacoes"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg><span id="voltarRot">Publicações</span></a>
+      <span class="sinc" id="sinc" data-estado="pronto"><span class="ponto"></span><span id="sincTxt"></span></span>
+    </div>
     <div class="pub-id">
       <span class="chip" id="pubChip"></span>
       <span class="pub-nucleo" id="pubNucleo"></span>
       <input id="pubTitulo" class="pub-titulo" type="text" placeholder="Título da publicação" aria-label="Título da publicação">
-      <span class="pub-pool" id="pubPool"></span>
     </div>
     <div class="pub-salvar">
-      <span class="sinc" id="sinc" data-estado="pronto"><span class="ponto"></span><span id="sincTxt"></span></span>
       <button type="button" class="ui-acao" id="btSalvar" title="Salvar na nuvem (Ctrl+S)">Salvar</button>
-      <span class="pub-exportar">
-        <button type="button" class="ui-acao" id="btExportar" aria-haspopup="menu" aria-expanded="false">Exportar</button>
-        <span class="mk-pb-menu" id="menuExportar" role="menu" hidden>
-          <button type="button" role="menuitem" id="btExportarCard">Exportar card</button>
-          <button type="button" role="menuitem" id="btExportarTudo">Exportar carrossel</button>
-        </span>
-      </span>
+      <button type="button" class="ui-acao" id="btExportarCard">Exportar card</button>
+      <button type="button" class="ui-acao" id="btExportarTudo">Exportar tudo</button>
       <button type="button" class="ui-acao is-principal" id="btPool" hidden>Enviar ao pool</button>
     </div>
   </div>
@@ -103,10 +99,6 @@
         <div class="barra-g">
           <span class="posicao" id="posicao"></span>
           <span class="modelo-atual" id="modeloAtual"></span>
-          <span class="acoes-card" id="acoesCard">
-            <button type="button" class="ui-acao" id="btDuplicar" title="Duplicar card">Duplicar</button>
-            <button type="button" class="ui-acao" id="btExcluir" title="Excluir card">Excluir</button>
-          </span>
         </div>
         <div class="barra-d">
           <div class="seg guias-bt" role="group" aria-label="Guias de composição" id="guias"></div>
@@ -143,6 +135,6 @@
 
   <script src="vendor/html-to-image.js?v=ad74ac1e13"></script>
   <script src="vendor/jszip.min.js?v=978d62b574"></script>
-  <script type="module" src="assets/js/app.js?v=5bd5ef7fc1"></script>
+  <script type="module" src="assets/js/app.js?v=2f46c43b8a"></script>
 </body>
 </html>

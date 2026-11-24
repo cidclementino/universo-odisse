@@ -531,6 +531,10 @@ function botaoDoPool(r, s = situacaoNoPool(r)) {
   const alvo = s.proximo || s.primeiro;
   return acao(s.estado === 'publicado' ? 'Ver no calendário' : 'Abrir no calendário', { href: `#/calendario/item/${encodeURIComponent(alvo.id)}` });
 }
+const svgIco = (d) => `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+const ICONE_DUPLICAR = svgIco('<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/>');
+const ICONE_EXCLUIR = svgIco('<path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-12M9 7V4h6v3"/>');
+const ICONE_TROCAR = svgIco('<path d="M4 12a8 8 0 0 1 14-5.3L20 9M20 4v5h-5M20 12a8 8 0 0 1-14 5.3L4 15M4 20v-5h5"/>');
 const TRES_PONTOS = '<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg>';
 const botaoMais = (r) => `<button type="button" class="mk-ico mk-pb-mais" data-pb-menu="${esc(r.id)}" aria-label="Mais ações" aria-haspopup="menu">${TRES_PONTOS}</button>`;
 
@@ -722,8 +726,10 @@ function renderEditor() {
   $('#btVoltar').href = `#/publicacoes/${rotaDoFormato(formatoDe(pub))}`;
   $('#voltarRot').textContent = SUBPAGINAS.find((x) => x[1] === formatoDe(pub))[2];
   $('#cardRot').textContent = pin ? 'Dados do pin' : 'Dados do card';
-  $('#btExportarCard').textContent = pin ? 'Pin ativo (JPG 1000 × 1500)' : 'Card ativo (JPG 1080 × 1440)';
-  $('#btExportarTudo').textContent = pin ? 'Lote de pins (.zip com textos.txt)' : 'Carrossel (.zip)';
+  $('#btExportarCard').textContent = pin ? 'Exportar pin' : 'Exportar card';
+  $('#btExportarTudo').textContent = 'Exportar tudo';
+  $('#btExportarCard').title = pin ? 'O pin em destaque, em JPG 1000 × 1500' : 'O card em destaque, em JPG 1080 × 1440';
+  $('#btExportarTudo').title = pin ? 'Todos os pins em JPG, num .zip com o textos.txt' : 'Todos os cards em JPG, num .zip';
   $('#btPool').title = pin
     ? 'Envia os pins ao pool de mídias (imagem e textos), para agendar no Calendário. Depois, as alterações vão sozinhas para o pool.'
     : 'Envia o carrossel ao pool de mídias, para agendar no Calendário. Depois, as alterações vão sozinhas para o pool.';
@@ -742,20 +748,20 @@ function renderEditor() {
 function renderSituacao(tarefa = '') {
   if (!pub) return;
   const s = situacaoNoPool(pub);
-  const [txt, tom] = tarefa ? [tarefa, 'atencao'] : textoSituacao(pub, s);
-  $('#pubPool').innerHTML = `<button type="button" class="mk-link" id="btSituacao" title="Ver no pool">${quando(txt, tom)}</button>`;
   const b = $('#btPool');
   b.hidden = !s.faltam || tarefas.has(pub.id);
   b.textContent = ehPin() && s.noPool ? `Enviar ${s.faltam} ao pool` : 'Enviar ao pool';
   const auto = $('#datasPub');
-  if (auto) auto.innerHTML = datasDaPublicacao();
+  if (auto) auto.innerHTML = datasDaPublicacao(tarefa);
 }
 
 /** Datas automáticas (só leitura) e o código dos arquivos. */
-function datasDaPublicacao() {
-  const env = itensDoPool(pub.id).length ? `<div><span>Enviada ao pool</span><span>${esc(pub.enviadoEm ? dataHora(pub.enviadoEm) : '—')}</span></div>` : '';
-  return `<div><span>Criada</span><span>${esc(dataHora(pub.criado))}</span></div>
-    <div><span>Último salvamento</span><span>${esc(pub.salvoEm ? dataHora(pub.salvoEm) : 'ainda não salva na nuvem')}</span></div>${env}`;
+function datasDaPublicacao(tarefa = tarefas.get(pub.id) || '') {
+  const [txt, tom] = tarefa ? [tarefa, 'atencao'] : textoSituacao(pub);
+  const sit = `<div><span>No pool</span><span><button type="button" class="mk-link" id="btSituacao" title="Ver no pool">${quando(txt, tom, { pequeno: true })}</button></span></div>`;
+  const env = itensDoPool(pub.id).length ? `<div><span>Enviada</span><span>${esc(pub.enviadoEm ? dataHora(pub.enviadoEm) : '—')}</span></div>` : '';
+  return `${sit}<div><span>Criada</span><span>${esc(dataHora(pub.criado))}</span></div>
+    <div><span>Salva</span><span>${esc(pub.salvoEm ? dataHora(pub.salvoEm) : 'ainda não salva na nuvem')}</span></div>${env}`;
 }
 
 // ---- Informações padrão ---------------------------------------------------
@@ -908,8 +914,8 @@ function renderImagens() {
     const im = c.imgs[s];
     const th = im ? fonteImagem(c, s) : null;
     if (!th) {
-      h += `<div class="img-item"><div class="img-topo"><div class="th"></div><div><b>${nome}</b><span>Vazio</span></div></div>
-        <div class="img-acoes"><button data-acao="trocar" data-slot="${s}">Adicionar imagem</button></div></div>`;
+      h += `<div class="img-item is-vazio"><div class="img-topo"><div class="th"></div><div class="img-nome"><b>${nome}</b><span>Vazio</span></div>
+        <div class="img-icones"><button type="button" class="ui-acao" data-acao="trocar" data-slot="${s}">Adicionar</button></div></div></div>`;
       continue;
     }
     const trat = n.tratamento.tipo !== 'nenhum'
@@ -921,18 +927,22 @@ function renderImagens() {
       ? `<small class="img-aviso">Será ampliada ${Math.round((amplia - 1) * 100)}% na exportação (1000 × 1500). Prefira uma imagem maior.</small>` : '';
     if (ehPin()) avisoRes += avisoDeUso(c, im);
     h += `<div class="img-item" data-slot="${s}">
-      <div class="img-topo"><div class="th" style="background-image:url('${th}')"></div><div><b>${nome}</b><span>${im.w} × ${im.h}px</span>${avisoRes}</div></div>
-      <div class="img-acoes">
-        <button data-acao="trocar" data-slot="${s}">Trocar</button>
-        <button data-acao="remover" data-slot="${s}">Remover</button>
-        ${trat}
+      <div class="img-topo">
+        <div class="th" style="background-image:url('${th}')"></div>
+        <div class="img-nome"><b>${nome}</b><span>${im.w} × ${im.h} px</span></div>
+        <div class="img-icones">
+          <button type="button" class="card-icones__bt" data-acao="trocar" data-slot="${s}" title="Trocar imagem" aria-label="Trocar imagem">${ICONE_TROCAR}</button>
+          <button type="button" class="card-icones__bt" data-acao="remover" data-slot="${s}" title="Remover imagem" aria-label="Remover imagem">${ICONE_EXCLUIR}</button>
+        </div>
       </div>
-      ${FAIXAS.map(([f, rot, min, max, passo, pad, unid]) => {
+      ${avisoRes}
+      ${trat ? `<div class="seg img-trat" role="group" aria-label="Tratamento">${trat}</div>` : ''}
+      <div class="faixas">${FAIXAS.map(([f, rot, min, max, passo, pad, unid]) => {
         const v = im[f] ?? pad;
         const mostrado = f === 'z' ? Math.round(v * 100) : Math.round(v * 10) / 10;
-        return `<label class="faixa">${rot} <input type="range" min="${min}" max="${max}" step="${passo}" value="${v}" data-faixa="${f}" data-slot="${s}">
-          <span class="num"><input type="number" min="${f === 'z' ? min * 100 : min}" max="${f === 'z' ? max * 100 : max}" step="${f === 'z' ? 1 : 0.5}" value="${mostrado}" data-num="${f}" data-slot="${s}" aria-label="${rot}">${unid}</span></label>`;
-      }).join('')}
+        return `<label class="faixa"><span>${rot}</span><input type="range" min="${min}" max="${max}" step="${passo}" value="${v}" data-faixa="${f}" data-slot="${s}">
+          <span class="num"><input type="number" min="${f === 'z' ? min * 100 : min}" max="${f === 'z' ? max * 100 : max}" step="${f === 'z' ? 1 : 0.5}" value="${mostrado}" data-num="${f}" data-slot="${s}" aria-label="${rot}">${unid ? `<i>${unid}</i>` : ''}</span></label>`;
+      }).join('')}</div>
     </div>`;
   }
   el.innerHTML = h;
@@ -1186,11 +1196,11 @@ function indicesVisiveis() {
 function escala(qtd) {
   const wrap = $('#trilhoWrap');
   const W = wrap.clientWidth - 112;
-  const H = wrap.clientHeight - 44 - 62; // em cima o código do card; embaixo as setas de mover
-  const gap = modo === 'todos' ? 18 : 28;
+  const H = wrap.clientHeight - 44 - 22; // em cima, o código do card e os ícones
+  const gap = modo === 'todos' ? 16 : 20;
   const kH = H / altDe();
   const unidades = modo === '3' ? 1 + 2 * LATERAL : qtd;
-  const kW = (W - 70 - gap * qtd) / (unidades * LARG);
+  const kW = (W - 2 * 36 - gap * (qtd + 1)) / (unidades * LARG); // 2 × a caixa ao lado do card em destaque
   let k = Math.min(kH, kW);
   if (modo === 'todos') k = Math.max(k, Math.min(kH, 0.17));
   return { k: Math.max(0.08, k), gap };
@@ -1206,11 +1216,16 @@ function renderTrilho() {
   $('#trilhoWrap').classList.toggle('todos', modo === 'todos');
 
   const pin = ehPin();
-  const mais = `<button type="button" class="mais" id="btMais" title="Novo ${pin ? 'pin' : 'card'} ${modo === 'todos' ? 'no fim' : 'depois deste'}" aria-label="Novo ${pin ? 'pin' : 'card'} ${modo === 'todos' ? 'no fim' : 'depois deste'}">${icone('mais', 18, 2)}</button>`;
-  const mover = `<div class="mover">
-      <button type="button" class="mk-ico" data-mover="-1" title="Mover para a esquerda" aria-label="Mover o ${pin ? 'pin' : 'card'} para a esquerda"${pub.ativo <= 0 ? ' disabled' : ''}>${icone('anterior', 14, 2)}</button>
-      <button type="button" class="mk-ico" data-mover="1" title="Mover para a direita" aria-label="Mover o ${pin ? 'pin' : 'card'} para a direita"${pub.ativo >= pub.cards.length - 1 ? ' disabled' : ''}>${icone('seta', 14, 2)}</button>
+  const nome = pin ? 'pin' : 'card';
+  // ao lado do card em destaque: + (novo antes ou depois) e a seta de mover para aquele lado, numa caixa compacta
+  const lado = (d) => `<div class="lado-card" role="group" aria-label="${d < 0 ? 'Antes' : 'Depois'} deste ${nome}">
+      <button type="button" class="lado-card__bt" data-mais="${d < 0 ? 'antes' : 'depois'}" title="Novo ${nome} ${d < 0 ? 'antes' : 'depois'} deste" aria-label="Novo ${nome} ${d < 0 ? 'antes' : 'depois'} deste">${icone('mais', 15, 2)}</button>
+      <button type="button" class="lado-card__bt" data-mover="${d}" title="Mover para a ${d < 0 ? 'esquerda' : 'direita'}" aria-label="Mover o ${nome} para a ${d < 0 ? 'esquerda' : 'direita'}"${(d < 0 ? pub.ativo <= 0 : pub.ativo >= pub.cards.length - 1) ? ' disabled' : ''}>${icone(d < 0 ? 'anterior' : 'seta', 15, 2)}</button>
     </div>`;
+  const icones = `<span class="card-icones">
+      <button type="button" class="card-icones__bt" data-card="duplicar" title="Duplicar ${nome}" aria-label="Duplicar ${nome}">${ICONE_DUPLICAR}</button>
+      <button type="button" class="card-icones__bt" data-card="excluir" title="Excluir ${nome}" aria-label="Excluir ${nome}"${pub.cards.length <= 1 ? ' disabled' : ''}>${ICONE_EXCLUIR}</button>
+    </span>`;
   let h = '';
   for (const i of vis) {
     if (i === null) { h += `<div class="peca" style="width:${LARG * k * LATERAL}px"></div>`; continue; }
@@ -1218,16 +1233,15 @@ function renderTrilho() {
     const lateral = modo === '3' && i !== pub.ativo;
     const kk = lateral ? k * LATERAL : k;
     const en = c.pin?.idioma === 'en' ? ' · EN' : '';
+    if (i === pub.ativo) h += lado(-1);
     h += `<div class="peca ${i === pub.ativo ? 'ativa' : ''} ${lateral ? 'lateral' : ''}" data-id="${c.id}" data-i="${i}">
-      <span class="num">${String(i + 1).padStart(2, '0')} · ${codigoDe(pub.nucleo, c.modelo)}${en}</span>
+      <span class="num">${String(i + 1).padStart(2, '0')} · ${codigoDe(pub.nucleo, c.modelo)}${en}</span>${i === pub.ativo ? icones : ''}
       <div class="moldura" style="--k:${kk};--alt:${altDe()}px"><div class="${classeCard()} editar">${renderCard({
         card: c, indice: i, total: pub.cards.length, nucleo: n, globais: pub.globais, modo: 'editar', fonteImagem,
       })}</div>${guiasSvg(altDe())}</div>
-      ${i === pub.ativo ? mover : ''}
     </div>`;
-    if (modo === '3' && i === pub.ativo) h += mais;
+    if (i === pub.ativo) h += lado(1);
   }
-  if (modo === 'todos') h += mais;
   trilho.innerHTML = h;
   $$('.card', trilho).forEach(ajustarLayout);
   atualizarAvisosFicha();
@@ -1242,7 +1256,6 @@ function renderBarra() {
   const c = cardAtivo();
   $('#posicao').textContent = `${ehPin() ? 'Pin' : 'Card'} ${pub.ativo + 1} de ${pub.cards.length}`;
   $('#modeloAtual').textContent = c ? `· ${modeloDe(pub.nucleo, c.modelo).nome}` : '';
-  $('#btExcluir').disabled = pub.cards.length <= 1;
   $('#navEsq').disabled = pub.ativo <= 0;
   $('#navDir').disabled = pub.ativo >= pub.cards.length - 1;
   $$('#modos button').forEach((b) => b.classList.toggle('ativo', b.dataset.modo === modo));
@@ -1260,7 +1273,7 @@ function irPara(i) {
   renderImagens();
 }
 
-function adicionarCard() {
+function adicionarCard(depois = true) {
   const pin = ehPin();
   const lista = modelosDo(pub.nucleo, formatoDe(pub)).filter((m) => grupoDe(m) === (pin ? 'pin' : 'corpo'));
   const i = lista.findIndex((m) => m.id === cardAtivo()?.modelo);
@@ -1268,7 +1281,7 @@ function adicionarCard() {
   const c = novoCard(sugestao, pub.nucleo, formatoDe(pub));
   // o pin novo segue a composição do pin ativo (o mesmo projeto costuma manter o registro)
   if (pin && cardAtivo()?.opcoes) c.opcoes = { ...cardAtivo().opcoes };
-  const pos = modo === 'todos' ? pub.cards.length : pub.ativo + 1;
+  const pos = depois ? pub.ativo + 1 : pub.ativo;
   pub.cards.splice(pos, 0, c);
   pub.ativo = pos;
   salvar();
@@ -1276,6 +1289,37 @@ function adicionarCard() {
   renderModelos();
   renderImagens();
   aviso(pin ? 'Pin adicionado.' : 'Card adicionado. Escolha o modelo à direita.');
+}
+
+function duplicarCard() {
+  const c = structuredClone(cardAtivo());
+  c.id = uid('c');
+  if (c.pin) delete c.pin.par; // a cópia é outro pin (novo recorte), sem par em outro idioma
+  pub.cards.splice(pub.ativo + 1, 0, c);
+  pub.ativo += 1;
+  salvar();
+  renderTrilho();
+  renderImagens();
+}
+
+/** Excluir pede confirmação: o primeiro clique troca o ícone por "Excluir?". */
+function excluirCard(b) {
+  if (pub.cards.length <= 1) return;
+  if (!b.dataset.confirmar) {
+    b.dataset.confirmar = '1';
+    b.classList.add('is-confirmar');
+    b.innerHTML = 'Excluir?';
+    setTimeout(() => { if (b.isConnected) renderTrilho(); }, 2500);
+    return;
+  }
+  const par = cardAtivo().pin?.par && pub.cards.find((x) => x.id === cardAtivo().pin.par);
+  if (par) delete par.pin.par;
+  pub.cards.splice(pub.ativo, 1);
+  pub.ativo = Math.min(pub.ativo, pub.cards.length - 1);
+  salvar();
+  renderTrilho();
+  renderModelos();
+  renderImagens();
 }
 
 function mover(delta) {
@@ -1965,55 +2009,15 @@ function ligarEventos() {
     prefs.set('modo', modo);
     renderTrilho();
   });
-  $('#btDuplicar').onclick = () => {
-    const c = structuredClone(cardAtivo());
-    c.id = uid('c');
-    if (c.pin) delete c.pin.par; // a cópia é outro pin (novo recorte), sem par em outro idioma
-    pub.cards.splice(pub.ativo + 1, 0, c);
-    pub.ativo += 1;
-    salvar();
-    renderTrilho();
-    renderImagens();
-  };
-  $('#btExcluir').onclick = (e) => {
-    const b = e.currentTarget;
-    if (pub.cards.length <= 1) return;
-    if (!b.dataset.confirmar) {
-      b.dataset.confirmar = '1';
-      b.textContent = 'Confirmar?';
-      setTimeout(() => { delete b.dataset.confirmar; b.textContent = 'Excluir'; }, 2500);
-      return;
-    }
-    delete b.dataset.confirmar;
-    b.textContent = 'Excluir';
-    const par = cardAtivo().pin?.par && pub.cards.find((x) => x.id === cardAtivo().pin.par);
-    if (par) delete par.pin.par;
-    pub.cards.splice(pub.ativo, 1);
-    pub.ativo = Math.min(pub.ativo, pub.cards.length - 1);
-    salvar();
-    renderTrilho();
-    renderModelos();
-    renderImagens();
-  };
-  const menuExp = $('#menuExportar');
-  const fecharExp = () => { menuExp.hidden = true; $('#btExportar').setAttribute('aria-expanded', 'false'); };
-  $('#btExportar').onclick = () => {
-    const abrir = menuExp.hidden;
-    menuExp.hidden = !abrir;
-    $('#btExportar').setAttribute('aria-expanded', String(abrir));
-    if (abrir) menuExp.querySelector('button').focus();
-  };
-  document.addEventListener('click', (e) => { if (!e.target.closest?.('.pub-exportar')) fecharExp(); });
-  menuExp.addEventListener('keydown', (e) => { if (e.key === 'Escape') { fecharExp(); $('#btExportar').focus(); } });
-  $('#btExportarCard').onclick = () => { fecharExp(); exportarCard().catch(erroExport); };
-  $('#btExportarTudo').onclick = () => { fecharExp(); exportarTudo().catch(erroExport); };
+  $('#btExportarCard').onclick = () => exportarCard().catch(erroExport);
+  $('#btExportarTudo').onclick = () => exportarTudo().catch(erroExport);
   $('#btPool').onclick = (e) => {
     const b = e.currentTarget;
     b.disabled = true;
     renderSituacao('Enviando ao pool…');
     enviarAoPool().catch(erroExport).finally(() => { b.disabled = false; renderSituacao(); });
   };
-  $('#pubPool').addEventListener('click', (e) => { if (e.target.closest('#btSituacao') && pub) gavetaPool(pub.id); });
+  $('#globaisPub').addEventListener('click', (e) => { if (e.target.closest('#btSituacao') && pub) gavetaPool(pub.id); });
   $('#navEsq').onclick = () => irPara(pub.ativo - 1);
   $('#navDir').onclick = () => irPara(pub.ativo + 1);
   // Roda do mouse (ou trackpad) passa de card em card; um passo por gesto.
@@ -2038,7 +2042,10 @@ function ligarEventos() {
   // Trilho
   const trilho = $('#trilho');
   trilho.addEventListener('click', (e) => {
-    if (e.target.closest('#btMais')) { adicionarCard(); return; }
+    const mais = e.target.closest('[data-mais]');
+    if (mais) { adicionarCard(mais.dataset.mais === 'depois'); return; }
+    const acaoCard = e.target.closest('[data-card]');
+    if (acaoCard) { if (acaoCard.dataset.card === 'duplicar') duplicarCard(); else excluirCard(acaoCard); return; }
     const mv = e.target.closest('[data-mover]');
     if (mv) { mover(Number(mv.dataset.mover)); return; }
     const peca = e.target.closest('.peca[data-i]');

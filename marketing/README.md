@@ -37,16 +37,20 @@ salvas ou criadas) e vista (Grade ou Lista, lembradas neste navegador).
 
 ## Editor (`#/p/<id>[/<card>]`)
 
-- **Barra:** voltar ao formato · núcleo e nome · situação no pool · Salvo às… · Salvar · **Exportar** (card ativo
-  ou carrossel/lote) · **Enviar ao pool** (só quando falta algo no pool).
+- **Barra:** à esquerda, voltar ao formato e Salvo às…; no centro, núcleo e nome; à direita, Salvar · **Exportar
+  card** (o card em destaque, JPG) · **Exportar tudo** (carrossel ou lote, .zip) · **Enviar ao pool** (só quando
+  falta algo no pool).
 - **Dados da publicação:** nome e rótulo do cabeçalho (pins: projeto, link padrão, créditos, origem). Não há
-  campo de data: as **datas automáticas** (criada, último salvamento, envio ao pool) ficam embaixo, só para leitura.
+  campo de data: embaixo ficam, só para leitura, a **situação no pool** (abre a Gaveta) e as datas automáticas
+  (criada, salva, enviada).
 - **Código dos arquivos** (`AAMMDD-NNN-sigla`): a data é a de **criação**. Publicações antigas guardam a data
   escolhida à mão (`globais.dataPublicacao`) e continuam com ela, para os nomes e os links já enviados não mudarem.
-- **Palco:** em cima, posição e modelo, Duplicar e Excluir, guias (Diagonais, Terços, 1080×1080) e a vista 3 ·
-  Todos. As **setas de mover** ficam embaixo do card em destaque, uma em cada canto; o **+** fica entre o card em
-  destaque e o seguinte (o card novo entra ali; na vista Todos, no fim). Embaixo, os números dos cards. As setas
-  das pontas e as do teclado trocam de card (não é alteração da publicação).
+- **Palco:** em cima, posição e modelo, guias (Diagonais, Terços, 1080×1080) e a vista 3 · Todos. Duplicar e
+  excluir são ícones no canto de cima do card em destaque. De cada lado dele, uma caixa compacta com **+** (card
+  novo antes ou depois) e a **seta de mover** para aquele lado. Embaixo, os números dos cards. As setas das pontas
+  e as do teclado trocam de card (não é alteração da publicação).
+- **Imagens do card:** miniatura, nome e tamanho, ícones de trocar e remover; zoom e posição com a barra e o
+  valor numa caixa (a unidade dentro dela).
 - **Salvamento:** rascunho contínuo neste navegador (IndexedDB); nuvem ao criar, no Salvar (Ctrl+S), ao exportar,
   ao sair do editor e a cada 20 minutos se houver alteração.
 - **Personalização:** cada opção com o rótulo acima do seletor (6 px) e 16 px até a seguinte.
