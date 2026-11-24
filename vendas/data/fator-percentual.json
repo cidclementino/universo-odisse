@@ -1,0 +1,86 @@
+[
+  {
+    "area_limite": "Até 250",
+    "baixo": 0.091625,
+    "medio": 0.104875,
+    "alto": 0.120125,
+    "especial": 0.1375
+  },
+  {
+    "area_limite": "500",
+    "baixo": 0.0805,
+    "medio": 0.092125,
+    "alto": 0.1055,
+    "especial": 0.12075
+  },
+  {
+    "area_limite": "1000",
+    "baixo": 0.07075,
+    "medio": 0.080875,
+    "alto": 0.092625,
+    "especial": 0.106
+  },
+  {
+    "area_limite": "2000",
+    "baixo": 0.062125,
+    "medio": 0.071,
+    "alto": 0.081375,
+    "especial": 0.093125
+  },
+  {
+    "area_limite": "4000",
+    "baixo": 0.0545,
+    "medio": 0.062375,
+    "alto": 0.071375,
+    "especial": 0.08175
+  },
+  {
+    "area_limite": "8000",
+    "baixo": 0.047875,
+    "medio": 0.05475,
+    "alto": 0.06275,
+    "especial": 0.07175
+  },
+  {
+    "area_limite": "16000",
+    "baixo": 0.042,
+    "medio": 0.048125,
+    "alto": 0.055125,
+    "especial": 0.063
+  },
+  {
+    "area_limite": "32000",
+    "baixo": 0.036875,
+    "medio": 0.04225,
+    "alto": 0.048375,
+    "especial": 0.055375
+  },
+  {
+    "area_limite": "64000",
+    "baixo": 0.032375,
+    "medio": 0.037125,
+    "alto": 0.0425,
+    "especial": 0.048625
+  },
+  {
+    "area_limite": "128000",
+    "baixo": 0.0285,
+    "medio": 0.032625,
+    "alto": 0.03725,
+    "especial": 0.04275
+  },
+  {
+    "area_limite": "256000",
+    "baixo": 0.025,
+    "medio": 0.028625,
+    "alto": 0.03275,
+    "especial": 0.0375
+  },
+  {
+    "area_limite": "Maior ou Igual a 256001",
+    "baixo": 0.025,
+    "medio": 0.028625,
+    "alto": 0.03275,
+    "especial": 0.0375
+  }
+]

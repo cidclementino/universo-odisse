@@ -1,0 +1,467 @@
+{
+  "HabitacionalUnifamiliar": [
+    {
+      "item": "1.1",
+      "descricao": "Residências (Padrão baixo)",
+      "categoria": 2,
+      "categoria_cub": "R-1-B",
+      "cub": 1638.53,
+      "fator_adequacao": 1.0,
+      "bh": 1638.53
+    },
+    {
+      "item": "1.2",
+      "descricao": "Residências (Padrão médio)",
+      "categoria": 3,
+      "categoria_cub": "R-1-N",
+      "cub": 1970.37,
+      "fator_adequacao": 1.5,
+      "bh": 2955.555
+    },
+    {
+      "item": "1.3",
+      "descricao": "Residências (Padrão alto)",
+      "categoria": 4,
+      "categoria_cub": "R-1-A",
+      "cub": 2416.57,
+      "fator_adequacao": 2.0,
+      "bh": 4833.14
+    }
+  ],
+  "HabitacionalMultifamiliar": [
+    {
+      "item": "2.1",
+      "descricao": "Edifícios de apartamentos, conjuntos habitacionais de casas e/ou edifícios, condomínios e vilas (Padrão normal)",
+      "categoria": 1,
+      "categoria_cub": "R-8-N",
+      "cub": 1543.9,
+      "fator_adequacao": 1.5,
+      "bh": 2315.85
+    },
+    {
+      "item": "2.2",
+      "descricao": "Edifícios de apartamentos, conjuntos habitacionais de casas e/ou edifícios, condomínios e vilas (Padrão alto)",
+      "categoria": 2,
+      "categoria_cub": "R-16-A",
+      "cub": 1990.89,
+      "fator_adequacao": 1.5,
+      "bh": 2986.335
+    }
+  ],
+  "Hospedagem": [
+    {
+      "item": "3.1",
+      "descricao": "Albergues, pousadas, hotéis simples e motéis",
+      "categoria": 2,
+      "categoria_cub": "R-8-N",
+      "cub": 1543.9,
+      "fator_adequacao": 1.5,
+      "bh": 2315.85
+    },
+    {
+      "item": "3.2",
+      "descricao": "Hotéis de luxo",
+      "categoria": 4,
+      "categoria_cub": "R-16-A",
+      "cub": 1990.89,
+      "fator_adequacao": 3.0,
+      "bh": 5972.67
+    }
+  ],
+  "HabitaçõesEspeciais": [
+    {
+      "item": "4.1",
+      "descricao": "Projeto habitacional de Interesse Social",
+      "categoria": 1,
+      "categoria_cub": "PIS",
+      "cub": 996.18,
+      "fator_adequacao": 1.0,
+      "bh": 996.18
+    },
+    {
+      "item": "4.2",
+      "descricao": "Alojamentos, asilos, orfanatos, internatos, conventos e mosteiros",
+      "categoria": 2,
+      "categoria_cub": "R-8-N",
+      "cub": 1543.9,
+      "fator_adequacao": 1.5,
+      "bh": 2315.85
+    },
+    {
+      "item": "4.3",
+      "descricao": "Quartéis",
+      "categoria": 3,
+      "categoria_cub": "R-8-N",
+      "cub": 1543.9,
+      "fator_adequacao": 1.5,
+      "bh": 2315.85
+    },
+    {
+      "item": "4.4",
+      "descricao": "Presídios e penitenciárias",
+      "categoria": 4,
+      "categoria_cub": "R-8-N",
+      "cub": 1543.9,
+      "fator_adequacao": 1.5,
+      "bh": 2315.85
+    }
+  ],
+  "Comércio": [
+    {
+      "item": "5.1",
+      "descricao": "Armazéns e depósitos",
+      "categoria": 1,
+      "categoria_cub": "GI",
+      "cub": 927.36,
+      "fator_adequacao": 1.5,
+      "bh": 1391.04
+    },
+    {
+      "item": "5.2",
+      "descricao": "Supermercados, hortomercados e pavilhões para realização de feitas e exposições",
+      "categoria": 2,
+      "categoria_cub": "CAL-8-N",
+      "cub": 1759.02,
+      "fator_adequacao": 1.3,
+      "bh": 2286.726
+    },
+    {
+      "item": "5.3",
+      "descricao": "Lojas de departamentos, magazines, centros comerciais e shopping centers",
+      "categoria": 3,
+      "categoria_cub": "CSL-16-N",
+      "cub": 2056.99,
+      "fator_adequacao": 1.5,
+      "bh": 3085.485
+    },
+    {
+      "item": "5.4",
+      "descricao": "Lojas, butiques, stands e show-rooms",
+      "categoria": 4,
+      "categoria_cub": "CSL-16-A",
+      "cub": 2221.71,
+      "fator_adequacao": 1.5,
+      "bh": 3332.565
+    }
+  ],
+  "Serviços": [
+    {
+      "item": "2.2.1",
+      "descricao": "Edificações com desenho de ocupação (leiaute interno) fornecido",
+      "categoria": 1,
+      "categoria_cub": "CSL-8-N",
+      "cub": 1539.12,
+      "fator_adequacao": 1.0,
+      "bh": 1539.12
+    },
+    {
+      "item": "2.2.2",
+      "descricao": "Edifícios de escritório e edifícios administrativos com andar de salas/conj.",
+      "categoria": 3,
+      "categoria_cub": "CSL-8-N",
+      "cub": 1539.12,
+      "fator_adequacao": 1.5,
+      "bh": 2308.68
+    },
+    {
+      "item": "2.2.3",
+      "descricao": "Edifícios de escritórios e edifícios administrativos de andar corrido",
+      "categoria": 4,
+      "categoria_cub": "CAL-8-N",
+      "cub": 1759.02,
+      "fator_adequacao": 2.5,
+      "bh": 4397.55
+    },
+    {
+      "item": "2.2.4",
+      "descricao": "Bancos, sede de empresas, instituições e órgãos públicos",
+      "categoria": 4,
+      "categoria_cub": "CSL-16-N",
+      "cub": 2056.99,
+      "fator_adequacao": 2.25,
+      "bh": 4628.2275
+    },
+    {
+      "item": "2.2.5",
+      "descricao": "Centro de processamento de dados",
+      "categoria": 4,
+      "categoria_cub": "CSL-16-N",
+      "cub": 2056.99,
+      "fator_adequacao": 2.5,
+      "bh": 5142.475
+    }
+  ],
+  "Educação": [
+    {
+      "item": "7.1",
+      "descricao": "Creches, escolas primárias e secundárias",
+      "categoria": 2,
+      "categoria_cub": "CAL-8-N",
+      "cub": 1759.02,
+      "fator_adequacao": 1.5,
+      "bh": 2638.53
+    },
+    {
+      "item": "7.2",
+      "descricao": "Escolas técnicas, especializadas, superiores e universidades",
+      "categoria": 4,
+      "categoria_cub": "CSL-16-N",
+      "cub": 2056.99,
+      "fator_adequacao": 2.0,
+      "bh": 4113.98
+    }
+  ],
+  "Saúde": [
+    {
+      "item": "8.1",
+      "descricao": "Ambulatórios e postos de saúde",
+      "categoria": 2,
+      "categoria_cub": "CSL-8-N",
+      "cub": 1539.12,
+      "fator_adequacao": 1.5,
+      "bh": 2308.68
+    },
+    {
+      "item": "8.2",
+      "descricao": "Clínicas e consultórios",
+      "categoria": 3,
+      "categoria_cub": "CSL-16-N",
+      "cub": 2056.99,
+      "fator_adequacao": 1.5,
+      "bh": 3085.485
+    },
+    {
+      "item": "8.3",
+      "descricao": "Hospitais",
+      "categoria": 4,
+      "categoria_cub": "CSL-16-A",
+      "cub": 2221.71,
+      "fator_adequacao": 2.5,
+      "bh": 5554.275
+    }
+  ],
+  "Esportes": [
+    {
+      "item": "9.1",
+      "descricao": "Quadras cobertas e galpões para barcos",
+      "categoria": 1,
+      "categoria_cub": "GI",
+      "cub": 927.36,
+      "fator_adequacao": 1.3,
+      "bh": 1205.568
+    },
+    {
+      "item": "9.2",
+      "descricao": "Clube, ginásios esportivos simples",
+      "categoria": 3,
+      "categoria_cub": "CSL-8-N",
+      "cub": 1539.12,
+      "fator_adequacao": 1.5,
+      "bh": 2308.68
+    },
+    {
+      "item": "9.3",
+      "descricao": "Instalações esportivas descobertas",
+      "categoria": 2,
+      "categoria_cub": "CAL-8-N",
+      "cub": 1759.02,
+      "fator_adequacao": 1.0,
+      "bh": 1759.02
+    },
+    {
+      "item": "9.4",
+      "descricao": "Piscinas descobertas",
+      "categoria": 3,
+      "categoria_cub": "CSL-8-N",
+      "cub": 1539.12,
+      "fator_adequacao": 1.5,
+      "bh": 2308.68
+    },
+    {
+      "item": "9.5",
+      "descricao": "Estádio e instalações esportivas especializadas",
+      "categoria": 4,
+      "categoria_cub": "CSL-16-N",
+      "cub": 2056.99,
+      "fator_adequacao": 3.0,
+      "bh": 6170.97
+    }
+  ],
+  "Lazer": [
+    {
+      "item": "10.1",
+      "descricao": "Restaurantes, boates, casas de espetáculo, cinema e teatro simples",
+      "categoria": 4,
+      "categoria_cub": "CSL-16-N",
+      "cub": 2056.99,
+      "fator_adequacao": 2.0,
+      "bh": 4113.98
+    },
+    {
+      "item": "10.2",
+      "descricao": "Planetários e teatros especializados",
+      "categoria": 4,
+      "categoria_cub": "CSL-16-A",
+      "cub": 2221.71,
+      "fator_adequacao": 2.5,
+      "bh": 5554.275
+    }
+  ],
+  "Cultura": [
+    {
+      "item": "11.1",
+      "descricao": "Galerias de arte, salas de exposição, arquivos, bibliotecas e museus simples",
+      "categoria": 4,
+      "categoria_cub": "CSL-16-N",
+      "cub": 2056.99,
+      "fator_adequacao": 2.0,
+      "bh": 4113.98
+    },
+    {
+      "item": "11.2",
+      "descricao": "Arquivos, bibliotecas, museus especializados",
+      "categoria": 4,
+      "categoria_cub": "CSL-16-A",
+      "cub": 2221.71,
+      "fator_adequacao": 3.0,
+      "bh": 6665.13
+    }
+  ],
+  "Diversos": [
+    {
+      "item": "12.1",
+      "descricao": "Galpões para máquinas, armazéns, estábulos, cocheiras, pocilgas, aviários e instalações rurais simples",
+      "categoria": 1,
+      "categoria_cub": "GI",
+      "cub": 927.36,
+      "fator_adequacao": 1.0,
+      "bh": 927.36
+    },
+    {
+      "item": "12.2",
+      "descricao": "Galpões, oficinas e depósitos",
+      "categoria": 1,
+      "categoria_cub": "GI",
+      "cub": 927.36,
+      "fator_adequacao": 1.0,
+      "bh": 927.36
+    },
+    {
+      "item": "12.3",
+      "descricao": "Garagens simples",
+      "categoria": 1,
+      "categoria_cub": "GI",
+      "cub": 927.36,
+      "fator_adequacao": 1.0,
+      "bh": 927.36
+    },
+    {
+      "item": "12.4",
+      "descricao": "Matadouros e instalações rurais especializadas",
+      "categoria": 2,
+      "categoria_cub": "CSL-8-N",
+      "cub": 1539.12,
+      "fator_adequacao": 1.0,
+      "bh": 1539.12
+    },
+    {
+      "item": "12.5",
+      "descricao": "Edifícios-garagem, pedágios e postos de serviços",
+      "categoria": 2,
+      "categoria_cub": "CSL-8-N",
+      "cub": 1539.12,
+      "fator_adequacao": 1.0,
+      "bh": 1539.12
+    },
+    {
+      "item": "12.6",
+      "descricao": "Fábricas e laboratórios simples",
+      "categoria": 2,
+      "categoria_cub": "CSL-8-N",
+      "cub": 1539.12,
+      "fator_adequacao": 1.0,
+      "bh": 1539.12
+    },
+    {
+      "item": "12.7",
+      "descricao": "Templos religiosos, capelas, mortuários e cemitérios",
+      "categoria": 3,
+      "categoria_cub": "CSL-16-N",
+      "cub": 2056.99,
+      "fator_adequacao": 1.0,
+      "bh": 2056.99
+    },
+    {
+      "item": "12.8",
+      "descricao": "Terminais e estações rodoviárias e ferroviárias",
+      "categoria": 3,
+      "categoria_cub": "CSL-16-N",
+      "cub": 2056.99,
+      "fator_adequacao": 1.0,
+      "bh": 2056.99
+    },
+    {
+      "item": "12.9",
+      "descricao": "Projeto de monumentos e pavilhões de exposições",
+      "categoria": 3,
+      "categoria_cub": "CSL-16-N",
+      "cub": 2056.99,
+      "fator_adequacao": 1.0,
+      "bh": 2056.99
+    },
+    {
+      "item": "12.10",
+      "descricao": "Agências e centrais (Telegráficas e telefônicas)",
+      "categoria": 3,
+      "categoria_cub": "CSL-16-N",
+      "cub": 2056.99,
+      "fator_adequacao": 1.0,
+      "bh": 2056.99
+    },
+    {
+      "item": "12.11",
+      "descricao": "Auditórios, salas de conferências e pavilhões para realização de congressos",
+      "categoria": 4,
+      "categoria_cub": "CSL-16-N",
+      "cub": 2056.99,
+      "fator_adequacao": 2.0,
+      "bh": 4113.98
+    },
+    {
+      "item": "12.12",
+      "descricao": "Aeroportos",
+      "categoria": 4,
+      "categoria_cub": "CSL-16-A",
+      "cub": 2221.71,
+      "fator_adequacao": 2.6,
+      "bh": 5776.446
+    },
+    {
+      "item": "12.13",
+      "descricao": "Estúdios e estações de gravação, rádio e televisão",
+      "categoria": 4,
+      "categoria_cub": "CSL-16-A",
+      "cub": 2221.71,
+      "fator_adequacao": 1.5,
+      "bh": 3332.565
+    },
+    {
+      "item": "12.14",
+      "descricao": "Usinas, fábricas e laboratórios especializados",
+      "categoria": 4,
+      "categoria_cub": "CSL-16-A",
+      "cub": 2221.71,
+      "fator_adequacao": 1.5,
+      "bh": 3332.565
+    },
+    {
+      "item": "12.15",
+      "descricao": "Outras áreas descobertas",
+      "categoria": 1,
+      "categoria_cub": "GI",
+      "cub": 927.36,
+      "fator_adequacao": 0.25,
+      "bh": 231.84
+    }
+  ]
+}

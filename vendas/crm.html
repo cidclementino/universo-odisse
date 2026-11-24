@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Funil · Vendas — Odisse</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="https://marca.odisse.com.br/favicon/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="https://marca.odisse.com.br/favicon/favicon-32x32.png" sizes="32x32">
+<link rel="stylesheet" href="https://marca.odisse.com.br/v1/marca.css">
+<link rel="stylesheet" href="https://universo.odisse.com.br/base/v1/universo.css">
+<link rel="stylesheet" href="styles.css?v=1f3fa8b945">
+</head>
+<body>
+
+<div id="app" class="app app--no-sidebar" hidden>
+  <header class="topo" data-pagina="crm"></header>
+  <script src="topo.js?v=164bd89cf9"></script>
+
+  <main class="crm">
+    <div class="crm__barra">
+      <h1>Funil</h1>
+      <input type="search" id="filtro" placeholder="Filtrar por título, cliente ou origem">
+      <select id="filtro-nucleo"><option value="">Todos os núcleos</option></select>
+      <button class="btn btn--primary btn--small" id="btn-nova" type="button">Nova oportunidade</button>
+    </div>
+    <div id="aviso"></div>
+    <div class="crm__resumo" id="resumo"></div>
+    <div class="funil" id="funil"><p class="muted">Carregando…</p></div>
+    <p class="field__hint">Arraste um cartão para mudar a etapa. Para marcar como ganha ou perdida, abra a oportunidade.</p>
+    <details class="fechadas" id="fechadas"></details>
+  </main>
+</div>
+
+<div id="painel-raiz"></div>
+
+<script src="config.js?v=07793b6f66"></script>
+<script src="auth.js?v=2a461f8bce"></script>
+<script>exigirAutenticacao();</script>
+<script src="data-loader.js?v=b1b3a59ba0"></script>
+<script src="store.js?v=66a6878146"></script>
+<script src="comercial.js?v=2dc7225c30"></script>
+<script src="calc.js?v=83d8ae0b16"></script>
+<script src="pdf.js?v=54f7bd46cc"></script>
+<script src="ui.js?v=2dfbfc5119"></script>
+<script>
+// ==========================================================================
+// Funil (CRM): oportunidades por etapa, ficha com contato, propostas e
+// interações. Tudo mora no Universo (ver comercial.js e store.js).
+// ==========================================================================
+
+const ABERTAS = ['lead', 'contato', 'briefing', 'proposta', 'negociacao'];
+
+let ITENS = [];
+let DATA = null;
+
+// Código de origem que as landing pages e a Herma põem no texto do WhatsApp:
+// "[LP-residencial]" ou "[Herma 030770479]".
+function origemDaMensagem(texto) {
+  const lp = String(texto || '').match(/\[(LP-[^\]\s]+)\]/i);
+  if (lp) return { origem: 'landing_page', origem_detalhe: lp[1] };
+  const h = String(texto || '').match(/\[Herma\s+([^\]]+)\]/i);
+  if (h) return { origem: 'herma', origem_detalhe: `Herma ${h[1].trim()}` };
+  return null;
+}
+
+// ---------------------------------------------------------------- quadro
+
+function proximaAcao(o) {
+  const i = o.ultima_interacao;
+  if (!i || !i.proxima_acao) return `<div class="op__acao is-sem">sem próxima ação</div>`;
+  const atrasada = i.proxima_acao_em && i.proxima_acao_em < hoje();
+  return `<div class="op__acao ${atrasada ? 'is-atrasada' : ''}">${i.proxima_acao_em ? fmtDia(i.proxima_acao_em) + ' · ' : ''}${escHtml(i.proxima_acao)}</div>`;
+}
+
+function valorDe(o) {
+  return o.ultima_proposta && o.ultima_proposta.valor_total !== null ? o.ultima_proposta.valor_total : o.valor_estimado;
+}
+
+function cartao(o) {
+  const v = valorDe(o);
+  return `<button class="op" draggable="true" data-id="${o.id}">
+    <div class="op__titulo">${escHtml(o.titulo)}</div>
+    <div class="op__linha">${escHtml(nomesClientes(o))}${o.nucleo_id ? ' · ' + escHtml(nomeDe(NUCLEOS, o.nucleo_id)) : ''}</div>
+    <div class="op__linha">${[v !== null && v !== undefined ? fmtCentavos(v) : '', o.ultima_proposta ? escHtml(o.ultima_proposta.codigo) : '', o.origem ? escHtml(nomeDe(ORIGENS, o.origem)) : ''].filter(Boolean).join(' · ')}</div>
+    ${o.projeto ? `<div class="op__linha"><span class="chip chip--ok">projeto ${escHtml(o.projeto.codigo)}</span></div>` : ''}
+    ${o.etapa_funil === 'ganha' || o.etapa_funil === 'perdida' ? '' : proximaAcao(o)}
+  </button>`;
+}
+
+// "Ana Lins + Rafael Lins"; com mais de dois clientes, "Ana Lins + 2"
+function nomesClientes(o) {
+  const outros = o.coclientes || [];
+  if (!o.cliente_nome) return outros.length ? outros.join(' + ') : 'sem cliente';
+  if (!outros.length) return o.cliente_nome;
+  return outros.length === 1 ? `${o.cliente_nome} + ${outros[0]}` : `${o.cliente_nome} + ${outros.length}`;
+}
+
+function filtrados() {
+  const q = document.getElementById('filtro').value.trim().toLowerCase();
+  const n = document.getElementById('filtro-nucleo').value;
+  return ITENS.filter(o => (!n || o.nucleo_id === n) &&
+    (!q || semAcento(`${o.titulo} ${o.cliente_nome || ''} ${(o.coclientes || []).join(' ')} ${o.contato_nome || ''} ${o.origem_detalhe || ''}`).includes(semAcento(q))));
+}
+
+function desenhar() {
+  const itens = filtrados();
+  const abertas = itens.filter(o => ABERTAS.includes(o.etapa_funil));
+  const ganhas = itens.filter(o => o.etapa_funil === 'ganha');
+  const perdidas = itens.filter(o => o.etapa_funil === 'perdida');
+  const soma = (l) => l.reduce((t, o) => t + (valorDe(o) || 0), 0);
+  const atrasadas = abertas.filter(o => o.ultima_interacao && o.ultima_interacao.proxima_acao_em && o.ultima_interacao.proxima_acao_em < hoje()).length;
+  const semAcao = abertas.filter(o => !o.ultima_interacao || !o.ultima_interacao.proxima_acao).length;
+
+  document.getElementById('resumo').innerHTML = `
+    <div><strong>${abertas.length}</strong>em aberto</div>
+    <div><strong>${fmtCentavos(soma(abertas))}</strong>em aberto (proposta ou estimativa)</div>
+    <div><strong style="${atrasadas ? 'color:var(--perigo)' : ''}">${atrasadas}</strong>ações atrasadas</div>
+    <div><strong>${semAcao}</strong>sem próxima ação</div>
+    <div><strong>${ganhas.length} · ${fmtCentavos(soma(ganhas))}</strong>ganhas em 90 dias</div>`;
+
+  const funil = document.getElementById('funil');
+  funil.innerHTML = ABERTAS.map(et => {
+    const l = abertas.filter(o => o.etapa_funil === et);
+    return `<div class="funil__col" data-etapa="${et}">
+      <h2><span>${nomeDe(ETAPAS_FUNIL, et)}</span><span>${l.length}</span></h2>
+      ${l.map(cartao).join('')}
+    </div>`;
+  }).join('');
+
+  const fech = document.getElementById('fechadas');
+  fech.innerHTML = `<summary>Fechadas nos últimos 90 dias: ${ganhas.length} ganhas, ${perdidas.length} perdidas</summary>
+    <div class="fechadas__lista">${[...ganhas, ...perdidas].map(cartao).join('') || '<p class="small muted">Nenhuma.</p>'}</div>`;
+
+  document.querySelectorAll('.op').forEach(b => {
+    b.onclick = () => abrirFicha(b.dataset.id);
+    b.ondragstart = (e) => { e.dataTransfer.setData('text/plain', b.dataset.id); e.dataTransfer.effectAllowed = 'move'; };
+  });
+  document.querySelectorAll('.funil__col').forEach(col => {
+    col.ondragover = (e) => { e.preventDefault(); col.classList.add('is-alvo'); };
+    col.ondragleave = () => col.classList.remove('is-alvo');
+    col.ondrop = async (e) => {
+      e.preventDefault();
+      col.classList.remove('is-alvo');
+      const id = e.dataTransfer.getData('text/plain');
+      const o = ITENS.find(x => x.id === id);
+      if (!o || o.etapa_funil === col.dataset.etapa) return;
+      await mudarOportunidade(o, { etapa_funil: col.dataset.etapa });
+    };
+  });
+}
+
+function avisar(texto, tipo = 'erro') {
+  document.getElementById('aviso').innerHTML = texto ? `<div class="aviso aviso--${tipo}">${escHtml(texto)}</div>` : '';
+}
+
+// Abre na hora com a cópia local do painel (copia: true, só na entrada) e confere por baixo;
+// depois de gravar algo, lê direto do servidor.
+async function carregar({ copia = false } = {}) {
+  try {
+    const r = await comCopia('painel', () => Universo.painel(), (novo) => { ITENS = novo.itens; desenhar(); }, { fresco: !copia });
+    ITENS = r.itens;
+    avisar('');
+    desenhar();
+  } catch (e) {
+    avisar(`Não consegui carregar o funil (${e.message}).`);
+    document.getElementById('funil').innerHTML = '';
+  }
+}
+
+// PATCH com a versão que temos; em conflito, recarrega e avisa.
+async function mudarOportunidade(o, campos) {
+  try {
+    const reg = await Universo.alterar('oportunidades', o.id, { versao: o.versao, ...campos });
+    Object.assign(o, reg);
+    await carregar();
+    return reg;
+  } catch (e) {
+    if (e.status === 409 && e.dados.erro === 'conflito') {
+      avisar('Alguém mudou esta oportunidade enquanto você editava. Recarreguei; confira e tente de novo.');
+      await carregar();
+    } else {
+      avisar(`Não consegui salvar (${e.message}).`);
+    }
+    throw e;
+  }
+}
+
+// ---------------------------------------------------------------- painel lateral
+
+// ---- ficha da oportunidade
+async function abrirFicha(id) {
+  history.replaceState(null, '', '#' + id);
+  const painel = abrirPainel('<p class="muted">Carregando…</p>');
+  let o, contato, propostas, interacoes, clientes;
+  let contratos = [], projetos = [];
+  try {
+    o = await Universo.ler('oportunidades', id);
+    let vincs;
+    [contato, propostas, interacoes, vincs] = await Promise.all([
+      o.contato_pessoa_id ? Universo.talvez('pessoas', o.contato_pessoa_id) : null,
+      Universo.listar('propostas', { oportunidade_id: id, limite: 100 }),
+      Universo.listar('interacoes', { sobre_id: id, limite: 100 }),
+      Universo.listar('vinculos', { de_id: id, papel: 'cliente', limite: 50 })
+    ]);
+    // contrato e projeto (o projeto nasce do contrato principal assinado)
+    const reais = propostas.itens.filter(p => !p.simulacao);
+    [contratos, projetos] = await Promise.all([
+      Promise.all(reais.map(p => Universo.listar('contratos', { proposta_id: p.id, limite: 20 }))).then(ls => ls.flatMap(l => l.itens)),
+      Universo.listar('projetos', { oportunidade_id: id, limite: 20 }).then(l => l.itens)
+    ]);
+    const lerContato = (cid) => Universo.talvez(ehOrg(cid) ? 'organizacoes' : 'pessoas', cid);
+    const titular = !o.cliente_id ? null : o.cliente_id === o.contato_pessoa_id ? contato : await lerContato(o.cliente_id);
+    const outros = await Promise.all(vincs.itens.map(async (v) => ({ v, reg: await lerContato(v.para_id) })));
+    clientes = [...(titular ? [{ reg: titular, titular: true }] : []), ...outros.filter(x => x.reg)];
+  } catch (e) {
+    painel.innerHTML = `<button class="painel__fechar">×</button><p class="aviso aviso--erro">Não consegui abrir (${escHtml(e.message)}).</p>`;
+    painel.querySelector('.painel__fechar').onclick = fecharPainel;
+    return;
+  }
+
+  painel.innerHTML = `
+    <div class="painel__topo">
+      <div>
+        <p class="small muted" style="margin:0 0 4px">${escHtml(nomeDe(ETAPAS_FUNIL, o.etapa_funil))}${o.etapa_desde ? ' desde ' + fmtDia(o.etapa_desde) : ''}</p>
+        <h2>${escHtml(o.titulo)}</h2>
+      </div>
+      <button class="painel__fechar" aria-label="Fechar">×</button>
+    </div>
+    <div id="ficha-aviso"></div>
+
+    <section>
+      <h3>Clientes</h3>
+      <ul class="lista-pessoas">${clientes.map(c => `
+        <li>
+          <div class="lista-pessoas__quem">
+            <a href="contatos.html#${c.reg.id}"><strong>${escHtml(c.reg.nome)}</strong></a>
+            <span class="chip ${c.titular ? 'chip--cobre' : ''}">${c.titular ? 'titular' : 'co-cliente'}</span>${ehOrg(c.reg.id) ? ' <span class="small muted">organização</span>' : ''}${c.reg.arquivado_em ? ' <span class="chip chip--perda">arquivado</span>' : ''}
+            <div class="meios">${meiosDeContato(c.reg)}</div>
+          </div>
+          ${c.titular ? '' : `<div class="lista-pessoas__acoes"><button type="button" class="btn-link" data-titular="${c.v.id}">tornar titular</button><button type="button" class="btn-link" data-remover="${c.v.id}">tirar</button></div>`}
+        </li>`).join('') || '<li class="small muted">Nenhum cliente ligado.</li>'}</ul>
+      <div class="field busca-campo">
+        <input type="search" id="busca-cliente" placeholder="${clientes.length ? 'Adicionar outro cliente' : 'Ligar o cliente'}: buscar pessoa ou organização…">
+        <div class="busca-res" id="res-cliente"></div>
+      </div>
+      <p class="field__hint">Para quem contrata junto (um casal, sócios). O titular é o nome que aparece no funil; os demais ficam como co-clientes.</p>
+    </section>
+
+    <section>
+      <h3>Pessoa de contato</h3>
+      ${contato ? `<p style="margin:0"><a href="contatos.html#${contato.id}"><strong>${escHtml(contato.nome)}</strong></a></p>
+        <div class="meios">${meiosDeContato(contato)}</div>` : '<p class="small muted" style="margin:0">Nenhuma pessoa de contato.</p>'}
+      <div class="field busca-campo">
+        <input type="search" id="busca-contato" placeholder="${contato ? 'Trocar' : 'Escolher'} a pessoa de contato…">
+        <div class="busca-res" id="res-contato"></div>
+      </div>
+    </section>
+
+    <section>
+      <h3>Próximo passo</h3>
+      <form id="f-int">
+        <div class="row-2">
+          <div class="field"><label class="field__label">O que aconteceu</label><select name="tipo">${opcoes(TIPOS_INTERACAO, 'mensagem')}</select></div>
+          <div class="field"><label class="field__label">Quando</label><input type="date" name="data" value="${hoje()}"></div>
+        </div>
+        <div class="field"><label class="field__label">Resumo</label><textarea name="resumo" rows="2" style="min-height:60px"></textarea></div>
+        <div class="row-2">
+          <div class="field"><label class="field__label">Próxima ação</label><input type="text" name="proxima_acao" placeholder="Ex.: enviar proposta"></div>
+          <div class="field"><label class="field__label">Até</label><input type="date" name="proxima_acao_em"></div>
+        </div>
+        <button class="btn btn--ghost btn--small" type="submit">Registrar</button>
+      </form>
+      <ul class="lista-int">${interacoes.itens.map(i => `
+        <li><span class="small">${fmtDia(i.data)} · ${escHtml(nomeDe(TIPOS_INTERACAO, i.tipo))}</span><br>
+          ${i.resumo ? escHtml(i.resumo).replace(/\n/g, '<br>') : '<span class="small muted">sem resumo</span>'}
+          ${i.proxima_acao ? `<br><span class="small" style="color:var(--destaque-texto)">→ ${escHtml(i.proxima_acao)}${i.proxima_acao_em ? ' até ' + fmtDia(i.proxima_acao_em) : ''}</span>` : ''}
+        </li>`).join('') || '<li class="small muted">Nenhuma interação registrada.</li>'}</ul>
+    </section>
+
+    <section>
+      <h3>Propostas</h3>
+      ${propostas.itens.length ? `<table class="tabela">
+        <thead><tr><th>Código</th><th style="text-align:right">Valor</th><th>Situação</th><th></th></tr></thead>
+        <tbody>${propostas.itens.map(p => `<tr>
+          <td><strong>${escHtml(p.codigo)}</strong><br><span class="small muted">${escHtml(p.titulo || '')}${p.data ? ' · ' + fmtDia(p.data) : ''}${p.arquivo_pdf_id ? '' : ' · sem PDF guardado'}</span></td>
+          <td class="tabular" style="text-align:right">${fmtCentavos(p.valor_total)}</td>
+          <td><select data-sit="${p.id}">${opcoes(SITUACOES_PROPOSTA, p.situacao)}</select></td>
+          <td style="white-space:nowrap"><button class="btn btn--ghost btn--small" data-pdf="${p.id}">PDF</button>
+            <button class="btn btn--ghost btn--small" data-rev="${p.id}">Revisão</button></td>
+        </tr>`).join('')}</tbody></table>` : '<p class="small muted">Nenhuma proposta ainda.</p>'}
+      <div class="painel__acoes"><button class="btn btn--primary btn--small" id="btn-orcar" type="button">Nova proposta para esta oportunidade</button></div>
+    </section>
+
+    ${secaoContrato(o, propostas.itens, contratos, projetos)}
+
+    <section>
+      <h3>Dados da oportunidade</h3>
+      <form id="f-opo">
+        <div class="field"><label class="field__label">Título</label><input type="text" name="titulo" value="${escHtml(o.titulo)}" required></div>
+        <div class="row-2">
+          <div class="field"><label class="field__label">Etapa</label><select name="etapa_funil">${opcoes(ETAPAS_FUNIL, o.etapa_funil)}</select></div>
+          <div class="field"><label class="field__label">Núcleo</label><select name="nucleo_id">${opcoes(NUCLEOS, o.nucleo_id, '—')}</select></div>
+        </div>
+        <div class="field" id="campo-perda" ${o.etapa_funil === 'perdida' ? '' : 'hidden'}><label class="field__label">Motivo da perda</label><input type="text" name="motivo_perda" value="${escHtml(o.motivo_perda || '')}" placeholder="Ex.: preço, prazo, escolheu outro escritório"></div>
+        <div class="row-2">
+          <div class="field"><label class="field__label">Origem</label><select name="origem">${opcoes(ORIGENS, o.origem, '—')}</select></div>
+          <div class="field"><label class="field__label">Detalhe da origem</label><input type="text" name="origem_detalhe" value="${escHtml(o.origem_detalhe || '')}" placeholder="LP, post, quem indicou…"></div>
+        </div>
+        <div class="field"><label class="field__label">Valor estimado (R$)</label><input type="text" inputmode="decimal" name="valor_estimado" value="${reaisDe(o.valor_estimado)}"></div>
+        <div class="field"><label class="field__label">Observações</label><textarea name="observacoes" rows="3">${escHtml(o.observacoes || '')}</textarea></div>
+        <div class="painel__acoes">
+          <button class="btn btn--primary btn--small" type="submit">Salvar</button>
+          <button class="btn btn--ghost btn--small" type="button" id="btn-arquivar">Arquivar</button>
+        </div>
+      </form>
+    </section>`;
+
+  painel.querySelector('.painel__fechar').onclick = fecharPainel;
+  const aviso = (t, tipo = 'erro') => { painel.querySelector('#ficha-aviso').innerHTML = t ? `<div class="aviso aviso--${tipo}">${escHtml(t)}</div>` : ''; };
+
+  // ---- clientes e pessoa de contato
+  const recarregarFicha = async () => { await carregar(); abrirFicha(id); };
+  async function adicionarCliente(cid) {
+    try {
+      if (!o.cliente_id) await mudarOportunidade(o, { cliente_id: cid });
+      else await Universo.criar('vinculos', { de_id: id, para_id: cid, papel: 'cliente' });
+      await recarregarFicha();
+    } catch (err) { aviso(mensagemDe(err)); }
+  }
+  ligarBuscaContatos(painel.querySelector('#busca-cliente'), painel.querySelector('#res-cliente'), {
+    ignorar: clientes.map(c => c.reg.id),
+    aoEscolher: (item) => adicionarCliente(item.id),
+    rotuloNovo: 'Cadastrar pessoa',
+    criarNovo: async (nome) => {
+      try { adicionarCliente((await Comercial.criarContato('pessoas', { nome })).id); } catch (err) { aviso(mensagemDe(err)); }
+    }
+  });
+  painel.querySelectorAll('[data-remover]').forEach(b => b.onclick = async () => {
+    const { v, reg } = clientes.find(c => c.v && c.v.id === b.dataset.remover);
+    if (!confirm(`Tirar ${reg.nome} dos clientes desta oportunidade? (O cadastro continua em Contatos.)`)) return;
+    try { await Universo.post(`vinculos/${v.id}/arquivar`, { versao: v.versao }); await recarregarFicha(); } catch (err) { aviso(mensagemDe(err)); }
+  });
+  painel.querySelectorAll('[data-titular]').forEach(b => b.onclick = async () => {
+    const { v } = clientes.find(c => c.v && c.v.id === b.dataset.titular);
+    const antigo = o.cliente_id;
+    try {
+      await mudarOportunidade(o, { cliente_id: v.para_id });
+      await Universo.post(`vinculos/${v.id}/arquivar`, { versao: v.versao });
+      if (antigo) await Universo.criar('vinculos', { de_id: id, para_id: antigo, papel: 'cliente' }).catch(e => { if (e.status !== 409) throw e; });
+      await recarregarFicha();
+    } catch (err) { aviso(mensagemDe(err)); }
+  });
+  ligarBuscaContatos(painel.querySelector('#busca-contato'), painel.querySelector('#res-contato'), {
+    tabelas: ['pessoas'],
+    ignorar: contato ? [contato.id] : [],
+    aoEscolher: async (item) => {
+      try { await mudarOportunidade(o, { contato_pessoa_id: item.id }); abrirFicha(id); } catch (err) { aviso(mensagemDe(err)); }
+    },
+    rotuloNovo: 'Cadastrar pessoa',
+    criarNovo: async (nome) => {
+      try {
+        const p = await Comercial.criarContato('pessoas', { nome });
+        await mudarOportunidade(o, { contato_pessoa_id: p.id });
+        abrirFicha(id);
+      } catch (err) { aviso(mensagemDe(err)); }
+    }
+  });
+
+  const f = painel.querySelector('#f-opo');
+  f.etapa_funil.onchange = () => { painel.querySelector('#campo-perda').hidden = f.etapa_funil.value !== 'perdida'; };
+  f.onsubmit = async (e) => {
+    e.preventDefault();
+    try {
+      await mudarOportunidade(o, {
+        titulo: f.titulo.value, etapa_funil: f.etapa_funil.value, nucleo_id: f.nucleo_id.value || null,
+        motivo_perda: f.etapa_funil.value === 'perdida' ? (f.motivo_perda.value || null) : o.motivo_perda,
+        origem: f.origem.value || null, origem_detalhe: f.origem_detalhe.value || null,
+        valor_estimado: lerReais(f.valor_estimado.value), observacoes: f.observacoes.value || null
+      });
+      abrirFicha(id);
+    } catch (err) { aviso(err.message); }
+  };
+  painel.querySelector('#btn-arquivar').onclick = async () => {
+    if (!confirm('Arquivar esta oportunidade? Ela sai do funil, mas nada é apagado.')) return;
+    try {
+      await Universo.post(`oportunidades/${id}/arquivar`, { versao: o.versao });
+      fecharPainel();
+      carregar();
+    } catch (err) { aviso(err.message); }
+  };
+
+  const fi = painel.querySelector('#f-int');
+  fi.onsubmit = async (e) => {
+    e.preventDefault();
+    try {
+      await Universo.criar('interacoes', {
+        sobre_id: id, pessoa_id: o.contato_pessoa_id || null, tipo: fi.tipo.value, data: fi.data.value || hoje(),
+        resumo: fi.resumo.value || null, proxima_acao: fi.proxima_acao.value || null, proxima_acao_em: fi.proxima_acao_em.value || null
+      });
+      await carregar();
+      abrirFicha(id);
+    } catch (err) { aviso(err.message); }
+  };
+
+  painel.querySelectorAll('[data-sit]').forEach(s => s.onchange = async () => {
+    const p = propostas.itens.find(x => x.id === s.dataset.sit);
+    try {
+      const reg = await Universo.alterar('propostas', p.id, { versao: p.versao, situacao: s.value });
+      Object.assign(p, reg);
+      // proposta aceita: oferece marcar a oportunidade como ganha
+      if (s.value === 'aceita' && o.etapa_funil !== 'ganha' && confirm('Proposta aceita. Marcar a oportunidade como ganha?')) {
+        await mudarOportunidade(o, { etapa_funil: 'ganha' });
+        abrirFicha(id);
+      } else {
+        carregar();
+      }
+    } catch (err) { aviso(err.message); s.value = p.situacao; }
+  });
+  painel.querySelectorAll('[data-pdf]').forEach(b => b.onclick = async () => {
+    try {
+      DATA = DATA || await OdisseData.load();
+      const p = propostas.itens.find(x => x.id === b.dataset.pdf);
+      const como = await Comercial.baixarPdf(p, DATA);
+      if (como === 'remontado') aviso('Esta proposta não tem PDF guardado: o PDF foi remontado a partir do cálculo salvo.', 'ok');
+    } catch (err) { aviso(err.message); }
+  });
+  painel.querySelectorAll('[data-rev]').forEach(b => b.onclick = () => {
+    const p = propostas.itens.find(x => x.id === b.dataset.rev);
+    if (confirm(`Abrir ${p.codigo} no orçamento como revisão? O rascunho atual do orçamento (se houver) será substituído.`)) {
+      Comercial.abrirNoOrcamento(p, { comoRevisao: true });
+    }
+  });
+  const fc = painel.querySelector('#f-contrato');
+  if (fc) {
+    const pptDe = () => propostas.itens.find(p => p.id === fc.proposta_id.value);
+    fc.proposta_id.onchange = () => { const p = pptDe(); fc.valor.value = reaisDe(p && p.valor_total); };
+    fc.existente.onchange = () => { painel.querySelector('#campos-novo-projeto').hidden = !!fc.existente.value; };
+    fc.onsubmit = async (e) => {
+      e.preventDefault();
+      const p = pptDe();
+      if (!p) return aviso('Escolha a proposta que foi aceita.');
+      const nomeProj = fc.nome_projeto.value.trim() || o.titulo;
+      const msg = fc.existente.value
+        ? `Registrar o contrato de ${p.codigo} como assinado e ligá-lo ao projeto escolhido?`
+        : `Registrar o contrato de ${p.codigo} como assinado?\n\nIsso cria o projeto "${nomeProj}" (com as etapas e o endereço do imóvel da proposta), marca a proposta como aceita e a oportunidade como ganha.`;
+      if (!confirm(msg)) return;
+      const botao = fc.querySelector('button[type=submit]');
+      botao.disabled = true; botao.textContent = 'Registrando…';
+      try {
+        DATA = DATA || await OdisseData.load();
+        const ctr = await Comercial.registrarContrato({
+          proposta: p, data: DATA, assinadoEm: fc.assinado_em.value || hoje(), valorTotal: lerReais(fc.valor.value),
+          nomeProjeto: nomeProj, inicio: fc.inicio.value || null, projetoExistente: fc.existente.value || null,
+          arquivo: fc.arquivo.files[0] || null
+        });
+        await carregar();
+        await abrirFicha(id);
+        const prj = ctr.projeto_id ? await Universo.talvez('projetos', ctr.projeto_id) : null;
+        const novoAviso = document.querySelector('#ficha-aviso');
+        if (prj && novoAviso) novoAviso.innerHTML = `<div class="aviso aviso--ok">Contrato ${escHtml(ctr.codigo)} registrado. Projeto ${escHtml(prj.codigo)} criado.</div>`;
+      } catch (err) { aviso(mensagemDe(err)); botao.disabled = false; botao.textContent = 'Registrar contrato assinado'; }
+    };
+  }
+  painel.querySelectorAll('[data-ctr-pdf]').forEach(b => b.onclick = async () => {
+    try { baixarBlob(await Universo.baixarArquivo(b.dataset.ctrPdf), `${b.dataset.nome}.pdf`); } catch (err) { aviso(mensagemDe(err)); }
+  });
+  painel.querySelectorAll('[data-ctr-enviar]').forEach(inp => inp.onchange = async () => {
+    const c = contratos.find(x => x.id === inp.dataset.ctrEnviar);
+    const arq = inp.files[0];
+    if (!c || !arq) return;
+    try {
+      const reg = await Universo.enviarArquivo(arq, { dono_id: c.id, nome_original: arq.name, categoria: 'contrato' });
+      await Universo.alterar('contratos', c.id, { versao: c.versao, arquivo_assinado_id: reg.id });
+      abrirFicha(id);
+    } catch (err) { aviso(mensagemDe(err)); }
+  });
+  if (fc && fc.existente) {
+    // projetos cadastrados à mão (sem contrato) para ligar ao contrato, em vez de criar outro
+    Universo.listar('projetos', { limite: 200 }).then(l => {
+      const livres = l.itens.filter(x => !x.contrato_id);
+      fc.existente.innerHTML = '<option value="">Criar um projeto novo</option>' +
+        livres.map(x => `<option value="${x.id}">${escHtml(x.codigo)} · ${escHtml(x.nome)}</option>`).join('');
+    }).catch(() => {});
+  }
+
+  painel.querySelector('#btn-orcar').onclick = async () => {
+    if (!confirm('Começar um orçamento novo ligado a esta oportunidade? O rascunho atual do orçamento (se houver) será substituído.')) return;
+    try { await Comercial.novoOrcamentoDaOportunidade(o); } catch (err) { aviso(err.message); }
+  };
+}
+
+// ---- contrato e projeto
+const PROJETOS_URL = 'https://projetos.odisse.com.br/#';
+const SITUACOES_PROJETO = { ativo: 'ativo', pausado: 'pausado', concluido: 'concluído', cancelado: 'cancelado' };
+
+function secaoContrato(o, propostas, contratos, projetos) {
+  const reais = propostas.filter(p => !p.simulacao);
+  const assinados = contratos.filter(c => c.situacao === 'assinado' || c.situacao === 'encerrado');
+  const linhasCtr = contratos.map(c => `<li>
+      <strong>${escHtml(c.codigo)}</strong> <span class="chip ${c.situacao === 'assinado' ? 'chip--ok' : ''}">${escHtml(c.situacao)}</span>
+      <span class="small muted">${c.tipo === 'aditivo' ? 'aditivo · ' : ''}${c.valor_total !== null ? fmtCentavos(c.valor_total) : ''}${c.assinado_em ? ' · assinado em ' + fmtDia(c.assinado_em) : ''}</span><br>
+      ${c.arquivo_assinado_id
+        ? `<button type="button" class="btn-link" data-ctr-pdf="${c.arquivo_assinado_id}" data-nome="${escHtml(c.codigo)}">baixar contrato assinado</button>`
+        : `<label class="btn-link">guardar o PDF assinado<input type="file" accept="application/pdf,image/*" data-ctr-enviar="${c.id}" hidden></label>`}
+    </li>`).join('');
+  const linhasPrj = projetos.map(p => `<li>
+      <a href="${PROJETOS_URL}${p.id}" target="_blank" rel="noopener"><strong>${escHtml(p.codigo)} · ${escHtml(p.nome)}</strong></a>
+      <span class="chip">${escHtml(SITUACOES_PROJETO[p.situacao] || p.situacao)}</span>
+      <span class="small muted">${p.inicio ? 'início ' + fmtDia(p.inicio) : ''}${p.previsao_fim ? ' · previsão ' + fmtDia(p.previsao_fim) : ''}</span>
+    </li>`).join('');
+  const temPrincipal = assinados.some(c => c.tipo !== 'aditivo');
+  let form = '';
+  if (!temPrincipal) {
+    if (!reais.length) {
+      form = '<p class="small muted">O contrato entra depois da proposta: faça o orçamento, envie e, quando o cliente assinar, registre aqui.</p>';
+    } else {
+      const ordem = { aceita: 0, enviada: 1, rascunho: 2 };
+      const padrao = [...reais].sort((a, b) => (ordem[a.situacao] ?? 9) - (ordem[b.situacao] ?? 9) || b.numero - a.numero || b.revisao - a.revisao)[0];
+      form = `<form id="f-contrato">
+        <div class="field"><label class="field__label">Proposta aceita</label>
+          <select name="proposta_id">${reais.map(p => `<option value="${p.id}" ${p.id === padrao.id ? 'selected' : ''}>${escHtml(p.codigo)} · ${fmtCentavos(p.valor_total)} · ${escHtml(p.situacao)}</option>`).join('')}</select></div>
+        <div class="row-2">
+          <div class="field"><label class="field__label">Assinado em</label><input type="date" name="assinado_em" value="${hoje()}" required></div>
+          <div class="field"><label class="field__label">Valor do contrato (R$)</label><input type="text" inputmode="decimal" name="valor" value="${reaisDe(padrao.valor_total)}"></div>
+        </div>
+        <div class="field"><label class="field__label">Projeto</label><select name="existente"><option value="">Criar um projeto novo</option></select>
+          <p class="field__hint">Se o projeto já foi cadastrado à mão na ferramenta Projetos, escolha-o para não criar outro.</p></div>
+        <div id="campos-novo-projeto">
+          <div class="row-2">
+            <div class="field"><label class="field__label">Nome do projeto</label><input type="text" name="nome_projeto" value="${escHtml(o.titulo)}"></div>
+            <div class="field"><label class="field__label">Início dos trabalhos</label><input type="date" name="inicio"><p class="field__hint">Vazio = data da assinatura.</p></div>
+          </div>
+          <p class="field__hint">O projeto recebe o próximo código (AAAA-NNN), as etapas e prazos da proposta, o endereço do imóvel e os co-clientes.</p>
+        </div>
+        <div class="field"><label class="field__label">Contrato assinado (PDF, opcional)</label><input type="file" name="arquivo" accept="application/pdf,image/*"></div>
+        <button class="btn btn--primary btn--small" type="submit">Registrar contrato assinado</button>
+      </form>`;
+    }
+  }
+  return `<section>
+      <h3>Contrato e projeto</h3>
+      ${linhasCtr ? `<ul class="lista-int">${linhasCtr}</ul>` : ''}
+      ${linhasPrj ? `<ul class="lista-int">${linhasPrj}</ul>` : ''}
+      ${form}
+    </section>`;
+}
+
+// ---- nova oportunidade
+// `inicial`: contato já escolhido (vindo da ficha em Contatos: crm.html#nova=pes_… ou org_…).
+function abrirNova(inicial = null) {
+  const painel = abrirPainel(`
+    <div class="painel__topo"><h2>Nova oportunidade</h2><button class="painel__fechar" aria-label="Fechar">×</button></div>
+    <div id="nova-aviso"></div>
+    <form id="f-nova">
+      <div class="field">
+        <label class="field__label">Mensagem recebida (opcional)</label>
+        <textarea name="mensagem" rows="3" placeholder="Cole aqui a primeira mensagem. Códigos como [LP-residencial] ou [Herma 030770479] preenchem a origem sozinhos."></textarea>
+      </div>
+      <h3 style="margin-top:6px">Quem</h3>
+      <div class="field">
+        <label class="field__label">Pessoa</label>
+        <div class="escolhido" id="pessoa-escolhida" hidden></div>
+        <div id="pessoa-busca">
+          <input type="search" name="busca_pessoa" placeholder="Buscar alguém já cadastrado…">
+          <div class="busca-res" id="res-pessoa"></div>
+        </div>
+      </div>
+      <div id="pessoa-nova">
+        <div class="field"><label class="field__label">Nome (pessoa nova)</label><input type="text" name="nome"></div>
+        <div class="row-2">
+          <div class="field"><label class="field__label">WhatsApp</label><input type="tel" name="whatsapp" placeholder="(83) 99999-9999"></div>
+          <div class="field"><label class="field__label">E-mail</label><input type="email" name="email"></div>
+        </div>
+        <div class="field"><label class="field__label">Instagram</label><input type="text" name="instagram" placeholder="@usuario"></div>
+      </div>
+      <div class="field">
+        <label class="field__label">Organização (se o cliente for uma empresa)</label>
+        <div class="escolhido" id="org-escolhida" hidden></div>
+        <div id="org-busca">
+          <input type="search" name="busca_org" placeholder="Buscar ou digitar o nome de uma nova…">
+          <div class="busca-res" id="res-org"></div>
+        </div>
+        <p class="field__hint">Com organização, ela vira a titular e a pessoa fica como contato (ligada a ela em Contatos).</p>
+      </div>
+      <h3 style="margin-top:6px">O quê</h3>
+      <div class="field"><label class="field__label">Título</label><input type="text" name="titulo" required placeholder="Ex.: Reforma apartamento Manaíra"></div>
+      <div class="row-2">
+        <div class="field"><label class="field__label">Núcleo</label><select name="nucleo_id">${opcoes(NUCLEOS, 'arquitetos', '—')}</select></div>
+        <div class="field"><label class="field__label">Etapa</label><select name="etapa_funil">${opcoes(ETAPAS_FUNIL.filter(e => ABERTAS.includes(e.id)), 'lead')}</select></div>
+      </div>
+      <div class="row-2">
+        <div class="field"><label class="field__label">Origem</label><select name="origem">${opcoes(ORIGENS, '', '—')}</select></div>
+        <div class="field"><label class="field__label">Detalhe da origem</label><input type="text" name="origem_detalhe" placeholder="LP, post, quem indicou…"></div>
+      </div>
+      <div class="field"><label class="field__label">Valor estimado (R$, opcional)</label><input type="text" inputmode="decimal" name="valor_estimado"></div>
+      <div class="painel__acoes"><button class="btn btn--primary btn--small" type="submit">Criar</button></div>
+    </form>`);
+
+  const f = painel.querySelector('#f-nova');
+  const aviso = avisoEm(painel.querySelector('#nova-aviso'));
+  let pessoa = null;      // { id, nome } já cadastrada
+  let org = null;         // { id, nome } já cadastrada, ou { nome } nova
+
+  f.mensagem.oninput = () => {
+    const o = origemDaMensagem(f.mensagem.value);
+    if (o) { f.origem.value = o.origem; f.origem_detalhe.value = o.origem_detalhe; }
+  };
+  const sugerirTitulo = () => {
+    if (f.titulo.dataset.mexido) return;
+    const quem = (org && org.nome) || (pessoa && pessoa.nome) || f.nome.value.trim();
+    f.titulo.value = quem ? `${quem} — ` : '';
+  };
+  f.nome.oninput = sugerirTitulo;
+  f.titulo.oninput = () => { f.titulo.dataset.mexido = '1'; };
+
+  function mostrarEscolha(el, buscaEl, rotulo, valor, aoTrocar) {
+    el.hidden = !valor;
+    buscaEl.hidden = !!valor;
+    el.innerHTML = valor ? `${rotulo}: <strong>${escHtml(valor.nome)}</strong>${valor.id ? '' : ' <span class="chip">nova</span>'} <button type="button" class="btn-link">trocar</button>` : '';
+    if (valor) el.querySelector('button').onclick = aoTrocar;
+  }
+  function escolherPessoa(p) {
+    pessoa = p;
+    painel.querySelector('#pessoa-nova').hidden = !!p;
+    mostrarEscolha(painel.querySelector('#pessoa-escolhida'), painel.querySelector('#pessoa-busca'), 'Pessoa', p, () => escolherPessoa(null));
+    sugerirTitulo();
+  }
+  function escolherOrg(o) {
+    org = o;
+    mostrarEscolha(painel.querySelector('#org-escolhida'), painel.querySelector('#org-busca'), 'Organização', o, () => escolherOrg(null));
+    sugerirTitulo();
+  }
+  ligarBuscaContatos(f.busca_pessoa, painel.querySelector('#res-pessoa'), {
+    tabelas: ['pessoas'], aoEscolher: (i) => escolherPessoa({ id: i.id, nome: i.titulo })
+  });
+  ligarBuscaContatos(f.busca_org, painel.querySelector('#res-org'), {
+    tabelas: ['organizacoes'], aoEscolher: (i) => escolherOrg({ id: i.id, nome: i.titulo }),
+    rotuloNovo: 'Nova organização', criarNovo: (nome) => escolherOrg({ nome })
+  });
+  if (inicial) (ehOrg(inicial.id) ? escolherOrg : escolherPessoa)(inicial);
+
+  f.onsubmit = async (e) => {
+    e.preventDefault();
+    aviso('');
+    const botao = f.querySelector('button[type=submit]');
+    botao.disabled = true;
+    try {
+      let pessoaId = pessoa ? pessoa.id : null;
+      if (!pessoaId && !f.nome.value.trim() && !org) throw new Error('Informe a pessoa (ou a organização).');
+      if (!pessoaId && f.nome.value.trim()) {
+        const p = await Comercial.criarContato('pessoas', {
+          nome: f.nome.value.trim(), whatsapp: f.whatsapp.value || null, telefone: f.whatsapp.value || null,
+          email: f.email.value || null, instagram: f.instagram.value || null
+        });
+        pessoaId = p.id;
+        pessoa = { id: p.id, nome: p.nome };
+      }
+      let orgId = org ? org.id : null;
+      if (org && !orgId) {
+        orgId = (await Comercial.criarContato('organizacoes', { nome: org.nome })).id;
+        org = { id: orgId, nome: org.nome };
+      }
+      // pessoa e organização: liga as duas em Contatos, se ainda não estiverem
+      if (orgId && pessoaId) {
+        const ja = await Universo.listar('atuacoes', { pessoa_id: pessoaId, organizacao_id: orgId, limite: 1 }).catch(() => ({ itens: [] }));
+        if (!ja.itens.length) await Universo.criar('atuacoes', { pessoa_id: pessoaId, organizacao_id: orgId, papel: 'contato' }).catch(() => null);
+      }
+      const o = await Universo.criar('oportunidades', {
+        titulo: f.titulo.value.trim(), cliente_id: orgId || pessoaId, contato_pessoa_id: pessoaId,
+        nucleo_id: f.nucleo_id.value || null, etapa_funil: f.etapa_funil.value,
+        origem: f.origem.value || null, origem_detalhe: f.origem_detalhe.value || null,
+        valor_estimado: lerReais(f.valor_estimado.value)
+      });
+      if (f.mensagem.value.trim()) {
+        await Universo.criar('interacoes', {
+          sobre_id: o.id, pessoa_id: pessoaId, tipo: 'mensagem', data: hoje(), resumo: f.mensagem.value.trim()
+        });
+      }
+      await carregar();
+      abrirFicha(o.id);
+    } catch (err) {
+      aviso(mensagemDe(err));
+      botao.disabled = false;
+    }
+  };
+}
+
+// ---------------------------------------------------------------- início
+
+async function iniciar() {
+  document.getElementById('app').hidden = false;
+  document.getElementById('filtro-nucleo').innerHTML += opcoes(NUCLEOS, '');
+  document.getElementById('filtro').oninput = desenhar;
+  document.getElementById('filtro-nucleo').onchange = desenhar;
+  document.getElementById('btn-nova').onclick = () => abrirNova();
+  await carregar({ copia: true });
+  abrirPeloEndereco();
+  window.addEventListener('hashchange', abrirPeloEndereco);
+}
+
+// crm.html#opo_… abre a ficha; crm.html#nova=pes_… (ou org_…), vindo de Contatos,
+// abre a nova oportunidade com o contato já escolhido.
+async function abrirPeloEndereco() {
+  if (/^#opo_/.test(location.hash)) return abrirFicha(location.hash.slice(1));
+  const nova = location.hash.match(/^#nova=((?:pes|org)_[\w]+)$/);
+  if (nova) {
+    history.replaceState(null, '', location.pathname);
+    const reg = await Universo.get('registros/' + nova[1]).then(r => r.registro).catch(() => null);
+    abrirNova(reg ? { id: reg.id, nome: reg.nome } : null);
+  }
+}
+
+iniciar();
+</script>
+</body>
+</html>

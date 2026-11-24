@@ -1,0 +1,14 @@
+[
+  {
+    "id": "plotagem",
+    "texto": "Impressão (plotagem) de material gráfico para aprovação do projeto junto a órgãos competentes e/ou suporte técnico à execução da obra."
+  },
+  {
+    "id": "viagens",
+    "texto": "Viagens cujo destino esteja fora da área metropolitana de João Pessoa – PB, incluindo combustível, passagens e hospedagem."
+  },
+  {
+    "id": "taxas_certidoes",
+    "texto": "Taxas e similares referentes a certidões, alvarás e afins junto aos órgãos competentes."
+  }
+]

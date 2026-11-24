@@ -1,0 +1,46 @@
+[
+  {
+    "parcelas": 2,
+    "juros": 0.0541
+  },
+  {
+    "parcelas": 3,
+    "juros": 0.0678
+  },
+  {
+    "parcelas": 4,
+    "juros": 0.0825
+  },
+  {
+    "parcelas": 5,
+    "juros": 0.0966
+  },
+  {
+    "parcelas": 6,
+    "juros": 0.1104
+  },
+  {
+    "parcelas": 7,
+    "juros": 0.1225
+  },
+  {
+    "parcelas": 8,
+    "juros": 0.1385
+  },
+  {
+    "parcelas": 9,
+    "juros": 0.1544
+  },
+  {
+    "parcelas": 10,
+    "juros": 0.1659
+  },
+  {
+    "parcelas": 11,
+    "juros": 0.1819
+  },
+  {
+    "parcelas": 12,
+    "juros": 0.1979
+  }
+]

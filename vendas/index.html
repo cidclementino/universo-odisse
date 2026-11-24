@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Propostas · Vendas — Odisse</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="https://marca.odisse.com.br/favicon/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="https://marca.odisse.com.br/favicon/favicon-32x32.png" sizes="32x32">
+<link rel="stylesheet" href="https://marca.odisse.com.br/v1/marca.css">
+<link rel="stylesheet" href="https://universo.odisse.com.br/base/v1/universo.css">
+<link rel="stylesheet" href="https://marca.odisse.com.br/v1/documentos/documentos.css">
+<link rel="stylesheet" href="styles.css?v=1f3fa8b945">
+</head>
+<body>
+
+<!-- ================= APP ================= -->
+<div id="app" class="app app--no-sidebar" hidden>
+
+  <header class="topo" data-pagina="propostas"></header>
+  <script src="topo.js?v=164bd89cf9"></script>
+
+  <!-- Propostas: nova proposta (um quadro por serviço) + histórico de 10 em 10 -->
+  <main class="pp" id="pp-lista" hidden>
+    <div id="pp-aviso"></div>
+    <section class="pp-criar">
+      <div class="pp-cab">
+        <h1 class="pp-titulo">Nova proposta</h1>
+      </div>
+      <div class="pp-tiles" id="pp-tiles"></div>
+    </section>
+    <section class="pp-arquivo">
+      <div class="pp-cab">
+        <h2 class="pp-titulo pp-titulo--m">Histórico <span class="pp-conta" id="pp-info"></span></h2>
+        <div class="pp-filtros">
+          <div class="seletor" role="group" aria-label="Filtrar">
+            <button type="button" class="is-on" data-filtro="todas" aria-pressed="true">Todas</button>
+            <button type="button" data-filtro="propostas" aria-pressed="false">Propostas</button>
+            <button type="button" data-filtro="simulacoes" aria-pressed="false">Simulações</button>
+          </div>
+          <input type="search" id="pp-busca" placeholder="Buscar: código, cliente, serviço" aria-label="Buscar proposta">
+          <div class="pp-pag" id="pp-pag"></div>
+        </div>
+      </div>
+      <div class="pp-regua" aria-hidden="true"><span>Código · data</span><span>Cliente · projeto</span><span class="pp-regua__num">Valor</span><span>Situação</span><span></span></div>
+      <div class="pp-itens" id="pp-itens"><div class="pp-vazio">Carregando…</div></div>
+      <p class="pp-notas">Etapas, entregas e honorários vêm do Plano Geral de Trabalho, das Bases e dos Honorários publicados no Universo.</p>
+    </section>
+  </main>
+
+  <div id="pp-editor" hidden>
+  <div class="orc-aviso" id="orc-aviso" hidden></div>
+  <div class="orc">
+    <nav class="orc-guia" aria-label="Passos da proposta">
+      <div class="orc-guia__passos" id="orc-guia-passos"></div>
+      <p class="orc-guia__versoes" id="orc-versoes"></p>
+      <button class="btn btn--text" id="btn-reset" type="button">Recomeçar</button>
+    </nav>
+
+    <main class="orc-form">
+      <nav class="u-trilha orc-trilha" aria-label="Você está em"><a href="#/">Propostas</a><span class="sep">/</span><span aria-current="page" id="orc-trilha-atual">Nova proposta</span></nav>
+      <div id="step-container"></div>
+      <div class="orc-emitir" id="orc-emitir" role="region" aria-label="Emitir"></div>
+    </main>
+
+    <aside class="orc-previa" id="orc-previa" aria-label="Prévia de custos e prazos"></aside>
+  </div>
+  </div>
+
+</div>
+
+<script src="config.js?v=07793b6f66"></script>
+<script src="auth.js?v=2a461f8bce"></script>
+<script>exigirAutenticacao();</script>
+<script src="data-loader.js?v=b1b3a59ba0"></script>
+<script src="store.js?v=66a6878146"></script>
+<script src="comercial.js?v=2dc7225c30"></script>
+<script src="calc.js?v=83d8ae0b16"></script>
+<script src="catalogo.js?v=6b50594caf"></script>
+<script src="pdf.js?v=54f7bd46cc"></script>
+<script src="proposta-doc.js?v=64c607dd26"></script>
+<script src="steps.js?v=dcc96535c5"></script>
+<script src="app.js?v=e326022fd1"></script>
+</body>
+</html>

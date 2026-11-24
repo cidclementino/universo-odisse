@@ -22,7 +22,7 @@ const COPIA = 'inicio';
 const INTERVALO = 2 * 3600 * 1000;
 const RADAR = 'https://radar.odisse.com.br';
 const CALENDARIO = 'https://marketing.odisse.com.br/#/calendario';
-const VENDAS = 'https://vendas.odisse.com.br/';
+const VENDAS = '/vendas/';
 const PROJETO = 'https://projetos.odisse.com.br/projeto.html#';
 const FOLLOW_UP = 7; // dias sem resposta para a proposta pedir follow-up (sugestão do Claude, 24/11; a confirmar)
 

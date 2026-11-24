@@ -1,0 +1,125 @@
+{
+  "regiao_ativa": "Paraíba — João Pessoa (Sinduscon-JP)",
+  "regioes": {
+    "Paraíba — João Pessoa (Sinduscon-JP)": {
+      "fonte": "Sinduscon-JP",
+      "competencia_referencia": "2023-08-01 (base da planilha original — atualizar via rotina mensal)",
+      "tabela": {
+        "R-1-B": {
+          "padrao": "Residencial 1, padrão construtivo baixo",
+          "honerado": 1638.53,
+          "desonerado": 1554.1,
+          "setor": "Residencial"
+        },
+        "R-1-N": {
+          "padrao": "Residencial 1, padrão construtivo normal",
+          "honerado": 1970.37,
+          "desonerado": 1853.02,
+          "setor": "Residencial"
+        },
+        "R-1-A": {
+          "padrao": "Residencial 1, padrão construtivo alto",
+          "honerado": 2416.57,
+          "desonerado": 2289.22,
+          "setor": "Residencial"
+        },
+        "PP-4-B": {
+          "padrao": "padrão construtivo baixo",
+          "honerado": 1405.35,
+          "desonerado": 1334.36,
+          "setor": "Residencial"
+        },
+        "PP-4-N": {
+          "padrao": "padrão construtivo médio",
+          "honerado": 1747.3,
+          "desonerado": 1643.53,
+          "setor": "Residencial"
+        },
+        "R-8-B": {
+          "padrao": null,
+          "honerado": 1324.49,
+          "desonerado": 1257.75,
+          "setor": "Residencial"
+        },
+        "R-8-N": {
+          "padrao": null,
+          "honerado": 1543.9,
+          "desonerado": 1450.61,
+          "setor": "Residencial"
+        },
+        "R-8-A": {
+          "padrao": null,
+          "honerado": 1884.75,
+          "desonerado": 1880.18,
+          "setor": "Residencial"
+        },
+        "PIS": {
+          "padrao": null,
+          "honerado": 996.18,
+          "desonerado": 938.67,
+          "setor": "Residencial"
+        },
+        "RP1Q": {
+          "padrao": null,
+          "honerado": 1660.48,
+          "desonerado": 1548.07,
+          "setor": "Residencial"
+        },
+        "R-16-N": {
+          "padrao": null,
+          "honerado": 1483.56,
+          "desonerado": 1393.82,
+          "setor": "Residencial"
+        },
+        "R-16-A": {
+          "padrao": null,
+          "honerado": 1990.89,
+          "desonerado": 1880.18,
+          "setor": "Residencial"
+        },
+        "CAL-8-N": {
+          "padrao": null,
+          "honerado": 1759.02,
+          "desonerado": 1654.89,
+          "setor": "Comercial"
+        },
+        "CAL-8-A": {
+          "padrao": null,
+          "honerado": 1872.98,
+          "desonerado": 1767.86,
+          "setor": "Comercial"
+        },
+        "CSL-8-N": {
+          "padrao": null,
+          "honerado": 1539.12,
+          "desonerado": 1445.28,
+          "setor": "Comercial"
+        },
+        "CSL-8-A": {
+          "padrao": null,
+          "honerado": 1661.71,
+          "desonerado": 1565.29,
+          "setor": "Comercial"
+        },
+        "CSL-16-N": {
+          "padrao": null,
+          "honerado": 2056.99,
+          "desonerado": 1932.06,
+          "setor": "Comercial"
+        },
+        "CSL-16-A": {
+          "padrao": null,
+          "honerado": 2221.71,
+          "desonerado": 2093.29,
+          "setor": "Comercial"
+        },
+        "GI": {
+          "padrao": null,
+          "honerado": 927.36,
+          "desonerado": 875.17,
+          "setor": "Comercial"
+        }
+      }
+    }
+  }
+}

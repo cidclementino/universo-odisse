@@ -1,0 +1,39 @@
+name: Vendas — atualizar CUB mensal (Sinduscon-JP)
+
+on:
+  schedule:
+    # Dia 8 de cada mês, 09:00 UTC (06:00 em João Pessoa) — dá margem para
+    # o Sinduscon-JP publicar o valor do mês (costuma sair até o 5º dia útil)
+    - cron: '0 9 8 * *'
+  workflow_dispatch: {} # permite rodar manualmente pela aba Actions do GitHub
+
+permissions:
+  contents: write
+
+jobs:
+  atualizar-cub:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Instalar dependências
+        run: pip install requests beautifulsoup4 pdfplumber
+
+      - name: Rodar script de atualização
+        run: python3 vendas/scripts/update_cub.py
+
+      - name: Commitar alterações (se houver)
+        run: |
+          git config user.name "odisse-bot"
+          git config user.email "actions@github.com"
+          git add vendas/data/cub.json vendas/data/cub-status.json
+          if git diff --cached --quiet; then
+            echo "Nada para commitar."
+          else
+            git commit -m "chore: atualização automática do CUB (Sinduscon-JP)"
+            git push
+          fi
