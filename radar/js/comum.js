@@ -1,7 +1,6 @@
 // Radar Odisse — peças comuns às páginas (Concursos, Terrenos e Licitações)
 //
-//   - barra no padrão das ferramentas do Universo (selo + logotipo + "Radar", seções no centro,
-//     botão "Universo" à direita, vindo de universo.odisse.com.br/base/v1/barra.js);
+//   - Abas do Radar (Concursos · Terrenos · Licitações) dentro da casca do Universo (/base/v2/casca.js);
 //   - cache dos dados no navegador (localStorage), para a página abrir na hora;
 //   - preferências da tela (vista e filtros) lembradas entre visitas;
 //   - utilitários de texto e data.

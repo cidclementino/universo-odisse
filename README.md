@@ -26,8 +26,7 @@ Os endereços das redes em Canais e os dados em Marca vêm do `odisse.json` da m
 | `assets/equipe.js` | Página Equipe: lista, ficha da pessoa (foto, cargo, registro, quem assina, assinatura manuscrita, bios do site) e listas de cargos e títulos |
 | `assets/memoria.js` | Cópias locais das leituras (a página abre na hora com a última cópia e confere por baixo) e imagens guardadas no navegador pelo id do arquivo. **Regra para todas as páginas:** nada de recarregar tudo do zero |
 | `assets/documentos.js` | Página Documentos: lista, editor com prévia e PDF. O desenho da folha vem da Marca (`marca.odisse.com.br/v1/documentos/`) |
-| `ferramentas.json` | **O mapa do Universo:** seções, ramos, grupos e itens. Alimenta as páginas do hub e a barra de todas as ferramentas |
-| `base/v1/barra.js` | Barra e menu do Universo, para incluir em cada ferramenta |
+| `ferramentas.json` | **O mapa do Universo:** menu lateral, seções, ramos, grupos e itens. Alimenta o menu (casca da `base/v2`), o "Ir para" e as páginas do hub |
 | `base/v1/universo.css` | Camada de interface das ferramentas internas (botões, campos, tabelas, cartões) |
 | `base/v1/assinantes.js` | Seletor de quem assina (módulo): equipe com foto, nome e registro, vários assinantes, último lembrado, pessoa de fora. Devolve a cópia que o documento guarda; a rubrica entra só na emissão |
 
@@ -35,23 +34,18 @@ A marca (cores, fonte, logos, dados institucionais) **não** fica aqui: vem de [
 
 ## Como ligar uma ferramenta ao Universo
 
-```html
-<!-- marca + interface (só ferramentas internas) -->
-<link rel="stylesheet" href="https://marca.odisse.com.br/v1/marca.css">
-<link rel="stylesheet" href="https://universo.odisse.com.br/base/v1/universo.css">
+Desde 24/11/2026 as telas de todas as ferramentas moram aqui, cada uma na sua pasta (`/vendas/`, `/projetos/`,
+`/radar/`, `/catalogo/`, `/marketing/`), com a senha única do Universo (`localStorage 'universo:senha'`). Cada
+ferramenta carrega a casca da `base/v2` (menu lateral, "Ir para" e painel), dizendo qual item do menu acender:
 
-<!-- barra e menu -->
-<script src="https://universo.odisse.com.br/base/v1/barra.js" defer></script>
+```html
+<script src="/base/v2/casca.js" data-item="funil" data-classe="ferramenta-vendas"></script>
 ```
 
-Onde a barra aparece:
+Sem senha, a ferramenta guarda o endereço em `sessionStorage 'universo:volta'` e vai ao Início para entrar; o Início
+traz de volta. A barra antiga (`base/v1/barra.js`) saiu em 24/11/2026.
 
-- `<div data-universo-barra></div>` — barra completa nesse ponto (marca, seções e menu "Ir para");
-- `<span data-universo-menu></span>` — só o botão "Universo", com as seções e as ferramentas, para quem já tem a própria barra no topo (herda a cor do texto);
-- nenhum dos dois — barra completa no topo da página;
-- `data-auto="nao"` no `<script>` — não insere nada sozinha.
-
-Os sites públicos (odisse.com.br, projetos, Herma) **não** usam `universo.css` nem a barra; usam só a marca.
+Os sites públicos (odisse.com.br, projetos, servicos, Herma) **não** usam `universo.css` nem a casca; usam só a marca.
 
 ## Padrão novo: `base/v2` (Cid, 23–24/11/2026)
 
@@ -69,7 +63,7 @@ Menu lateral por função, topo com "Ir para" (Ctrl K) e o conteúdo num painel 
 - **Mexeu no padrão, mexeu em todas as páginas**: as páginas chamam as funções de `componentes.js` e não redesenham as peças `ui-*` no próprio CSS (o teste `worker/testes/v2-sem-sobrescrita.test.mjs` barra o deploy). Variação é opção da função.
 - **Cores por função** (`--ui-fundo`, `--ui-texto`, `--ui-bandeja`…), raios concêntricos (12 → 8 → 4), alturas fixas (topo 44, menu 30, linha 42).
 - **Menu**: `ferramentas.json › menu` (topo, grupos, Emitir documento). Contagens e a árvore de projetos vêm da leitura da Início.
-- O catálogo vivo fica em Biblioteca › Padrões de interface. As ferramentas migram da `v1` para a `v2` uma a uma; a `v1` e a barra (`base/v1/barra.js`) seguem no ar até a última migrar.
+- O catálogo vivo fica em Biblioteca › Padrões de interface. Todas as ferramentas já estão na casca da `v2`; a `base/v1/universo.css` segue para as classes `u-*` das telas antigas, restilizadas pela `ponte-v1.css`.
 
 ## Adicionar ou mudar um item
 

@@ -1,8 +1,8 @@
-// Páginas do hub. Rotas por hash: #/ (Início, em assets/inicio.js), #/financeiro (assets/financeiro.js), #/credenciais (assets/credenciais.js), #/ferramentas, #/canais, #/equipe, #/marca, #/biblioteca, #/padroes, #/precos (Mapa de preços, em assets/precos.js),
+// Páginas do hub. Rotas por hash: #/ (Início, em assets/inicio.js), #/financeiro (assets/financeiro.js), #/credenciais (assets/credenciais.js), #/canais, #/equipe, #/marca, #/biblioteca, #/padroes, #/precos (Mapa de preços, em assets/precos.js),
 // #/pastas (Estrutura de pastas, em assets/pastas.js), #/acervo (Acervo de imagens, em assets/acervo.js).
 // Tudo vem de dois arquivos: ferramentas.json (aqui) e odisse.json (marca.odisse.com.br).
 // A página Marca mora em assets/marca.js; a página Documentos (#/documentos, aberta pela Biblioteca), em assets/documentos.js;
-// a página Equipe (#/equipe, seção própria da barra), em assets/equipe.js; a página Ferramentas, em assets/ferramentas.js.
+// a página Equipe (#/equipe, seção própria da barra), em assets/equipe.js. (A página Ferramentas saiu em 24/11/2026; assets/ferramentas.js segue com os Canais.)
 
 import { criarMarca } from './marca.js';
 import { criarDocumentos } from './documentos.js';
@@ -82,7 +82,6 @@ const marca = criarMarca({
 const cred = criarCredenciais({ esc, api, apiBinario, toque });
 const documentos = criarDocumentos({ esc, api, apiBinario, toque, lerOdisse: () => ODISSE });
 const equipe = criarEquipe({ esc, api, apiBinario, toque, cred });
-const ferramentas = criarFerramentas({ esc, api, toque, lerMapa: () => MAPA });
 const canais = criarFerramentas({ esc, api, toque, lerMapa: () => MAPA, config: configCanais(() => ODISSE) });
 const padroes = criarPadroes({ esc });
 let casca = null; // menu lateral, topo e painel (base/v2; Cid, 24/11)
@@ -122,10 +121,6 @@ const PAGINAS = {
   // com a previsão de custos do ano (assets/financeiro.js)
   financeiro() {
     return '<div id="pagina-financeiro" class="pagina-financeiro"></div>';
-  },
-
-  ferramentas() {
-    return '<div id="pagina-ferramentas" class="pagina-ferramentas"></div>';
   },
 
   canais() {
@@ -184,7 +179,6 @@ function depois(rota) {
   if (rota === 'marca') marca.ligar(vista.querySelector('#pagina-marca'));
   if (rota === 'documentos') documentos.ligar(vista.querySelector('#pagina-documentos'));
   if (rota === 'equipe') equipe.ligar(vista.querySelector('#pagina-equipe'));
-  if (rota === 'ferramentas') ferramentas.ligar(vista.querySelector('#pagina-ferramentas'));
   if (rota === 'empresa') empresa.ligar(vista.querySelector('#pagina-empresa'));
   if (rota === 'credenciais') cred.ligar(vista.querySelector('#pagina-credenciais'));
   if (rota === 'canais') canais.ligar(vista.querySelector('#pagina-canais'));
@@ -197,7 +191,8 @@ function depois(rota) {
   if (rota === 'biblioteca') documentos.ligarModelos(vista.querySelector('#biblioteca-modelos'));
 }
 
-const APELIDOS = { estudio: 'empresa', emissao: 'documentos' }; // seções que abrem outra página
+// seções que abrem outra página; Ferramentas saiu em 24/11/2026 (o menu lateral faz o papel dela) e vai para o Início
+const APELIDOS = { estudio: 'empresa', emissao: 'documentos', ferramentas: 'inicio' };
 
 function rota() {
   const id = (location.hash.match(/^#\/([^/?]+)/) || [])[1] || 'inicio';
