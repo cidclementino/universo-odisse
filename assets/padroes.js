@@ -11,6 +11,8 @@
 // 20/11 (servicos › Catálogo e montador de landing pages): Pilha arrastada pela alça, sem setas; peças novas Inserir entre e Miniatura;
 // o produto do catálogo abre em subpágina (Abas + Trilha), não em Gaveta; campos de Bloco em três colunas explícitas, como a Empresa.
 
+import { vitrineV2, ligarV2 } from './padroes-v2.js';
+
 const H = 'https://universo.odisse.com.br/';
 const V = 'https://vendas.odisse.com.br/';
 const P = 'https://projetos.odisse.com.br/';
@@ -465,6 +467,9 @@ export function criarPadroes({ esc }) {
   function ligar(raiz) {
     raiz.innerHTML = `<div class="cab"><div><nav class="u-trilha" aria-label="Você está em"><a href="#/biblioteca">Biblioteca</a><span class="sep">/</span><span aria-current="page">Padrões de interface</span></nav>
         <h1 class="u-titulo">Padrões de interface</h1></div></div>
+      ${vitrineV2()}
+      <section class="pi-secao"><h2 class="u-subtitulo">Padrão anterior (v1): catálogo de cópias</h2>
+        <p class="u-apoio">As páginas ainda no desenho anterior seguem estes nomes até migrarem para o padrão novo, ferramenta por ferramenta.</p></section>
       <nav class="pi-indices" aria-label="Padrões">${indice('Disposições', todos(DISPOSICOES))}${indice('Combinações', COMBINACOES)}${indice('Peças', todos(PECAS))}</nav>
       <section class="pi-secao"><h2 class="u-subtitulo">Disposições</h2>${grupos(DISPOSICOES)}</section>
       <section class="pi-secao"><h2 class="u-subtitulo">Combinações</h2>
@@ -476,6 +481,7 @@ export function criarPadroes({ esc }) {
         <div><span class="u-rotulo">Disposição, combinação e modelo</span><p>Disposição é um desenho de página com regra própria; combinação é um arranjo conhecido de peças (Cid, 19/11). Modelo é a página de referência; sem página modelo, o padrão tem nome mas ainda não foi alinhado.</p></div>
         <div><span class="u-rotulo">Formas</span><p>Nada em pílula (Cid, 19/11): raio 4 px nas peças pequenas (etiquetas, contagens, PT / EN), 6 px em abas, seletores e botões, 8 px no fundo das abas e nos cartões. As amostras são cópias, só para ver; nenhuma página muda por causa deste catálogo.</p></div>
       </section>`;
+    ligarV2(raiz);
     raiz.querySelectorAll('[data-ir]').forEach((b) => b.addEventListener('click', () => {
       const alvo = raiz.querySelector('#' + b.dataset.ir);
       if (!alvo) return;

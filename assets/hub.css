@@ -1,6 +1,7 @@
 /* Páginas do hub (Início, Ferramentas, Canais, Marca, Biblioteca). */
 
 /* largura de todas as páginas do Universo: a mesma do radar.odisse (até 1600 px, 32 px de margem; 16 px no celular) */
+.ui-painel > .hub { padding: 0; max-width: none; } /* dentro do painel da casca v2 (24/11) */
 .hub { max-width: 1600px; margin: 0 auto; padding: var(--u-esp-7) var(--u-esp-6) var(--u-esp-6); box-sizing: border-box; }
 .cab { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--u-esp-5);
   padding-bottom: var(--u-esp-2); } /* sem linha sob o título (Cid, 19/11): linha só separa seções da página */
@@ -232,7 +233,6 @@
   -webkit-mask: url(https://marca.odisse.com.br/selos/mao.svg) center / contain no-repeat; mask: url(https://marca.odisse.com.br/selos/mao.svg) center / contain no-repeat; }
 .marca-entrada .logotipo { width: 117px; height: 25px; background: currentColor;
   -webkit-mask: url(https://marca.odisse.com.br/logos/logotipo-odisse.svg) center / contain no-repeat; mask: url(https://marca.odisse.com.br/logos/logotipo-odisse.svg) center / contain no-repeat; }
-.rodape-hub { margin-top: 96px; padding-top: var(--u-esp-4); border-top: 1px solid var(--u-linha); display: flex; justify-content: flex-end; }
 @media (max-width: 640px) {
   .linha-cor .principal .sr { position: static; width: auto; height: auto; clip: auto; font-size: 12.5px; margin-left: 8px; }
 }
@@ -501,72 +501,7 @@ li.eq-item.alvo-depois { box-shadow: 0 3px 0 var(--odisse-ocre, #BB8248); }
 .mc-nucleo .eq-sec-cab, .edicao.eq-ficha .eq-sec > .eq-sec-cab { margin-bottom: 18px; }
 .edicao.eq-ficha textarea { min-height: 76px; }
 
-/* ---- Início (assets/inicio.js; Cid, 19/11) ----------------------------------------------------
-   Ontem (Placar em dois grupos), Hoje no Radar (uma faixa por tipo) e Publicações de hoje (Registro).
-   Grupos em fundo de tons (faixa no tom forte, fundo no claro, cartões brancos); nada de barra à esquerda. */
-.ini-sec { margin-top: var(--u-esp-7); padding-top: var(--u-esp-5); border-top: 1px solid var(--u-linha-forte); }
-.pagina-inicio .cab + .ini-sec { margin-top: var(--u-esp-5); padding-top: 0; border-top: 0; } /* nenhuma linha sob o título */
-.ini-sec__titulo { font-size: var(--u-t-subtitulo); font-weight: 650; letter-spacing: -.01em; margin: 0 0 var(--u-esp-3); }
-.ini-sec__titulo span { font-weight: 500; color: var(--u-tinta-2); margin-left: 6px; }
-
-.ini-grupo { border-radius: var(--u-raio); background: color-mix(in srgb, var(--g) 14%, var(--u-elevada, #fff)); min-width: 0; }
-.ini-grupo + .ini-grupo { margin-top: var(--u-esp-4); }
-.ini-grupo__faixa { display: flex; align-items: center; gap: 12px; padding: 9px 14px; border-radius: var(--u-raio) var(--u-raio) 0 0;
-  background: color-mix(in srgb, var(--g) 45%, var(--u-elevada, #fff)); color: var(--u-tinta); text-decoration: none;
-  font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; transition: background-color .15s; }
-.ini-grupo__faixa > span { font-weight: 500; letter-spacing: 0; text-transform: none; font-size: 12px; color: var(--u-tinta-2); }
-a.ini-grupo__faixa:hover { background: color-mix(in srgb, var(--g) 60%, var(--u-elevada, #fff)); }
-a.ini-grupo__faixa:focus-visible, .ini-linha:focus-visible, .ini-alerta:focus-visible { outline: 2px solid var(--u-foco); outline-offset: 2px; }
-.ini-fora { display: inline-grid; place-items: center; width: 14px; height: 14px; margin-left: auto; color: var(--u-tinta-2); flex: none; }
-.ini-fora svg { width: 14px; height: 14px; }
-
-/* Placar: números de ontem */
-.ini-placares { display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 3fr); gap: var(--u-esp-4); }
-.ini-placares .ini-grupo { display: flex; flex-direction: column; }
-.ini-placares .ini-placar { flex: 1; }
-.ini-placares .ini-grupo + .ini-grupo { margin-top: 0; }
-.ini-placar { display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); gap: 6px; padding: 8px; }
-.ini-num { display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: 12px 14px; background: var(--u-elevada, #fff);
-  border: 1px solid var(--u-linha); border-radius: var(--u-raio); }
-.ini-num__rot { font-size: var(--u-t-rotulo); font-weight: 650; letter-spacing: .06em; text-transform: uppercase; color: var(--u-tinta-2);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ini-num b { font-size: 24px; font-weight: 700; letter-spacing: -.02em; line-height: 1.15; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.ini-num__pe { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-height: 20px; }
-.ini-num__extra { font-size: 11.5px; color: var(--u-tinta-2); }
-.ini-var { display: inline-flex; align-items: center; gap: 2px; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 650;
-  font-variant-numeric: tabular-nums; background: var(--odisse-nevoa, #E6E8EB); color: var(--u-tinta-2); }
-.ini-var svg { width: 11px; height: 11px; }
-.ini-var.sobe { background: #E2EBDF; color: #3E6B48; }
-.ini-var.desce { background: rgba(187,130,72,.14); color: #8A5A2B; }
-
-/* faixas (Radar) e linhas (publicações): cartões brancos sobre o fundo do grupo, 52 px, clicáveis inteiros */
-.ini-pilha { display: flex; flex-direction: column; gap: 6px; padding: 8px; }
-.ini-linha { display: flex; align-items: center; gap: 12px; min-height: 52px; box-sizing: border-box; padding: 8px 14px;
-  background: var(--u-elevada, #fff); border: 1px solid var(--u-linha); border-radius: var(--u-raio); color: inherit; text-decoration: none;
-  font-size: 13px; cursor: pointer; transition: border-color .15s, background-color .15s, box-shadow .15s, transform .15s; }
-.ini-linha:hover { background: color-mix(in srgb, var(--g) 16%, var(--u-elevada, #fff)); border-color: color-mix(in srgb, var(--g) 75%, var(--u-tinta-2));
-  box-shadow: 0 3px 10px rgba(46,48,54,.09); transform: translateY(-1px); }
-.ini-linha:active { transform: none; box-shadow: 0 1px 3px rgba(46,48,54,.08); }
-.ini-linha__txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
-.ini-linha__txt b { font-weight: 650; }
-.ini-linha__frase { flex: 1; min-width: 0; }
-.ini-linha__frase b { font-weight: 650; }
-.ini-linha__txt small { font-size: 12px; color: var(--u-tinta-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ini-linha.is-lacuna { background: color-mix(in srgb, var(--u-elevada, #fff) 55%, transparent); border-style: dashed; border-color: var(--u-linha-forte); }
-.ini-linha.is-lacuna .ini-linha__txt b { font-weight: 550; color: var(--u-tinta-2); }
-
-.ini-mini { flex: none; display: block; width: 30px; border-radius: 4px; overflow: hidden; background: var(--odisse-nevoa, #E6E8EB); }
-.ini-mini.p34 { aspect-ratio: 3 / 4; }
-.ini-mini.pin { aspect-ratio: 2 / 3; }
-.ini-mini img { display: block; width: 100%; height: 100%; object-fit: cover; }
-.ini-mini.vazia { border: 1px dashed var(--u-linha-forte); background: transparent; box-sizing: border-box; }
-.ini-etqs { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px; flex: none; max-width: 40%; }
-.ini-acao { flex: none; display: flex; justify-content: flex-end; min-width: 0; }
-.ini-acao:empty { display: none; }
-.ini-confirmar { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; background: var(--u-elevada, #fff); white-space: nowrap; }
-.ini-confirmar svg { width: 14px; height: 14px; }
-.ini-confirmar:hover { border-color: #3E6B48; color: #3E6B48; background: #E2EBDF; }
-
+/* ---- etiquetas e vazio da v1 (ainda usados pelos KPIs, Credenciais e Financeiro; a Início foi para a base/v2, 24/11) ---- */
 /* etiquetas (raio 4) */
 .ini-etq { display: inline-block; white-space: nowrap; padding: 3px 7px; border-radius: 4px; font-size: 11px; font-weight: 600;
   background: var(--odisse-nevoa, #E6E8EB); color: var(--u-tinta); font-variant-numeric: tabular-nums; }
@@ -575,33 +510,8 @@ a.ini-grupo__faixa:focus-visible, .ini-linha:focus-visible, .ini-alerta:focus-vi
 .ini-etq.opcional { background: transparent; border: 1px dashed var(--u-linha-forte); color: #8A939C; padding: 2px 6px; }
 .ini-etq.destaque { min-width: 28px; text-align: center; box-sizing: border-box; background: var(--u-tinta); color: var(--u-superficie); font-size: 12px; }
 
-/* alerta: atrasadas (cartão branco com borda ocre em volta) */
-.ini-alerta { display: flex; align-items: center; gap: 12px; margin-bottom: var(--u-esp-3); padding: 10px 14px; min-height: 52px; box-sizing: border-box;
-  background: var(--u-elevada, #fff); border: 1px solid var(--odisse-ocre, #BB8248); border-radius: var(--u-raio); color: inherit; text-decoration: none;
-  font-size: 13px; transition: background-color .15s, box-shadow .15s, transform .15s; }
-.ini-alerta:hover { background: #FFFBF5; box-shadow: 0 3px 10px rgba(46,48,54,.09); transform: translateY(-1px); }
-.ini-alerta__ir { display: inline-flex; align-items: center; gap: 8px; flex: none; font-weight: 600; color: #8A5A2B; }
-.ini-alerta__ir .ini-fora { margin-left: 0; color: inherit; }
-
 .ini-vazio { margin: 0; padding: var(--u-esp-5); border: 1px dashed var(--u-linha-forte); border-radius: var(--u-raio);
   color: var(--u-tinta-2); font-size: 13px; text-align: center; }
-.ini-grupo .ini-vazio { margin: 8px; background: color-mix(in srgb, var(--u-elevada, #fff) 55%, transparent); }
-
-@media (max-width: 1100px) { .ini-placares { grid-template-columns: minmax(0, 1fr); } }
-@media (max-width: 760px) {
-  .ini-placar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .ini-pub { flex-wrap: wrap; }
-  .ini-pub .ini-linha__txt { flex-basis: calc(100% - 50px); }
-  .ini-etqs { max-width: none; justify-content: flex-start; margin-left: 42px; }
-  .ini-acao { flex-basis: 100%; }
-  .ini-confirmar { width: 100%; justify-content: center; }
-  .ini-alerta { flex-wrap: wrap; }
-  .ini-alerta__ir { flex-basis: 100%; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .ini-linha, .ini-alerta, .ini-grupo__faixa { transition: none; }
-  .ini-linha:hover, .ini-alerta:hover { transform: none; }
-}
 
 /* ---- Mapa de preços (#/precos, assets/precos.js; Cid, 19/11) ------------------------------------
    Painel: Filtros → Placar → Gráfico e Matriz por estado → Registro de contratos → Registro de concursos
@@ -1032,11 +942,7 @@ span.bol-fonte + .bol-caixa, .bol-titulo + .bol-caixa { margin-left: auto; }
 }
 @media (max-width: 640px) { .bol-var:has(> .bol-nada:only-child) { display: none; } .bol-bloco { padding: 16px 14px 8px; } .bol-fonte { display: none; } .bol-acoes { margin-left: 0; } }
 @media (prefers-reduced-motion: reduce) { .bol-seta, .abas-caixa a { transition: none; } }
-.ini-balanco { align-items: center; }
-.ini-balanco .ini-etq svg { width: 12px; height: 12px; display: block; }
-.ini-balanco__acoes { display: inline-flex; flex-wrap: wrap; gap: 8px; margin-left: auto; }
 .ini-etq.problema { background: #F3E1DE; color: var(--u-perigo, #A4473B); }
-.ini-balanco:hover { background: var(--u-elevada, #fff); box-shadow: none; transform: none; }
 
 /* ---- Credenciais (assets/credenciais.js; Cid, 19/11) --------------------------------------------
    Lista de documentos comum (Empresa, Equipe e a página Credenciais): linha com ✎ em caixa, nome e detalhe,
@@ -1113,10 +1019,6 @@ span.bol-fonte + .bol-caixa, .bol-titulo + .bol-caixa { margin-left: auto; }
 .cre-g-msg.erro { color: var(--u-perigo, #A4473B); }
 .cre-g-botoes { display: flex; gap: 8px; flex: none; }
 
-/* Início: documentos vencidos (cartão branco com borda ocre, como os outros alertas) */
-.ini-cre .ini-alerta { cursor: default; }
-.ini-cre .ini-alerta:hover { transform: none; }
-.ini-cre .ini-linha__txt small { white-space: normal; }
 
 @media (max-width: 760px) {
   .cre-linha { grid-template-columns: 24px minmax(0, 1fr); }
