@@ -229,7 +229,7 @@ function paginaCalendario() {
       <div class="mk-cal-principal">${corpo}</div>
       ${ui.ladoAberto ? lado() : ''}
     </div>
-    <p class="ui-nota">Cada cartão é um encaixe da Grade (Estratégia): tracejado é lacuna (o + abre a Gaveta com o que serve), cinza é pauta, com imagem é a publicação. Solte a publicação dentro do encaixe; ao arrastar, só os encaixes compatíveis se acendem. Pelo teclado, use os campos Dia e Encaixe da Gaveta.</p>`;
+    <p class="ui-nota">Cada cartão é um encaixe da Grade (Estratégia). Cores: verde publicado, azul agendado, laranja tracejado é lacuna a preencher (o + abre a Gaveta com o que serve), areia é pauta, cinza é dia que passou sem publicação, vermelho é atraso. Solte a publicação dentro do encaixe; ao arrastar, só os encaixes compatíveis se acendem. Pelo teclado, use os campos Dia e Encaixe da Gaveta.</p>`;
 }
 
 function grade(per, v) {
@@ -271,11 +271,15 @@ function cartaoMes(c, hoje) {
   const p = c.pauta;
   return `<div class="mk-ce is-pauta" draggable="true" data-pauta="${esc(p.id)}" data-abre="p:${esc(p.id)}" tabindex="0"><span class="mk-th is-p is-pauta"></span><span class="mk-ce__tx"><b>${esc(p.angulo || 'Pauta')}</b><small>${ic}pauta sem encaixe</small></span></div>`;
 }
+/** Estado de um cartão de cota: completo (publicado ou agendado), faltando (lacuna) ou passado sem completar. */
+function estadoCota(c, hoje) {
+  if (c.itens.length >= c.e.cota) return c.itens.every((x) => x.status === 'publicado') ? 'publicado' : c.dia < hoje ? 'atraso' : 'agendado';
+  return c.dia < hoje ? 'vazio' : 'lacuna';
+}
 function cotaMes(c, hoje) {
   const n = Math.max(c.e.cota, c.itens.length);
   const vagas = Array.from({ length: n }, (_, k) => (c.itens[k] ? `<i style="background-image:url('${c.itens[k].miniatura || ''}')"></i>` : '<i class="is-vazio"></i>')).join('');
-  const passado = c.dia < hoje && c.itens.length >= c.e.cota;
-  return `<div class="mk-ce is-cota${passado ? ' is-publicado' : ''}${c.itens.length > (plano.plataforma(c.e.plataforma)?.cotaMax || 3) ? ' is-excesso' : ''}" data-alvo="cota" data-dia="${c.dia}" data-plat="${esc(c.e.plataforma)}" data-abre="c:${c.dia}|${esc(c.e.plataforma)}" tabindex="0" title="${esc(`${plano.nomePlataforma(c.e.plataforma)}: ${c.itens.length} de ${c.e.cota}`)}">
+  return `<div class="mk-ce is-cota is-${estadoCota(c, hoje)}${c.itens.length > (plano.plataforma(c.e.plataforma)?.cotaMax || 3) ? ' is-excesso' : ''}" data-alvo="cota" data-dia="${c.dia}" data-plat="${esc(c.e.plataforma)}" data-abre="c:${c.dia}|${esc(c.e.plataforma)}" tabindex="0" title="${esc(`${plano.nomePlataforma(c.e.plataforma)}: ${c.itens.length} de ${c.e.cota}`)}">
     <span class="mk-ce__vagas">${vagas}</span><span class="mk-ce__tx"><small>${iconePlat(c.e.plataforma, 10)}${c.itens.length}/${c.e.cota}</small></span></div>`;
 }
 
@@ -286,7 +290,7 @@ function cartaoSemana(c, hoje) {
     const vagas = Array.from({ length: n }, (_, k) => (c.itens[k]
       ? `<span class="mk-vaga" draggable="true" data-item="${esc(c.itens[k].id)}" data-abre="i:${esc(c.itens[k].id)}">${thumb(c.itens[k])}</span>`
       : `<span class="mk-vaga is-vazio">${icone('mais', 14, 1.8)}</span>`)).join('');
-    return `<div class="mk-cg is-cota" data-alvo="cota" data-dia="${c.dia}" data-plat="${esc(c.e.plataforma)}">
+    return `<div class="mk-cg is-cota is-${estadoCota(c, hoje)}" data-alvo="cota" data-dia="${c.dia}" data-plat="${esc(c.e.plataforma)}">
       <div class="mk-cg__topo" data-abre="c:${c.dia}|${esc(c.e.plataforma)}" tabindex="0">${iconePlat(c.e.plataforma)}<span>${esc(c.e.rotulo || 'Cota')}</span><em>${c.itens.length}/${c.e.cota}</em></div>
       <div class="mk-cg__vagas">${vagas}</div></div>`;
   }
