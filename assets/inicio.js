@@ -84,11 +84,12 @@ function itensDe(d) {
   }
   for (const l of pub.linhas || []) {
     const titulo = l.tipo === 'lacuna' ? 'Nada planejado ainda' : (l.titulo || 'Sem título');
-    const ctx = [l.rede === 'pinterest' ? 'Pinterest' : 'Instagram', l.encaixe].filter(Boolean).join(' · ');
+    const rede = l.plataformaNome || (l.rede === 'pinterest' ? 'Pinterest' : 'Instagram');
+    const ctx = [rede, l.encaixe].filter(Boolean).join(' · ');
     const a = l.confirma ? { texto: 'Confirmar publicação', dados: { confirmar: `${l.tipo}:${l.id}` } } : { texto: l.tipo === 'lacuna' ? 'Planejar' : 'Ver calendário', href: CALENDARIO, novaAba: true };
-    L.push({ id: `pub:${l.tipo}:${l.id || l.pos}`, grupo: l.horario ? 'hora' : 'fazer', area: 'marketing', tipo: 'post', titulo, contexto: ctx, hora: !!l.horario,
+    L.push({ id: `pub:${l.tipo}:${l.id || `${l.rede}-${l.pos}`}`, grupo: l.horario ? 'hora' : 'fazer', area: 'marketing', tipo: 'post', titulo, contexto: ctx, hora: !!l.horario,
       quando: l.horario ? [l.horario, 'hora'] : ['hoje', ''], ordem: l.horario || '99', acao: a,
-      campos: [['Rede', esc(l.rede === 'pinterest' ? 'Pinterest' : 'Instagram')], ['Situação', esc(l.tipo === 'item' ? 'pronta' : l.tipo === 'pauta' ? (l.situacao || 'pauta') : 'lacuna')], ['Encaixe', esc(l.encaixe || '—')]] });
+      campos: [['Plataforma', esc(rede)], ['Situação', esc(l.tipo === 'item' ? 'pronta' : l.tipo === 'pauta' ? (l.situacao || 'pauta') : 'lacuna')], ['Encaixe', esc(l.encaixe || '—')]] });
   }
   for (const p of d.projetos?.itens || []) {
     for (const e of p.hoje || []) {

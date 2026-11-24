@@ -1319,7 +1319,9 @@ async function rotear() {
     if (pub) await sairDoEditor();
     document.title = 'Calendário · Universo';
     mostrar('calendario');
-    await renderCalendario($('#calendario'), location.hash.split('/')[2] || '', { aviso });
+    // a antiga subpágina Plataformas (tabela por projeto) virou a vista Tabela do Pool de mídias
+    if (location.hash.startsWith('#/calendario/plataformas')) { history.replaceState(null, '', '#/calendario/pool/tabela'); }
+    await renderCalendario($('#calendario'), location.hash.split('/').slice(2).join('/'), { aviso });
     return;
   }
   if (location.hash === '#/padroes') {
@@ -1367,10 +1369,10 @@ function irParaEntrada() {
   location.href = '/#/';
 }
 
-// Abas do Marketing (no desenho das Abas da v2) e o item aceso no menu lateral do Universo (casca).
-const MENU_DA_SECAO = { publicacoes: 'publicacoes', calendario: 'calendario', estrategia: 'estrategia', metricas: 'kpis' };
+// O item aceso no menu lateral do Universo (casca): Publicações, Estratégia, Calendário editorial e Métricas são
+// itens do menu; cada página mostra só as próprias Abas.
+const MENU_DA_SECAO = { publicacoes: 'publicacoes', calendario: 'calendario', estrategia: 'estrategia', metricas: 'metricas' };
 function marcarSecao(secao) {
-  $$('#abasMarketing a').forEach((a) => { if (a.dataset.secao === secao) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
   const marcar = () => window.universoCasca?.marcar(MENU_DA_SECAO[secao]);
   if (window.universoCasca) marcar(); else window.addEventListener('universo:casca', marcar, { once: true });
 }

@@ -122,9 +122,12 @@ export const dataLonga = (iso) => (iso ? dataDe(iso).toLocaleDateString('pt-BR',
 
 // ---------------------------------------------------------------------------
 // Distribuição dos pins prontos no calendário: um projeto por dia (um projeto se publica aos poucos),
-// alternando as pastas dentro de cada projeto, até `ritmo` pins por dia.
+// alternando as pastas dentro de cada projeto, até `ritmo` pins por dia. `ritmo` é um número ou uma função
+// (dia) → número: a cota do dia que vem da Estratégia. `opc.umProjeto` e `opc.pastas` seguem as regras da plataforma.
 
-export function planejarDistribuicao(prontos, inicio, ritmo) {
+export function planejarDistribuicao(prontos, inicio, ritmo, opc = {}) {
+  const umProjeto = opc.umProjeto !== false, alternar = opc.pastas !== false;
+  const cotaDe = typeof ritmo === 'function' ? ritmo : () => ritmo;
   const porProjeto = new Map();
   for (const it of [...prontos].sort((a, b) => (a.criado || '').localeCompare(b.criado || ''))) {
     if (!porProjeto.has(it.pub)) porProjeto.set(it.pub, []);
@@ -134,7 +137,7 @@ export function planejarDistribuicao(prontos, inicio, ritmo) {
   const filas = [...porProjeto.values()].map((l) => {
     const porPasta = new Map();
     for (const it of l) {
-      const k = it.pin?.pasta || '';
+      const k = alternar ? it.pin?.pasta || '' : '';
       if (!porPasta.has(k)) porPasta.set(k, []);
       porPasta.get(k).push(it);
     }
@@ -146,11 +149,11 @@ export function planejarDistribuicao(prontos, inicio, ritmo) {
   let dia = inicio, giro = 0, guarda = 366;
   while (filas.some((f) => f.length) && guarda--) {
     const ocupados = lista().filter((x) => x.rede === 'pinterest' && x.dia === dia).concat(plano.filter((p) => p.dia === dia).map((p) => p.item));
-    let vagas = ritmo - ocupados.length;
+    let vagas = cotaDe(dia) - ocupados.length;
     const projetos = new Set(ocupados.map((x) => x.pub));
     for (let k = 0; k < filas.length && vagas > 0; k++) {
       const f = filas[(k + giro) % filas.length];
-      if (!f.length || projetos.has(f[0].pub)) continue;
+      if (!f.length || (umProjeto && projetos.has(f[0].pub))) continue;
       const it = f.shift();
       plano.push({ item: it, dia });
       projetos.add(it.pub);

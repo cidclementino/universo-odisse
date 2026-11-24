@@ -61,7 +61,7 @@
   --ui-alt-menu: 30px;
   --ui-alt-linha: 42px;
   --ui-larg-menu: 240px;
-  --ui-larg-conteudo: 1120px;
+  --ui-larg-conteudo: 1600px;   /* largura única das páginas (a mesma dos KPIs): o painel inteiro até 1600 */
   --ui-fonte: var(--odisse-fonte, 'Inter', system-ui, sans-serif);
 }
 
@@ -172,14 +172,15 @@ body.ui-casca-on { margin: 0; background: var(--ui-fundo); color: var(--ui-texto
 /* abas: trocam de página; o nome da seção à esquerda */
 .ui-abas { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 0 0 14px; max-width: 100%; }
 .ui-abas__rot { font-size: 11px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--ui-texto-3); }
-.ui-abas__caixa { display: inline-flex; gap: 2px; padding: 3px; background: #EEF1F4; border-radius: 9px; max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+.ui-abas__caixa { display: inline-flex; flex-wrap: wrap; gap: 2px; padding: 3px; background: #EEF1F4; border-radius: 9px; max-width: 100%; box-sizing: border-box; }
 .ui-abas__caixa a { height: 26px; padding: 0 10px; display: inline-flex; align-items: center; border-radius: var(--ui-raio-p); font-size: 12.5px; font-weight: 500;
   color: var(--ui-texto-2); text-decoration: none; white-space: nowrap; }
 .ui-abas__caixa a:hover { color: var(--ui-texto); background: rgba(255, 255, 255, .6); }
 .ui-abas__caixa a[aria-current="page"] { background: #FFFFFF; color: var(--ui-texto); font-weight: 600; box-shadow: 0 1px 2px rgba(46, 48, 54, .1); }
 
 /* segmentado: filtra o mesmo conteúdo (não troca de página; para isso, abas) */
-.ui-segmentado { display: inline-flex; gap: 2px; padding: 3px; background: #EEF1F4; border-radius: 9px; max-width: 100%; overflow-x: auto; }
+/* comprimido, quebra em linhas (nunca barra de rolagem) */
+.ui-segmentado { display: inline-flex; flex-wrap: wrap; gap: 2px; padding: 3px; background: #EEF1F4; border-radius: 9px; max-width: 100%; box-sizing: border-box; }
 .ui-segmentado button { border: 0; background: transparent; font: 500 12.5px var(--ui-fonte); color: var(--ui-texto-2); height: 24px; padding: 0 10px;
   border-radius: var(--ui-raio-p); cursor: pointer; display: flex; gap: 6px; align-items: center; white-space: nowrap; }
 .ui-segmentado button:hover { color: var(--ui-texto); }
@@ -227,6 +228,7 @@ body.ui-casca-on { margin: 0; background: var(--ui-fundo); color: var(--ui-texto
 .ui-quando.is-atencao { color: var(--ui-atencao); font-weight: 600; }
 .ui-quando.is-ok { color: var(--ui-ok); font-weight: 600; }
 .ui-quando.is-hora { color: var(--ui-texto); font-weight: 600; }
+.ui-quando.is-pequeno { font-size: 11px; }
 .ui-acao { font: 600 12px var(--ui-fonte); color: var(--ui-texto); background: #FFFFFF; border: 1px solid #E1E1DC; border-radius: var(--ui-raio-p); height: 26px;
   padding: 0 10px; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; cursor: pointer; text-decoration: none; }
 .ui-acao:hover { border-color: #8A939C; color: var(--ui-texto); }

@@ -542,6 +542,11 @@
         "nome": "Marketing",
         "itens": [
           {
+            "id": "publicacoes",
+            "nome": "Publicações",
+            "icone": "publicacoes"
+          },
+          {
             "id": "estrategia",
             "nome": "Estratégia",
             "icone": "estrategia",
@@ -554,9 +559,10 @@
             "contagem": "calendario"
           },
           {
-            "id": "publicacoes",
-            "nome": "Publicações",
-            "icone": "publicacoes"
+            "id": "metricas",
+            "nome": "Métricas",
+            "icone": "metricas",
+            "url": "https://universo.odisse.com.br/marketing/#/metricas"
           }
         ]
       },

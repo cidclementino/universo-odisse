@@ -22,6 +22,7 @@ export const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&a
 const P = {
   inicio: '<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
   kpis: '<path d="M4 20V11M10 20V5M16 20v-6M3 20h18"/>',
+  metricas: '<path d="M3 17l5.5-5.5 4 4L21 7"/><path d="M15 7h6v6"/>',
   financeiro: '<rect x="3" y="6" width="18" height="13" rx="2.5"/><path d="M3 10h18M7 15h4"/>',
   contatos: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 2.9-5.5 6.5-5.5s6.5 1.9 6.5 5.5M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.8c2.2.6 3.5 2.4 3.5 5.2"/>',
   funil: '<path d="M3 4h18l-7 8v6l-4 2v-8z"/>',
@@ -45,6 +46,14 @@ const P = {
   menu: '<path d="M4 7h16M4 12h16M4 17h16"/>',
   sair: '<path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l5-5-5-5M15 12H3"/>',
   seta: '<path d="M9 6l6 6-6 6"/>',
+  anterior: '<path d="M15 6l-6 6 6 6"/>',
+  baixar: '<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>',
+  mais: '<path d="M12 5v14M5 12h14"/>',
+  alca: '<circle cx="9" cy="6" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="18" r="1"/>',
+  instagram: '<rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r=".6"/>',
+  pinterest: '<circle cx="12" cy="12" r="9"/><path d="M11 8.5c3-1 5 .5 4.5 3s-3 3-4 1.5M11.5 9 9 20"/>',
+  tiktok: '<path d="M14 4v10.5a3.5 3.5 0 1 1-3.5-3.5M14 4c.5 2.5 2.5 4 5 4"/>',
+  plataforma: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
   baixo: '<path d="m6 9 6 6 6-6"/>',
   trocar: '<path d="m8 9 4-4 4 4M8 15l4 4 4-4"/>',
   fechar: '<path d="M6 6l12 12M18 6 6 18"/>',
@@ -58,8 +67,8 @@ export function icone(nome, tam = 16, traco = 1.7) {
 // ---------------------------------------------------------------- peças pequenas
 const AREAS = { comercial: 'Comercial', producao: 'Produção', marketing: 'Marketing', gestao: 'Gestão' };
 export const etiqueta = (texto, area = '') => `<span class="ui-etq${area ? ' is-' + area : ''}">${esc(texto || AREAS[area] || '')}</span>`;
-// tom: atraso · atencao · ok · hora · (neutro)
-export const quando = (texto, tom = '') => `<span class="ui-quando${tom ? ' is-' + tom : ''}">${esc(texto)}</span>`;
+// tom: atraso · atencao · ok · hora · (neutro) · { pequeno: true } = 11 px, para cartões e miniaturas
+export const quando = (texto, tom = '', { pequeno = false } = {}) => `<span class="ui-quando${tom ? ' is-' + tom : ''}${pequeno ? ' is-pequeno' : ''}">${esc(texto)}</span>`;
 export const nome = (titulo, { area = '', contexto = '' } = {}) =>
   `<span class="ui-nome"><b>${esc(titulo)}</b>${area ? etiqueta('', area) : ''}${contexto ? `<small>${esc(contexto)}</small>` : ''}</span>`;
 export const medidor = (feitas, total) => `<span class="ui-medidor"><span class="ui-barra"><i style="width:${total ? Math.round((100 * feitas) / total) : 0}%"></i></span><small>${feitas}/${total}</small></span>`;
