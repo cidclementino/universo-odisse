@@ -40,10 +40,10 @@ const B = COR.branco, A = COR.ardosia;
 const CARIMBO = { y: E.cabecalho + 12 - E.bloco / 2, h: E.bloco };
 // Campos que não entram em "Textos": rótulos, legendas, créditos, ficha e avisos.
 const FORA_DOS_TEXTOS = /^(rotulo|legR|legT|fonte|aviso|link|assin|planta|cota|rodape|l\d|f\d+[rv])$/;
-const OP_CARIMBO = { k: 'carimbo', rot: 'Carimbo', valores: [['linhas', 'Só linhas'], ['cheio', 'Fundo cheio']], padrao: 'linhas' };
+export const OP_CARIMBO = { k: 'carimbo', rot: 'Carimbo', valores: [['linhas', 'Só linhas'], ['cheio', 'Fundo cheio']], padrao: 'linhas' };
 // Véu: opacidade dos gradientes do núcleo sobre a imagem, por card. Multiplica a opacidade que cada modelo
 // já usa (Padrão = como o modelo foi desenhado). Só aparece no painel quando o card desenha algum véu.
-const FATOR_VEU = { sem: 0, leve: 0.5, padrao: 1, forte: 1.4 };
+export const FATOR_VEU = { sem: 0, leve: 0.5, padrao: 1, forte: 1.4 };
 export const OP_VEU = { k: 'veu', rot: 'Véu', valores: [['sem', 'Sem'], ['leve', 'Leve'], ['padrao', 'Padrão'], ['forte', 'Forte']], padrao: 'padrao' };
 
 // Preenchimento: a cor que pinta o fundo do card e o carimbo cheio. Existe em todo modelo cujo fundo

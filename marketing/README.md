@@ -72,6 +72,24 @@ Nas peças da `base/v2`; o detalhe está no `marketing.md` do projeto e nos come
 escalada por plataforma e, no Pinterest, as pastas do perfil (arrastar pela alça ou setas do teclado, dentro do
 grupo).
 
+## Padrões (`#/padroes`)
+
+Nas peças da `base/v2`, sem barra de números. Abas Modelos · Estilos de texto · Espaçamentos · Véu e carimbo
+(`#/padroes`, `/texto`, `/espaco`, `/veu`).
+
+- **Modelos:** cada modelo uma vez (universais, o pin e os específicos do núcleo escolhido), desenhado com os
+  módulos reais. **Ver como** troca o núcleo; Formato, Texto de teste (Curto · Exemplo · Longo) e Imagens (fotos
+  geradas ou vazias). A **bancada** do modelo escolhido: nome editável, um núcleo ou os quatro lado a lado, guias,
+  **Conferência** nos quatro núcleos (bloco que não cabe, texto abaixo de y 1260, palavra maior que a coluna, linhas
+  da ficha que saíram), Personalização e Textos como variáveis de teste e **Tornar padrão**.
+- **Estilos de texto:** corpo, peso, entrelinha e tracking editáveis; cada mudança refaz a conferência.
+- **Espaçamentos:** só leitura (montam o grid dos modelos; mudam no código).
+- **Véu e carimbo:** fator de cada nível, véu e carimbo dos cards novos, prévia no O-08. A cor do véu vem da Marca.
+- **Gravação** (`padroes-cards.js`): só a diferença para o código, em `cfg:padroes-cards` (nuvem) e
+  `meta/padroes-cards` (IndexedDB). As edições ficam num rascunho até **Salvar padrões**; fora da página vale o
+  gravado. Nomes, fatores do véu e estilos de texto valem na hora para todos os cards; padrões de opção e de texto,
+  véu e carimbo entram só nos **cards novos** (`padraoInicial`, no `novoCard` e ao trocar de modelo).
+
 ## Métricas (`#/metricas`)
 
 Instagram (@odisseestudio) pela API do Meta, com coleta diária no Worker. O vínculo automático de cada post com a
@@ -90,7 +108,7 @@ assets/js/pinterest.js        pins: pastas, campos, UTMs, textos.txt
 assets/js/pool.js             pool de mídias: itens, repetição, distribuição
 assets/js/pagina-calendario.js  Calendário editorial e Pool de mídias
 assets/js/plano.js · grade.js · pagina-estrategia.js   Estratégia (grade, plataformas, pautas, ciclo)
-assets/js/padroes.js · pagina-padroes.js   estilos de texto e espaçamentos
+assets/js/padroes.js · padroes-cards.js · pagina-padroes.js   estilos, espaçamentos, padrões editados e a página Padrões
 assets/js/nucleos.js · marca.js · marks.js · imaging.js   núcleos, Marca, selos, tratamento de imagem
 assets/js/store.js · nuvem.js   IndexedDB e cliente da API
 assets/js/pagina-metricas.js · metricas/   Métricas
