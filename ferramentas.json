@@ -23,7 +23,7 @@
     },
     {
       "id": "estudio",
-      "nome": "O Estúdio",
+      "nome": "Perfil",
       "descricao": "Quem somos",
       "rota": "empresa"
     },

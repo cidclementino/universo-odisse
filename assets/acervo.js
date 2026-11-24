@@ -132,7 +132,7 @@ export function criarAcervo({ esc, api, apiBinario, toque }) {
     if (!raiz) return;
     const y = window.scrollY;
     const lado = dados ? `${mil(dados.total)} imagem${dados.total === 1 ? '' : 's'} · ${mil(dados.publicas)} pública${dados.publicas === 1 ? '' : 's'}` : '';
-    const cab = `<div class="cab"><div><nav class="u-trilha" aria-label="Você está em"><a href="#/biblioteca">Biblioteca</a><span class="sep">/</span><span aria-current="page">Acervo de imagens</span></nav>
+    const cab = `<div class="cab"><div>
       <h1 class="u-titulo">Acervo de imagens</h1></div>
       <div class="acv-cab-lado"><span class="u-apoio">${lado}</span><button type="button" class="u-botao forte" data-acao="enviar">Enviar imagens</button></div></div>`;
     const filtrosHtml = `<div class="pas-filtros acv-filtros">

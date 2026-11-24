@@ -10,6 +10,7 @@
 // congela os números; o PDF é desenhado deles pelo desenhista da Marca (folha Coluna), sempre igual.
 
 import { lerCopia, gravarCopia, igual } from './memoria.js';
+import { abas as abasV2 } from '../base/v2/componentes.js';
 
 const COPIA = 'kpis';
 const LEMBRAR = 'universo:kpis:';
@@ -230,9 +231,7 @@ export function criarKpis({ esc, api, toque }) {
   const lembrarFechados = () => { try { localStorage.setItem(LEMBRAR + 'fechados', JSON.stringify([...fechados])); } catch {} };
 
   // ---- comum
-  const abas = () => `<nav class="abas-caixa-linha" aria-label="KPIs"><span class="u-rotulo">KPIs</span>
-      <span class="abas-caixa">${[['painel', 'Painel', '#/kpis'], ['metas', 'Metas', '#/kpis/metas']].map(([id, nome, href]) =>
-        `<a href="${href}"${id === sub ? ' class="ativa" aria-current="page"' : ''}>${nome}</a>`).join('')}</span></nav>`;
+  const abas = () => abasV2('KPIs', [['painel', 'Painel', '#/kpis'], ['metas', 'Metas', '#/kpis/metas']].map(([id, rotulo, href]) => ({ href, rotulo, ativa: id === sub })));
   const cabecalho = (titulo, lado = '') => `${abas()}<div class="cab"><h1 class="u-titulo">${esc(titulo)}</h1>${lado ? `<div class="lado u-apoio">${lado}</div>` : ''}</div>`;
   const seta = (aberto) => `<span class="bol-seta${aberto ? ' aberta' : ''}" aria-hidden="true">${SVG.seta}</span>`;
   const cabBloco = (id, titulo, onde, link, extra = '') => {

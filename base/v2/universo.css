@@ -142,7 +142,7 @@ body.ui-casca-on { margin: 0; background: var(--ui-fundo); color: var(--ui-texto
 .ui-cab__dado { margin: 4px 0 0; color: var(--ui-texto-3); font-size: 12.5px; }
 
 /* ------------------------------------------------------------ números (big numbers lado a lado) */
-.ui-numeros { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 22px; }
+.ui-numeros { display: grid; grid-template-columns: repeat(var(--ui-n, 4), minmax(0, 1fr)); gap: 12px; margin-top: 22px; }
 .ui-numero { background: var(--ui-bandeja); border-radius: var(--ui-raio); padding: var(--ui-recuo); border: 0; text-align: left; font: inherit; color: inherit;
   display: flex; flex-direction: column; text-decoration: none; cursor: pointer; }
 .ui-numero:hover .ui-numero__dentro { box-shadow: 0 0 0 1px rgba(46, 48, 54, .16), 0 2px 6px rgba(46, 48, 54, .06); }
@@ -155,6 +155,10 @@ body.ui-casca-on { margin: 0; background: var(--ui-fundo); color: var(--ui-texto
 .ui-numero__val small { font-size: 13px; font-weight: 500; color: var(--ui-texto-3); letter-spacing: 0; }
 .ui-numero__apoio { font-size: 12px; color: var(--ui-texto-2); padding: 8px 12px 6px; }
 .ui-numero.is-vazio .ui-numero__val { color: var(--ui-texto-3); }
+.ui-numero.is-estatico { cursor: default; }
+.ui-numero.is-estatico:hover .ui-numero__dentro { box-shadow: 0 0 0 1px rgba(46, 48, 54, .06); }
+.ui-numero.is-problema .ui-numero__val { color: var(--ui-perigo); }
+.ui-numero__val sup, .ui-numero__val small sup { font-size: .6em; }
 
 /* ------------------------------------------------------------ seções, segmentado, bandeja, lista */
 .ui-secao { margin-top: 32px; }
@@ -164,6 +168,15 @@ body.ui-casca-on { margin: 0; background: var(--ui-fundo); color: var(--ui-texto
 .ui-secao__lado { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; max-width: 100%; }
 .ui-link { font-size: 12px; font-weight: 600; color: var(--ui-texto-2); display: inline-flex; align-items: center; gap: 3px; text-decoration: none; }
 .ui-link:hover { color: var(--ui-texto); text-decoration: underline; text-underline-offset: 3px; }
+
+/* abas: trocam de página; o nome da seção à esquerda */
+.ui-abas { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 0 0 14px; max-width: 100%; }
+.ui-abas__rot { font-size: 11px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--ui-texto-3); }
+.ui-abas__caixa { display: inline-flex; gap: 2px; padding: 3px; background: #EEF1F4; border-radius: 9px; max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+.ui-abas__caixa a { height: 26px; padding: 0 10px; display: inline-flex; align-items: center; border-radius: var(--ui-raio-p); font-size: 12.5px; font-weight: 500;
+  color: var(--ui-texto-2); text-decoration: none; white-space: nowrap; }
+.ui-abas__caixa a:hover { color: var(--ui-texto); background: rgba(255, 255, 255, .6); }
+.ui-abas__caixa a[aria-current="page"] { background: #FFFFFF; color: var(--ui-texto); font-weight: 600; box-shadow: 0 1px 2px rgba(46, 48, 54, .1); }
 
 /* segmentado: filtra o mesmo conteúdo (não troca de página; para isso, abas) */
 .ui-segmentado { display: inline-flex; gap: 2px; padding: 3px; background: #EEF1F4; border-radius: 9px; max-width: 100%; overflow-x: auto; }
@@ -256,6 +269,7 @@ body.ui-casca-on { margin: 0; background: var(--ui-fundo); color: var(--ui-texto
 @media (prefers-reduced-motion: reduce) { .ui-toque, .ui-menu { transition: none; } }
 
 /* ------------------------------------------------------------ larguras */
+@media (max-width: 1180px) { .ui-numeros { grid-template-columns: repeat(min(var(--ui-n, 4), 4), minmax(0, 1fr)); } }
 @media (max-width: 1000px) { .ui-numeros { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 760px) {
   .ui-so-celular { display: inline-flex !important; }

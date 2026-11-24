@@ -198,7 +198,7 @@ const AMOSTRA = {
 
   // ---- peças (tamanho real, quando cabe) ----
   abas: () => `<div class="pi-var"><small>modelo · em caixa, com o nome da seção à esquerda</small>
-      <span class="pi-abas-linha"><span class="u-rotulo">O Estúdio</span><span class="pi-abas-caixa"><span class="is-on">Empresa</span><span>Equipe</span><span>Marca</span><span>Canais</span><span>Credenciais</span></span></span>
+      <span class="pi-abas-linha"><span class="u-rotulo">Perfil</span><span class="pi-abas-caixa"><span class="is-on">Empresa</span><span>Equipe</span><span>Marca</span><span>Canais</span><span>Credenciais</span></span></span>
       <span class="pi-abas-linha"><span class="u-rotulo">Contatos</span><span class="pi-abas-caixa"><span class="is-on">Todos <em>42</em></span><span>Pessoas <em>30</em></span><span>Organizações <em>12</em></span></span></span></div>
     <div class="pi-var pi-legado"><small>a ajustar · sublinhadas</small><span class="pi-abas-sub"><span class="is-on">Posts 3:4</span><span>Pins</span><span>Stories</span></span></div>`,
 
@@ -465,7 +465,7 @@ export function criarPadroes({ esc }) {
       <div class="pi-grade">${g.itens.map((p) => caixa({ ...p, peca })).join('')}</div></div>`).join('');
 
   function ligar(raiz) {
-    raiz.innerHTML = `<div class="cab"><div><nav class="u-trilha" aria-label="Você está em"><a href="#/biblioteca">Biblioteca</a><span class="sep">/</span><span aria-current="page">Padrões de interface</span></nav>
+    raiz.innerHTML = `<div class="cab"><div>
         <h1 class="u-titulo">Padrões de interface</h1></div></div>
       ${vitrineV2()}
       <section class="pi-secao"><h2 class="u-subtitulo">Padrão anterior (v1): catálogo de cópias</h2>

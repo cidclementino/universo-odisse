@@ -19,14 +19,13 @@ import { criarCredenciais } from './credenciais.js';
 import { criarFinanceiro } from './financeiro.js';
 import { contagensDe, arvoreDe } from './inicio.js';
 import { lerCopia } from './memoria.js';
-import { montarCasca } from '../base/v2/componentes.js';
+import { montarCasca, abas } from '../base/v2/componentes.js';
 
 const MARCA = 'https://marca.odisse.com.br/';
 const API = 'https://universo-hub.reservaprojectbasework.workers.dev';
 const vista = document.getElementById('vista');
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const semProtocolo = (u) => u.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '');
 
 let MAPA = null;   // ferramentas.json
 let ODISSE = null; // odisse.json da marca
@@ -41,36 +40,6 @@ async function carregar() {
 }
 
 // ---- peças ---------------------------------------------------------------
-
-function cartao(f) {
-  const breve = f.status === 'em-breve' || !f.url;
-  const tag = breve ? '<span class="u-etiqueta suave">em breve</span>'
-    : f.acesso === 'publica' ? '<span class="u-etiqueta">público</span>' : '';
-  // ferramenta ou site fora do hub abre em outra aba; o Universo fica aberto
-  const novaAba = f.url && !f.url.startsWith(location.origin) ? ' target="_blank" rel="noopener"' : '';
-  const titulo = breve ? `<b>${esc(f.nome)}</b>` : `<a class="principal" href="${esc(f.url)}"${novaAba}><b>${esc(f.nome)}</b></a>`;
-  const extras = (f.extra || []).map((x) => `<a href="${esc(x.url)}">${esc(x.nome)} →</a>`).join('');
-  const host = !breve && f.url ? `<span>${esc(semProtocolo(f.url))}</span>` : '';
-  return `<div class="u-cartao item${breve ? ' breve' : ''}">
-    <div class="topo">${titulo}${tag}</div>
-    ${f.descricao ? `<p>${esc(f.descricao)}</p>` : ''}
-    ${host || extras ? `<div class="rodape">${host}${extras}</div>` : ''}
-  </div>`;
-}
-
-function cabecalho(titulo, texto, lado = '') {
-  return `<div class="cab"><div><h1 class="u-titulo">${esc(titulo)}</h1>${texto ? `<p class="u-apoio">${texto}</p>` : ''}</div>
-    ${lado ? `<div class="lado u-apoio">${lado}</div>` : ''}</div>`;
-}
-
-function blocosDaSecao(secao, compactos = false) {
-  return MAPA.grupos.filter((g) => g.secao === secao).map((g) => {
-    const itens = MAPA.itens.filter((f) => f.grupo === g.id);
-    if (!itens.length) return '';
-    return `<section class="bloco"><span class="u-rotulo">${esc(g.nome)}</span>
-      <div class="cartoes${compactos ? ' compactos' : ''}">${itens.map(cartao).join('')}</div></section>`;
-  }).join('');
-}
 
 function toque(texto) {
   let el = document.querySelector('.toque');
@@ -125,14 +94,15 @@ const financeiro = criarFinanceiro({ esc, api, toque });
 const acervo = criarAcervo({ esc, api, apiBinario, toque });
 const empresa = criarEmpresa({ esc, api, toque, cred, lerOdisse: () => ODISSE, gravarOdisse: (d) => { ODISSE = d; } });
 
-// O Estúdio (Cid, 19/11): Empresa · Equipe · Marca · Canais · Credenciais são subpáginas, com abas no alto
+// Perfil (antes "O Estúdio"; Cid, 19/11 e 23/11): Empresa · Equipe · Marca · Canais · Credenciais são subpáginas, com Abas no alto
 const ESTUDIO = ['empresa', 'equipe', 'marca', 'canais', 'credenciais'];
 function abasEstudio(atual) {
-  // Abas em caixa com o nome da seção à esquerda (design.md § 0; mesmo desenho dos KPIs)
   const subs = MAPA.secoes.filter((s) => s.pai === 'estudio');
-  return `<nav class="abas-caixa-linha" aria-label="O Estúdio"><span class="u-rotulo">O Estúdio</span>
-    <span class="abas-caixa">${subs.map((s) => `<a href="#/${s.id}"${s.id === atual ? ' class="ativa" aria-current="page"' : ''}>${esc(s.nome)}</a>`).join('')}</span></nav>`;
+  return abas('Perfil', subs.map((s) => ({ href: `#/${s.id}`, rotulo: s.nome, ativa: s.id === atual })));
 }
+// Biblioteca (Cid, 24/11): Modelos de documentos · Acervo de imagens · Estrutura de pastas · Padrões de interface, com Abas
+const BIBLIOTECA = [['biblioteca', 'Modelos de documentos'], ['acervo', 'Acervo de imagens'], ['pastas', 'Estrutura de pastas'], ['padroes', 'Padrões de interface']];
+const abasBiblioteca = (atual) => abas('Biblioteca', BIBLIOTECA.map(([id, rotulo]) => ({ href: `#/${id}`, rotulo, ativa: id === atual })));
 
 // ---- páginas -------------------------------------------------------------
 
@@ -171,13 +141,9 @@ const PAGINAS = {
     return '<div id="pagina-credenciais" class="pagina-credenciais"></div>';
   },
 
+  // Biblioteca › Modelos de documentos (prévia + download); as outras partes da Biblioteca são abas
   biblioteca() {
-    // modelos de documentos (prévia + download) no alto; o resto da biblioteca em cartões, como antes
-    const outros = MAPA.itens.filter((f) => f.secao === 'biblioteca' && f.id !== 'documentos');
-    return cabecalho('Biblioteca', '') +
-      '<div id="biblioteca-modelos"></div>' +
-      `<section class="bloco"><span class="u-rotulo">Acervo e referências</span>
-        <div class="cartoes">${outros.map(cartao).join('')}</div></section>`;
+    return '<div class="cab"><h1 class="u-titulo">Modelos de documentos</h1></div><div id="biblioteca-modelos"></div>';
   },
 
   marca() {
@@ -244,7 +210,7 @@ function mostrar() {
   const r = rota();
   const sec = MAPA.secoes.find((s) => s.id === r) || MAPA.secoes.find((s) => s.rota === r) || { nome: { padroes: 'Padrões de interface', precos: 'Mapa de preços', pastas: 'Estrutura de pastas', acervo: 'Acervo de imagens' }[r] || 'Documentos' };
   document.title = (r === 'inicio' ? 'Universo' : sec.nome + ' — Universo') + ' — Odisse';
-  vista.innerHTML = (ESTUDIO.includes(r) ? abasEstudio(r) : '') + PAGINAS[r]();
+  vista.innerHTML = (ESTUDIO.includes(r) ? abasEstudio(r) : BIBLIOTECA.some(([id]) => id === r) ? abasBiblioteca(r) : '') + PAGINAS[r]();
   depois(r);
   window.scrollTo(0, 0);
 }
