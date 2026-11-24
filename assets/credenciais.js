@@ -14,6 +14,7 @@
 // A Início pede para abrir a Gaveta de substituição guardando { id } em sessionStorage ('credenciais:abrir').
 
 import { lerCopia, gravarCopia } from './memoria.js';
+import { numeros } from '../base/v2/componentes.js';
 
 const COPIA = 'credenciais:quadro';
 const PENDENTE = 'credenciais:abrir';
@@ -477,15 +478,14 @@ export function criarCredenciais({ esc, api, apiBinario, toque }) {
     const cab = `<div class="cab"><h1 class="u-titulo">Credenciais</h1>${lado ? `<div class="lado u-apoio">${esc(lado)}</div>` : ''}</div>`;
     if (!Q) { pagina.innerHTML = cab + '<p class="u-apoio cre-carregando">Carregando…</p>'; return; }
     const t = contas();
-    const num = (rot, n, pe, cls = '') => `<div class="pas-num-cx${cls}"><span class="pas-rot">${rot}</span><b>${n}</b><span class="pas-pe">${pe}</span></div>`;
     const y = window.scrollY;
     pagina.innerHTML = cab + `
-      <div class="pas-placar cre-placar">
-        ${num('Vencidos', t.vencidos, t.vencidos ? 'substitua para o aviso sair' : 'nenhum', t.vencidos ? ' is-problema' : '')}
-        ${num('Vencem em breve', t.vencem, `nos próximos ${Q.aviso_dias} dias`)}
-        ${num('Faltando', t.faltam, 'exigidos e não registrados')}
-        ${num('Em dia', t.emDia, 'válidos ou sem validade')}
-      </div>
+      ${numeros([
+        { rotulo: 'Vencidos', valor: t.vencidos, apoio: t.vencidos ? 'substitua para o aviso sair' : 'nenhum', tom: t.vencidos ? 'problema' : '' },
+        { rotulo: 'Vencem em breve', valor: t.vencem, apoio: `nos próximos ${Q.aviso_dias} dias` },
+        { rotulo: 'Faltando', valor: t.faltam, apoio: 'exigidos e não registrados' },
+        { rotulo: 'Em dia', valor: t.emDia, apoio: 'válidos ou sem validade' },
+      ], { estatico: true })}
       <section class="cre-sec">
         <h2 class="cre-sec__titulo">Aqui</h2>
         <div class="blocos-fluxo cre-fluxo">${['regularidade', 'economico', 'cadastros', 'projeto'].map(blocoLugar).join('')}</div>

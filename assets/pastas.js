@@ -16,6 +16,7 @@
 //   N além do previsto  arquivos soltos acima do que a norma admite na pasta
 
 import { lerCopia, gravarCopia, igual } from './memoria.js';
+import { numeros } from '../base/v2/componentes.js';
 
 const COPIA = 'pastas';
 const LEMBRAR = 'universo:pastas:';
@@ -120,13 +121,13 @@ export function criarPastas({ esc, api, toque }) {
   }
 
   function placar(e, c) {
-    const num = (rot, v, pe = '') => `<div class="pas-num-cx"><span class="pas-rot">${rot}</span><b>${v}</b>${pe ? `<span class="pas-pe">${pe}</span>` : ''}</div>`;
     const conferencia = e.norma
-      ? num('Fora da norma', mil(c.fora), [c.semNorma && `${c.semNorma} sem norma`, c.nome && `${c.nome} de nome`].filter(Boolean).join(' · ') || 'tudo previsto')
-        + num('Faltando', mil(c.falta), c.alem ? `${mil(c.alem)} arquivos além do previsto` : 'nenhuma pasta')
-      : num('Norma', '—', 'ainda não escrita');
-    return `<div class="pas-placar">${num('Pastas', mil(c.pastas))}${num('Arquivos', mil(c.arquivos + (e.retrato.a || 0)), 'contados no retrato')}${conferencia}</div>`;
+      ? [{ rotulo: 'Fora da norma', valor: mil(c.fora), apoio: [c.semNorma && `${c.semNorma} sem norma`, c.nome && `${c.nome} de nome`].filter(Boolean).join(' · ') || 'tudo previsto' },
+        { rotulo: 'Faltando', valor: mil(c.falta), apoio: c.alem ? `${mil(c.alem)} arquivos além do previsto` : 'nenhuma pasta' }]
+      : [{ rotulo: 'Norma', valor: null, apoio: 'ainda não escrita' }];
+    return numeros([{ rotulo: 'Pastas', valor: mil(c.pastas) }, { rotulo: 'Arquivos', valor: mil(c.arquivos + (e.retrato.a || 0)), apoio: 'contados no retrato' }, ...conferencia], { estatico: true });
   }
+
 
   function notas(e) {
     return `<section class="pas-notas">
@@ -144,7 +145,7 @@ export function criarPastas({ esc, api, toque }) {
   function desenhar() {
     if (!raiz) return;
     const entrada = '<input type="file" accept="application/json,.json" data-arquivo hidden>';
-    const cab = `<div class="cab"><div><nav class="u-trilha" aria-label="Você está em"><a href="#/biblioteca">Biblioteca</a><span class="sep">/</span><span aria-current="page">Estrutura de pastas</span></nav>
+    const cab = `<div class="cab"><div>
       <h1 class="u-titulo">Estrutura de pastas</h1></div>
       ${dados ? `<div class="lado u-apoio">Retrato do Drive de ${data(dados.retrato_em)}</div>` : ''}</div>`;
     if (!dados) {

@@ -529,12 +529,6 @@ li.eq-item.alvo-depois { box-shadow: 0 3px 0 var(--odisse-ocre, #BB8248); }
 .pre-seletor button.ativo { background: var(--u-tinta); color: var(--u-superficie); font-weight: 600; }
 .pre-seletor button:focus-visible, .pre-caixa:focus-visible, .pre-linha:focus-visible { outline: 2px solid var(--u-foco); outline-offset: 1px; }
 
-.pre-placar { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
-.pre-num { display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: 14px 16px; background: var(--u-elevada, #fff);
-  border: 1px solid var(--u-linha); border-radius: var(--u-raio); }
-.pre-num__rot { font-size: var(--u-t-rotulo); font-weight: 650; letter-spacing: .06em; text-transform: uppercase; color: var(--u-tinta-2); }
-.pre-num b { font-size: 24px; font-weight: 700; letter-spacing: -.02em; line-height: 1.15; font-variant-numeric: tabular-nums; }
-.pre-num__pe { font-size: 12px; color: var(--u-tinta-2); }
 
 .pre-duas { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 8px; margin-top: 8px; align-items: start; }
 .pre-grafico, .pre-estados { background: var(--u-elevada, #fff); border: 1px solid var(--u-linha); border-radius: var(--u-raio); padding: 16px; min-width: 0; }
@@ -600,7 +594,6 @@ li.eq-item.alvo-depois { box-shadow: 0 3px 0 var(--odisse-ocre, #BB8248); }
 .pre-notas p { font-size: var(--u-t-pequeno); color: var(--u-tinta-2); line-height: 1.55; margin: 6px 0 0; }
 
 @media (max-width: 1100px) {
-  .pre-placar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .pre-duas { grid-template-columns: minmax(0, 1fr); }
   .pre-regua, .pre-linha { grid-template-columns: minmax(0, 3fr) minmax(0, 1.4fr) minmax(0, 1fr) 110px 86px; }
   .pre-regua span:nth-child(3), .pre-linha__onde { display: none; }
@@ -616,7 +609,6 @@ li.eq-item.alvo-depois { box-shadow: 0 3px 0 var(--odisse-ocre, #BB8248); }
   .pre-linha--conc .pre-linha__valor { grid-row: auto; grid-column: 1 / -1; text-align: left; }
 }
 @media (max-width: 640px) {
-  .pre-placar { grid-template-columns: minmax(0, 1fr); }
   .pre-seletor { max-width: 100%; overflow-x: auto; }
   .pre-barra { grid-template-columns: 104px minmax(0, 1fr) 30px; }
   .pre-sec__lado .pre-seletor { order: 2; }
@@ -637,10 +629,6 @@ li.eq-item.alvo-depois { box-shadow: 0 3px 0 var(--odisse-ocre, #BB8248); }
 .pas-texto:disabled { opacity: .45; cursor: default; text-decoration: none; }
 .pas-seletor button:focus-visible, .pas-texto:focus-visible, .pas-trocar:focus-visible, .pas-linha:focus-visible { outline: 2px solid var(--u-foco); outline-offset: 1px; }
 
-.pas-placar { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
-.pas-num-cx { display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: 14px 16px; background: var(--u-elevada, #fff); border: 1px solid var(--u-linha); border-radius: var(--u-raio); }
-.pas-rot { font-size: var(--u-t-rotulo); font-weight: 650; letter-spacing: .06em; text-transform: uppercase; color: var(--u-tinta-2); }
-.pas-num-cx b { font-size: 24px; font-weight: 700; letter-spacing: -.02em; line-height: 1.15; font-variant-numeric: tabular-nums; }
 .pas-pe { font-size: 12px; color: var(--u-tinta-2); }
 
 .pas-raiz { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: var(--u-esp-6) 0 var(--u-esp-3); font-size: 13px; }
@@ -691,7 +679,6 @@ li.eq-item.alvo-depois { box-shadow: 0 3px 0 var(--odisse-ocre, #BB8248); }
 .pas-notas b { color: var(--u-tinta); font-weight: 600; }
 
 @media (max-width: 860px) {
-  .pas-placar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .pas-regua { display: none; }
   .pas-linha { grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; }
   .pas-nota { grid-column: 1 / -1; grid-row: 2; padding-left: calc(var(--nivel, 0) * 22px + 52px); }
@@ -816,13 +803,6 @@ body.acv-com-gaveta { overflow: hidden; }
 }
 
 /* ---- Abas em caixa, com o nome da seção à esquerda (design.md § 3; modelo: vendas › Contratos) ---------- */
-.abas-caixa-linha { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin: 0 0 var(--u-esp-4); }
-.abas-caixa-linha .u-rotulo { margin: 0; }
-.abas-caixa { display: inline-flex; padding: 3px; gap: 2px; background: rgba(63,75,87,.05); border-radius: 8px; }
-.abas-caixa a { padding: 6px 12px; border-radius: 6px; font-size: 13px; color: var(--u-tinta-2); text-decoration: none; transition: background .15s, color .15s; }
-.abas-caixa a:hover { color: var(--u-tinta); background: rgba(255,255,255,.6); }
-.abas-caixa a.ativa { background: #fff; color: var(--u-tinta); font-weight: 600; box-shadow: 0 1px 2px rgba(46,48,54,.08); }
-.abas-caixa a:focus-visible { outline: 2px solid var(--u-foco); outline-offset: 1px; }
 
 /* ---- KPIs (#/kpis; assets/kpis.js) ----------------------------------------------------------------------
    Boletim: Bloco por tema; Régua; uma linha por indicador (valor · régua das faixas · variação · 12 meses ·
@@ -941,7 +921,7 @@ span.bol-fonte + .bol-caixa, .bol-titulo + .bol-caixa { margin-left: auto; }
   .met-tabela .bol-regua-cab { display: none; }
 }
 @media (max-width: 640px) { .bol-var:has(> .bol-nada:only-child) { display: none; } .bol-bloco { padding: 16px 14px 8px; } .bol-fonte { display: none; } .bol-acoes { margin-left: 0; } }
-@media (prefers-reduced-motion: reduce) { .bol-seta, .abas-caixa a { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .bol-seta { transition: none; } }
 .ini-etq.problema { background: #F3E1DE; color: var(--u-perigo, #A4473B); }
 
 /* ---- Credenciais (assets/credenciais.js; Cid, 19/11) --------------------------------------------
@@ -989,9 +969,6 @@ span.bol-fonte + .bol-caixa, .bol-titulo + .bol-caixa { margin-left: auto; }
 .cre-docs > .u-rotulo { display: block; margin-bottom: 10px; }
 
 /* página Credenciais */
-.cre-placar { margin-top: var(--u-esp-5); }
-.pas-num-cx.is-problema { border-color: var(--u-perigo, #A4473B); }
-.pas-num-cx.is-problema b { color: var(--u-perigo, #A4473B); }
 .cre-sec { margin-top: var(--u-esp-7); padding-top: var(--u-esp-5); border-top: 1px solid var(--u-linha-forte); }
 .cre-sec__titulo { font-size: var(--u-t-subtitulo); font-weight: 650; letter-spacing: -.01em; margin: 0 0 var(--u-esp-4); }
 .cre-fluxo { --bloco-larg: 620px; }
@@ -1025,22 +1002,15 @@ span.bol-fonte + .bol-caixa, .bol-titulo + .bol-caixa { margin-left: auto; }
   .cre-linha.is-leitura { grid-template-columns: minmax(0, 1fr); }
   .cre-etqs, .cre-acoes { grid-column: 2; justify-content: flex-start; }
   .cre-linha.is-leitura .cre-etqs, .cre-linha.is-leitura .cre-acoes { grid-column: 1; }
-  .cre-placar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .cre-g-botoes { flex-wrap: wrap; justify-content: flex-end; }
   .acv-gaveta-pe:has(.cre-g-botoes) { flex-direction: column; align-items: stretch; }
 }
 /* Abas em caixa: no celular rolam de lado em vez de alargar a página (O Estúdio tem cinco) */
-.abas-caixa { max-width: 100%; overflow-x: auto; scrollbar-width: none; box-sizing: border-box; }
-.abas-caixa a { flex: none; white-space: nowrap; }
 /* Trilha abaixo das Abas: o caminho dentro da subpágina (Equipe / Nome), colado ao título */
-.abas-caixa-linha + .cab .u-trilha, .abas-caixa-linha + * .cab .u-trilha { margin-bottom: 4px; }
 
 /* ---- Financeiro › Despesas fixas (#/financeiro; assets/financeiro.js; Cid, 20/11) --------------------------------
    Placar · Filtros · Registro com edição na linha (linha de criar no topo, grupos por categoria em linha de grupo)
    · Pessoal recolhido · Previsão do ano (Gráfico + Matriz). Nada de barra à esquerda; nada em pílula. */
-.pagina-financeiro .cab + .fin-placar { margin-top: var(--u-esp-4); }
-.fin-placar { grid-template-columns: repeat(5, minmax(0, 1fr)); }
-.fin-placar .pas-num-cx b { font-size: 22px; }
 .fin-est { font-size: .62em; font-weight: 700; color: #8A5A2B; margin-left: 1px; vertical-align: super; line-height: 0; }
 .fin-filtros { margin-top: var(--u-esp-5); }
 .fin-busca { box-sizing: border-box; width: min(360px, 100%); padding: 7px 10px; font: inherit; font-size: 13px; color: inherit;
@@ -1174,7 +1144,6 @@ span.bol-fonte + .bol-caixa, .bol-titulo + .bol-caixa { margin-left: auto; }
 .fin-dlg-pe { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 20px 16px; }
 
 @media (max-width: 1280px) {
-  .fin-placar { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 @media (max-width: 1100px) {
   .fin-regua { display: none; }
@@ -1185,7 +1154,6 @@ span.bol-fonte + .bol-caixa, .bol-titulo + .bol-caixa { margin-left: auto; }
   .fin-det { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 640px) {
-  .fin-placar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .fin-linha { grid-template-columns: minmax(0, 1fr) 64px; grid-template-areas: 'nome nome' 'valor dia' 'cat cat' 'per per' 'prox cmd'; }
   .fin-c-prox { align-items: flex-start; }
   .fin-c-cmd { grid-column: 1 / -1; grid-row: 5; }

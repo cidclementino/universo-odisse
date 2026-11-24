@@ -8,6 +8,7 @@
 // (contratos, 10 por página) → Registro (concursos) → notas. Abre na hora com a última cópia (memoria.js).
 
 import { lerCopia, gravarCopia, igual } from './memoria.js';
+import { numeros } from '../base/v2/componentes.js';
 
 const COPIA = 'precos';
 const POR_PAGINA = 10;
@@ -92,13 +93,13 @@ export function criarPrecos({ esc, api }) {
     const valores = lista.map((c) => c.valor).filter((v) => v > 0).sort((a, b) => a - b);
     const comArea = lista.filter((c) => porM2(c));
     const m2s = comArea.map(porM2).sort((a, b) => a - b);
-    const num = (rot, valor, pe = '') => `<div class="pre-num"><span class="pre-num__rot">${esc(rot)}</span><b>${valor}</b><span class="pre-num__pe">${pe}</span></div>`;
-    return `<div class="pre-placar">
-        ${num('Contratos de projeto', lista.length.toLocaleString('pt-BR'), esc(`assinados de ${data(lista.map((c) => c.assinatura).filter(Boolean).sort()[0])} a ${data(lista.map((c) => c.assinatura).filter(Boolean).sort().pop())}`))}
-        ${num('Valor do meio (mediana)', esc(reais(quantil(valores, 0.5), true)), 'metade paga menos, metade mais')}
-        ${num('Metade dos contratos entre', esc(valores.length ? `${reais(quantil(valores, 0.25), true)} e ${reais(quantil(valores, 0.75), true)}` : '—'), 'do 1º ao 3º quartil')}
-        ${num('Preço por m² (mediana)', esc(m2s.length ? `${reais(quantil(m2s, 0.5))}/m²` : '—'), esc(`${comArea.length} de ${lista.length} com área lida do termo de referência`))}
-      </div>`;
+    const datas = lista.map((c) => c.assinatura).filter(Boolean).sort();
+    return numeros([
+      { rotulo: 'Contratos de projeto', valor: lista.length.toLocaleString('pt-BR'), apoio: esc(`assinados de ${data(datas[0])} a ${data(datas.at(-1))}`) },
+      { rotulo: 'Valor do meio (mediana)', valor: reais(quantil(valores, 0.5), true), apoio: 'metade paga menos, metade mais' },
+      { rotulo: 'Metade dos contratos entre', valor: valores.length ? `${reais(quantil(valores, 0.25), true)} e ${reais(quantil(valores, 0.75), true)}` : null, apoio: 'do 1º ao 3º quartil' },
+      { rotulo: 'Preço por m² (mediana)', valor: m2s.length ? `${reais(quantil(m2s, 0.5))}/m²` : null, apoio: esc(`${comArea.length} de ${lista.length} com área lida do termo de referência`) },
+    ], { estatico: true });
   }
 
   function grafico(lista) {

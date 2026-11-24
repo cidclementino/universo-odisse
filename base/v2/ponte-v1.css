@@ -1,0 +1,55 @@
+/*
+  Universo — ponte v1 → v2 (Cid, 24/11/2026).
+
+  Enquanto uma página ainda está no desenho anterior (classes .u-* da base/v1 e as próprias), ela aparece dentro da
+  casca v2 com a cara do padrão novo: as variáveis da v1 passam a valer os tons da v2 e as peças comuns da v1 (botão,
+  campo, cartão, tabela, etiqueta, abas, trilha) ganham as medidas da v2. Assim as páginas antigas não destoam enquanto
+  migram, uma a uma, para as peças de base/v2/componentes.js. Quando nenhuma página usar mais a v1, este arquivo sai.
+
+    <link rel="stylesheet" href="https://universo.odisse.com.br/base/v2/ponte-v1.css">   (depois de universo.css v1 e v2)
+
+  Vale só dentro do painel da casca (.ui-painel) e da gaveta: fora dela, a v1 segue como era.
+*/
+
+.ui-painel, .ui-gaveta, .u-gaveta {
+  --u-fundo: var(--ui-bandeja);
+  --u-superficie: #FFFFFF;
+  --u-elevada: #FFFFFF;
+  --u-linha: var(--ui-linha);
+  --u-linha-forte: var(--ui-linha-forte);
+  --u-tinta: var(--ui-texto);
+  --u-tinta-2: var(--ui-texto-2);
+  --u-raio: var(--ui-raio-m);
+  --u-raio-p: var(--ui-raio-p);
+  --u-t-subtitulo: 15px;
+  --u-t-corpo: 13px;
+}
+
+/* cabeçalho e títulos */
+.ui-painel .u-titulo { font-size: 24px; font-weight: 700; letter-spacing: -.02em; }
+.ui-painel .u-subtitulo { font-size: 15px; font-weight: 650; letter-spacing: -.01em; }
+.ui-painel .u-apoio { color: var(--ui-texto-3); }
+.ui-painel .u-rotulo { font-size: 11px; font-weight: 600; letter-spacing: .05em; color: var(--ui-texto-2); }
+.ui-painel .u-trilha { font-size: 11px; letter-spacing: .06em; color: var(--ui-texto-3); }
+
+/* botões: ação principal em grafite; o ocre fica como acento (v3, 23/11) */
+.ui-painel .u-botao, .u-gaveta .u-botao { min-height: 30px; padding: 0 12px; border-radius: var(--ui-raio-p); border: 1px solid #E1E1DC; background: #FFFFFF;
+  font-size: 12.5px; font-weight: 600; color: var(--ui-texto); box-sizing: border-box; }
+.ui-painel .u-botao:hover, .u-gaveta .u-botao:hover { border-color: #8A939C; }
+.ui-painel .u-botao.forte, .u-gaveta .u-botao.forte { background: var(--ui-acao); border-color: var(--ui-acao); color: var(--ui-papel); }
+.ui-painel .u-botao.forte:hover, .u-gaveta .u-botao.forte:hover { background: #000; border-color: #000; filter: none; }
+
+/* campos */
+.ui-painel .u-campo > span { font-size: 12px; font-weight: 600; color: var(--ui-texto-2); }
+.ui-painel .u-campo :is(input, textarea, select) { border-color: var(--ui-linha-forte); border-radius: var(--ui-raio-p); min-height: 34px; }
+
+/* cartões: branco com sombra leve, como o cartão da v2 */
+.ui-painel .u-cartao { background: #FFFFFF; border: 0; border-radius: var(--ui-raio-m); box-shadow: 0 0 0 1px rgba(46, 48, 54, .07), 0 1px 1px rgba(46, 48, 54, .03); }
+
+/* tabela: régua discreta e linhas de 42 px */
+.ui-painel .u-tabela th { font-size: 11.5px; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--ui-texto-3); border-bottom-color: var(--ui-linha); }
+.ui-painel .u-tabela td { padding-top: 11px; padding-bottom: 11px; border-bottom-color: #EEF1F4; vertical-align: middle; }
+.ui-painel .u-tabela tbody tr:hover { background: var(--ui-veu); }
+
+/* etiqueta */
+.ui-painel .u-etiqueta { font-size: 11px; padding: 1px 6px; background: #EEF1F4; color: var(--ui-ardosia); }

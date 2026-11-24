@@ -21,6 +21,7 @@
 // Uma leitura só (GET /api/v1/financeiro/despesas); gravação pelas rotas comuns (despesas-fixas).
 
 import { lerCopia, gravarCopia } from './memoria.js';
+import { numeros, abas as abasV2 } from '../base/v2/componentes.js';
 import {
   MESES, PERIODICIDADES, FORMAS, valorNoMes, emReais, custoMensal, previsaoAnual, proximoVencimento,
   diasAte, lerValor, PASSO, moedaDoTexto, interpretarColagem, sugerirCategoria, reais, comMoeda,
@@ -279,14 +280,14 @@ export function criarFinanceiro({ esc, api, toque }) {
       .filter((x) => x.p && diasAte(x.p, hoje()) <= 7);
     const soma7 = em7.reduce((s, x) => { const v = valorNoMes(x.d, x.p.slice(0, 7)); const r = emReais(v.valor, v.moeda, cot()); s.v += r.brl; s.e ||= r.estimado; return s; }, { v: 0, e: false });
     const semP = D.semPessoal;
-    const num = (rot, valor, pe, extra = '') => `<div class="pas-num-cx${extra ? ' fin-com-sim' : ''}"><span class="pas-rot">${rot}</span><b>${valor}</b>${extra}<span class="pas-pe">${pe}</span></div>`;
-    return `<div class="pas-placar fin-placar">
-      ${num('Custo fixo por mês', semP ? '…' : brl(t.total, t.estimado.total, { centavosSempre: false }), 'despesas ativas, levadas ao mês', s ? mais(s.total, s.estimado.total) : '')}
-      ${num('Sem pessoal', brl(t.geral, t.estimado.geral, { centavosSempre: false }), 'espaço, software, taxas e o resto', s ? mais(s.geral, s.estimado.geral) : '')}
-      ${num('Pessoal', semP ? '…' : brl(t.pessoal, t.estimado.pessoal, { centavosSempre: false }), 'pró-labore, salários e encargos', s ? mais(s.pessoal, s.estimado.pessoal) : '')}
-      ${num(`Previsão ${anoAtual}`, semP ? '…' : brl(pv.total, pv.estimado, { centavosSempre: false }), 'jan a dez, cada uma no mês do pagamento', sAno ? mais(sAno.total, sAno.estimado) : '')}
-      ${num('Vencem em 7 dias', em7.length || '0', em7.length ? brl(soma7.v, soma7.e) : 'nenhuma')}
-    </div>`;
+    const B = (v, est) => brl(v, est, { centavosSempre: false });
+    return numeros([
+      { rotulo: 'Custo fixo por mês', valorHtml: semP ? '…' : B(t.total, t.estimado.total), apoio: 'despesas ativas, levadas ao mês' + (s ? ' · ' + mais(s.total, s.estimado.total) : '') },
+      { rotulo: 'Sem pessoal', valorHtml: B(t.geral, t.estimado.geral), apoio: 'espaço, software, taxas e o resto' + (s ? ' · ' + mais(s.geral, s.estimado.geral) : '') },
+      { rotulo: 'Pessoal', valorHtml: semP ? '…' : B(t.pessoal, t.estimado.pessoal), apoio: 'pró-labore, salários e encargos' + (s ? ' · ' + mais(s.pessoal, s.estimado.pessoal) : '') },
+      { rotulo: `Previsão ${anoAtual}`, valorHtml: semP ? '…' : B(pv.total, pv.estimado), apoio: 'jan a dez, cada uma no mês do pagamento' + (sAno ? ' · ' + mais(sAno.total, sAno.estimado) : '') },
+      { rotulo: 'Vencem em 7 dias', valor: em7.length || 0, apoio: em7.length ? brl(soma7.v, soma7.e) : 'nenhuma' },
+    ], { estatico: true });
   }
 
   // Gráfico dos 12 meses (colunas em HTML: o texto não escala com a largura)
@@ -339,8 +340,7 @@ export function criarFinanceiro({ esc, api, toque }) {
 
   // ---- página --------------------------------------------------------------------
 
-  const abas = () => `<nav class="abas-caixa-linha" aria-label="Financeiro"><span class="u-rotulo">Financeiro</span>
-      <span class="abas-caixa"><a href="#/financeiro" class="ativa" aria-current="page">Despesas fixas</a></span></nav>`;
+  const abas = () => abasV2('Financeiro', [{ href: '#/financeiro', rotulo: 'Despesas fixas', ativa: true }]);
 
   // acréscimo das simulações: por mês (cada uma levada ao mês, mesmo as que começam depois) e por ano
   function somaSim() {

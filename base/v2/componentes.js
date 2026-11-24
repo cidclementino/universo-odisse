@@ -75,14 +75,17 @@ export const link = (texto, href) => `<a class="ui-link" href="${esc(href)}">${e
 export const cabecalho = (titulo, dado = '', lado = '') =>
   `<header class="ui-cab"><div><h1 class="ui-titulo">${esc(titulo)}</h1>${dado ? `<p class="ui-cab__dado">${dado}</p>` : ''}</div>${lado}</header>`;
 
-// [{ id, rotulo, valor, sufixo, apoio (html), recorte (true = botão que liga/desliga), ativo, href }]
-export function numeros(lista) {
-  return `<div class="ui-numeros">${lista.map((n) => {
+// [{ id, rotulo, valor | valorHtml, sufixo, apoio (html), tom: 'problema', ativo, href }] · { estatico: true } = só leitura
+// Com id e sem href, o número é um botão de recorte (aria-pressed); com href, um link; estático, um bloco.
+export function numeros(lista, { estatico = false } = {}) {
+  return `<div class="ui-numeros" style="--ui-n:${lista.length}">${lista.map((n) => {
+    const val = n.valorHtml ?? esc(n.valor ?? '—');
     const dentro = `<span class="ui-numero__dentro"><span class="ui-numero__rot">${esc(n.rotulo)}</span>
-      <span class="ui-numero__val">${esc(n.valor ?? '—')}${n.sufixo ? ` <small>${esc(n.sufixo)}</small>` : ''}</span></span>
+      <span class="ui-numero__val">${val}${n.sufixo ? ` <small>${esc(n.sufixo)}</small>` : ''}</span></span>
       <span class="ui-numero__apoio">${n.apoio || '&nbsp;'}</span>`;
-    const cls = `ui-numero${n.valor == null ? ' is-vazio' : ''}`;
+    const cls = `ui-numero${n.valor == null && n.valorHtml == null ? ' is-vazio' : ''}${n.tom ? ' is-' + n.tom : ''}${estatico && !n.href ? ' is-estatico' : ''}`;
     if (n.href) return `<a class="${cls}" href="${esc(n.href)}">${dentro}</a>`;
+    if (estatico || !n.id) return `<div class="${cls}">${dentro}</div>`;
     return `<button type="button" class="${cls}" data-numero="${esc(n.id)}" aria-pressed="${n.ativo ? 'true' : 'false'}">${dentro}</button>`;
   }).join('')}</div>`;
 }
@@ -90,6 +93,11 @@ export function numeros(lista) {
 // [{ id, rotulo, n }] · atual · nome (para data-segmentado)
 export const segmentado = (opcoes, atual, nomeGrupo, rotulo = '') => `<div class="ui-segmentado" role="group"${rotulo ? ` aria-label="${esc(rotulo)}"` : ''}>${opcoes.map((o) =>
   `<button type="button" data-segmentado="${esc(nomeGrupo)}" data-valor="${esc(o.id)}" aria-pressed="${o.id === atual ? 'true' : 'false'}">${esc(o.rotulo)}${o.n != null ? ` <small>${o.n}</small>` : ''}</button>`).join('')}</div>`;
+
+// Abas: trocam de página (Perfil › Empresa | Equipe…; KPIs › Painel | Metas). O nome da seção fica à esquerda.
+// [{ href, rotulo, ativa }]
+export const abas = (secaoNome, itens) => `<nav class="ui-abas" aria-label="${esc(secaoNome)}"><span class="ui-abas__rot">${esc(secaoNome)}</span><span class="ui-abas__caixa">${itens.map((i) =>
+  `<a href="${esc(i.href)}"${i.ativa ? ' aria-current="page"' : ''}>${esc(i.rotulo)}</a>`).join('')}</span></nav>`;
 
 export const recorte = (texto, dadosFechar = {}) => `<span class="ui-recorte">${esc(texto)}<button type="button" aria-label="Tirar o recorte"${dados(dadosFechar)}>${icone('fechar', 12, 2.4)}</button></span>`;
 
