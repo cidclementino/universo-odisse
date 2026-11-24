@@ -101,7 +101,7 @@ function renderCartao(c) {
           ${link ? `<a class="u-botao" href="${escapeHTML(link)}" target="_blank" rel="noopener">Site oficial ↗</a>` : ''}
           <button type="button" class="u-botao js-reler"${lendoSite.has(c.id) ? ' disabled' : ''}>Ler o site de novo</button>
           ${c.projeto?.id
-            ? `<a class="u-botao" href="https://projetos.odisse.com.br/projeto.html#${escapeHTML(c.projeto.id)}" target="_blank" rel="noopener" title="Enviado ao Projetos em ${escapeHTML(formatarData(c.projeto.enviado_em))}">Ver no Projetos · ${escapeHTML(c.projeto.codigo || '')} ↗</a>`
+            ? `<a class="u-botao" href="/projetos/projeto.html#${escapeHTML(c.projeto.id)}" target="_blank" rel="noopener" title="Enviado ao Projetos em ${escapeHTML(formatarData(c.projeto.enviado_em))}">Ver no Projetos · ${escapeHTML(c.projeto.codigo || '')} ↗</a>`
             : '<button type="button" class="u-botao forte js-enviar-projeto">Enviar ao Projetos</button>'}
         </div>
         <div class="acomp__leitura">${estadoLeitura}</div>
