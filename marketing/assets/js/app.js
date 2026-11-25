@@ -6,7 +6,7 @@
 
 import { NUCLEOS, ORDEM_NUCLEOS, padroesDoNucleo, COR, tintaSobre } from './nucleos.js';
 import {
-  modelosDo, modeloDe, codigoDe, slotsDe, migrarCard, opcoesDe, opcoesDoModelo, SEQUENCIAS, SEQUENCIA_PIN, GRUPOS, grupoDe, renderCard, exemploDe, ajustarLayout, ajustar, crescer, refluir, textosDe, estruturaDe, OP_VEU, LARG,
+  modelosDo, modeloDe, codigoDe, slotsDe, migrarCard, opcoesDe, opcoesDoModelo, SEQUENCIAS, SEQUENCIA_PIN, GRUPOS, grupoDe, renderCard, exemploDe, ajustarLayout, ajustar, crescer, refluir, textosDe, estruturaDe, opcoesDoVeu, CHAVES_VEU, OP_VEU, LARG,
 } from './templates.js';
 import * as pinterest from './pinterest.js';
 import * as pool from './pool.js';
@@ -895,7 +895,7 @@ function aplicarModelo(id) {
   // o carimbo e o véu passam de um modelo para outro
   // os padrões do modelo novo (página Padrões) entram por baixo
   const ini = padraoInicial(pub.nucleo, id);
-  c.opcoes = { ...ini.opcoes, ...Object.fromEntries(['carimbo', 'veu'].filter((k) => c.opcoes?.[k]).map((k) => [k, c.opcoes[k]])) };
+  c.opcoes = { ...ini.opcoes, ...Object.fromEntries(['carimbo', ...CHAVES_VEU].filter((k) => c.opcoes?.[k]).map((k) => [k, c.opcoes[k]])) };
   c.textos = { ...ini.textos, ...(c.textos || {}) };
   salvar();
   renderTrilho();
@@ -1088,17 +1088,23 @@ function renderOpcoes() {
     return;
   }
   const ops = opcoesDe(m, c, nucleo());
-  // Véu: só nos cards que desenham algum gradiente sobre a imagem; vale só para este card
+  // Véu: só nos cards que desenham algum gradiente sobre a imagem; o de cima e o de baixo separados, só neste card
   const lista = opcoesDoModelo(m, nucleo(), c);
-  if (estruturaDe({ card: c, nucleo: nucleo(), globais: pub.globais }).veu) {
-    lista.push(OP_VEU);
-    ops.veu = c.opcoes?.veu ?? OP_VEU.padrao;
+  for (const d of opcoesDoVeu(estruturaDe({ card: c, nucleo: nucleo(), globais: pub.globais }).veus, nucleo())) {
+    lista.push(d);
+    ops[d.k] = c.opcoes?.[d.k] ?? (d.k === 'veuBase' ? c.opcoes?.veu : null) ?? d.padrao;
   }
   el.hidden = false;
-  el.innerHTML = `<h3>Personalização${info('Opções de composição deste card. O preenchimento pinta o fundo do card e o carimbo cheio; as cores vêm da Marca, por núcleo. O véu é a opacidade do gradiente do núcleo sobre a imagem, só neste card.')}</h3>
-    ${lista.map((d) => `<div class="opcao"><span>${d.rot}</span>
-      <div class="seg" role="group" aria-label="${d.rot}">${d.valores.map(([v, rot, hex]) =>
-        `<button class="${ops[d.k] === v ? 'ativo' : ''}" data-op="${d.k}" data-v="${v}" aria-pressed="${ops[d.k] === v}">${hex ? `<i class="amostra" style="background:${hex}"></i>` : ''}${rot}</button>`).join('')}</div></div>`).join('')}`;
+  let grupo = null;
+  el.innerHTML = `<h3>Personalização${info('Opções de composição deste card. O preenchimento pinta o fundo do card e o carimbo cheio; as cores vêm da Marca, por núcleo. O véu é o gradiente sobre a imagem: o de cima e o de baixo têm cada um o seu nível, a sua cor (a do núcleo ou outra da Marca) e a sua mesclagem, só neste card.')}</h3>
+    ${lista.map((d) => {
+      const cab = d.grupo && d.grupo !== grupo ? `<div class="opcao-grupo">${d.grupo}</div>` : '';
+      grupo = d.grupo || null;
+      const nome = d.grupo ? `${d.grupo} · ${d.rot}` : d.rot;
+      return `${cab}<div class="opcao${d.grupo ? ' no-grupo' : ''}"><span>${d.rot}</span>
+      <div class="seg${d.amostras ? ' seg-amostras' : ''}" role="group" aria-label="${nome}">${d.valores.map(([v, rot, hex]) =>
+        `<button class="${ops[d.k] === v ? 'ativo' : ''}" data-op="${d.k}" data-v="${v}" aria-pressed="${ops[d.k] === v}"${d.amostras ? ` title="${rot}" aria-label="${rot}"` : ''}>${hex ? `<i class="amostra" style="background:${hex}"></i>` : ''}${d.amostras ? '' : rot}</button>`).join('')}</div></div>`;
+    }).join('')}`;
   renderTextos(c);
 }
 
@@ -1889,7 +1895,9 @@ function ligarEventos() {
     const b = e.target.closest('[data-op]');
     if (!b) return;
     const c = cardAtivo();
-    c.opcoes = { ...(c.opcoes || {}), [b.dataset.op]: b.dataset.v };
+    // card antigo: o véu de baixo seguia o de cima; ao mexer no de cima, o de baixo fica com o nível que tinha
+    const fixar = b.dataset.op === 'veu' && c.opcoes?.veuBase == null ? { veuBase: c.opcoes?.veu ?? OP_VEU.padrao } : {};
+    c.opcoes = { ...(c.opcoes || {}), ...fixar, [b.dataset.op]: b.dataset.v };
     salvar();
     renderTrilho();
     renderImagens();

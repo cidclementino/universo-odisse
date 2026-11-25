@@ -22,6 +22,7 @@
   width: 1080px;
   height: 1440px;
   overflow: hidden;
+  isolation: isolate; /* a mesclagem do véu fica dentro do card */
   background: #FAFAF7;
   color: #3F4B57;
   font-family: 'Inter', sans-serif;

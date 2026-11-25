@@ -729,6 +729,11 @@ body:not(.vista-metricas) .metricas { display: none; }
 .macro .secao:first-child { border-top: 0; padding-top: 4px; }
 .secao h3 { margin: 0 0 10px; font-size: 11px; font-weight: 650; letter-spacing: .08em; text-transform: uppercase; color: var(--ardosia-2); display: flex; align-items: center; gap: 6px; }
 .opcoes .seg button .amostra { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; box-shadow: inset 0 0 0 1px rgba(0,0,0,.18); }
+.opcoes .opcao-grupo { margin: 20px 0 10px; padding-top: 14px; border-top: 1px solid var(--linha-2); font-size: 12px; font-weight: 650; }
+.opcoes .opcao.no-grupo > span { font-weight: 450; color: var(--ui-texto-2, #5B6773); }
+.opcoes .seg-amostras button { padding: 5px 7px; }
+.opcoes .seg-amostras button .amostra { width: 14px; height: 14px; margin: 0; vertical-align: -3px; }
+.opcoes .seg-amostras button.ativo { background: var(--nevoa, #E6E8EB); box-shadow: inset 0 0 0 2px var(--ardosia); }
 
 /* Textos do card: check · nome · estilo, e a caixa do conteúdo */
 .texto-item { margin-bottom: 12px; }

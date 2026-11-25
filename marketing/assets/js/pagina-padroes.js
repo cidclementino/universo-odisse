@@ -10,7 +10,7 @@
 
 import { TEXTO, ESPACO, GRUPOS_ESPACO, MACROS, TEXTO_POR_CLASSE, corpoMin, corpoMax } from './padroes.js';
 import { NUCLEOS, ORDEM_NUCLEOS, padroesDoNucleo } from './nucleos.js';
-import { codigoDe, renderCard, exemploDe, ajustarLayout, grupoDe, GRUPOS, opcoesDoModelo, estruturaDe, OP_VEU, LARG } from './templates.js';
+import { codigoDe, renderCard, exemploDe, ajustarLayout, grupoDe, GRUPOS, opcoesDoModelo, estruturaDe, opcoesDoVeu, OP_VEU, MESCLAS, VEU_PADRAO, LARG } from './templates.js';
 import * as PC from './padroes-cards.js';
 import { abas, cabecalho, segmentado, secao, bandeja, acao, etiqueta, quando, icone, toque, esc, link } from '/base/v2/componentes.js';
 
@@ -31,6 +31,7 @@ let raiz = null, avisar = () => {}, ligado = false, espera;
 
 const veuDe = (id) => (id === 'sem' ? 0 : rascunho.veu[id] ?? ORIGINAL.veu[id]);
 const veuPadraoDe = () => rascunho.veuPadrao ?? ORIGINAL.veuPadrao;
+const mesclaDe = () => rascunho.veuMescla ?? ORIGINAL.veuMescla;
 const carimboDe = () => rascunho.carimbo ?? ORIGINAL.carimbo;
 const textoDe = (id) => ({ ...structuredClone(ORIGINAL.texto[id]), ...structuredClone(rascunho.texto[id] || {}) });
 
@@ -43,7 +44,7 @@ function pendentes() {
     const ka = a[k][x] || {}, kb = b[k][x] || {};
     for (const y of new Set([...Object.keys(ka), ...Object.keys(kb)])) n += JSON.stringify(ka[y]) !== JSON.stringify(kb[y]);
   }
-  n += (a.veuPadrao !== b.veuPadrao) + (a.carimbo !== b.carimbo);
+  n += (a.veuPadrao !== b.veuPadrao) + (a.veuMescla !== b.veuMescla) + (a.carimbo !== b.carimbo);
   return n;
 }
 
@@ -89,7 +90,8 @@ const resolver = (d, n) => (typeof d.padrao === 'function' ? d.padrao(n) : d.pad
 function listaOpcoes(e, nid, card) {
   const n = NUCLEOS[nid];
   const l = opcoesDoModelo(e.m, n, card);
-  if (estruturaDe({ card, nucleo: n, globais: padroesDoNucleo(nid) }).veu) l.push(OP_VEU);
+  l.push(...opcoesDoVeu(estruturaDe({ card, nucleo: n, globais: padroesDoNucleo(nid) }).veus, n)
+    .map((d) => ({ ...d, rot: d.grupo ? `${d.grupo} · ${d.rot.toLowerCase()}` : d.rot })));
   return l;
 }
 /** Padrão de uma opção: o editado nesta página, senão o do modelo. */
@@ -97,7 +99,8 @@ function padraoDe(e, d, nid) {
   const ed = rascunho.opcoes[e.chave]?.[d.k];
   if (ed != null) return ed;
   if (d.k === 'carimbo') return carimboDe();
-  if (d.k === 'veu') return veuPadraoDe();
+  if (d.k === 'veu' || d.k === 'veuBase') return veuPadraoDe();
+  if (d.k === 'veuMescla' || d.k === 'veuBaseMescla') return mesclaDe();
   return resolver(d, NUCLEOS[nid]);
 }
 const textoCurto = (h) => String(h).replace(/<br\s*\/?>/g, ' ').split(/\s+/).slice(0, 3).join(' ');
@@ -246,7 +249,8 @@ function bancada() {
   const ops = listaOpcoes(e, nid, card).map((d) => {
     const p = padraoDe(e, d, nid);
     const atual = card.opcoes[d.k] ?? p;
-    const orig = d.k === 'carimbo' ? ORIGINAL.carimbo : d.k === 'veu' ? ORIGINAL.veuPadrao : resolver(d, NUCLEOS[nid]);
+    const orig = d.k === 'carimbo' ? ORIGINAL.carimbo : ['veu', 'veuBase'].includes(d.k) ? ORIGINAL.veuPadrao
+      : ['veuMescla', 'veuBaseMescla'].includes(d.k) ? ORIGINAL.veuMescla : resolver(d, NUCLEOS[nid]);
     const rotPad = d.valores.find(([x]) => x === p)?.[1] || p;
     return `<div class="mk-pd-var">
       <span class="mk-pd-var__rot">${esc(d.rot)}</span>
@@ -346,7 +350,7 @@ function vistaEspaco() {
 
 function vistaVeu() {
   const NIVEIS = OP_VEU.valores;
-  const amostraVeu = (f) => `<span class="mk-pd-veu-am">${ORDEM_NUCLEOS.map((n) => `<i style="background:linear-gradient(90deg, transparent, ${NUCLEOS[n].veu}${Math.round(Math.min(1, 0.72 * f) * 255).toString(16).padStart(2, '0')}), url(${fotoDe('a')}) center/cover"></i>`).join('')}</span>`;
+  const amostraVeu = (f) => `<span class="mk-pd-veu-am">${ORDEM_NUCLEOS.map((n) => `<i style="background:linear-gradient(90deg, transparent, ${NUCLEOS[n].veu}${Math.round(Math.min(1, 0.72 * f) * 255).toString(16).padStart(2, '0')}), url(${fotoDe('a')}) center/cover;background-blend-mode:${mesclaDe()}, normal"></i>`).join('')}</span>`;
   const linhas = NIVEIS.map(([id, rot]) => `<div class="mk-pd-veu__l">
     <b>${esc(rot)}</b>
     <label class="mk-pd-veu__f"><input type="range" min="0" max="2" step="0.05" value="${veuDe(id)}" data-veu="${id}" ${id === 'sem' ? 'disabled' : ''} aria-label="Fator do véu ${rot}"><input class="mk-pd-num" type="number" min="0" max="2" step="0.05" value="${veuDe(id)}" data-veu="${id}" ${id === 'sem' ? 'disabled' : ''} aria-label="Fator ${rot}"></label>
@@ -355,11 +359,12 @@ function vistaVeu() {
   </div>`).join('');
   const prev = ENTRADA.o08;
   const strip = `<div class="mk-pd-quatro">${ORDEM_NUCLEOS.map((n) => `<figure class="mk-pd-quatro__item"><span class="mk-pd-mini">${htmlCard(prev, n)}</span><figcaption><b>${nomeNucleo(n)}</b> <small>véu ${esc(NUCLEOS[n].veu)}</small></figcaption></figure>`).join('')}</div>`;
-  return secao({ titulo: 'Véu', lado: `<span class="mk-pd-filtro"><span>Padrão dos cards novos</span>${segmentado(NIVEIS.map(([id, r]) => ({ id, rotulo: r })), veuPadraoDe(), 'veupadrao', 'Véu padrão')}</span>`,
+  return secao({ titulo: 'Véu', lado: `<span class="mk-pd-filtro"><span>Padrão dos cards novos</span>${segmentado(NIVEIS.map(([id, r]) => ({ id, rotulo: r })), veuPadraoDe(), 'veupadrao', 'Véu padrão')}</span>
+      <span class="mk-pd-filtro"><span>Mesclagem</span>${segmentado(MESCLAS.map(([id, r]) => ({ id, rotulo: r })), mesclaDe(), 'veumescla', 'Mesclagem padrão do véu')}</span>`,
     corpo: bandeja(`<div class="mk-pd-veu">${linhas}</div>`) })
     + secao({ titulo: 'Prévia no O-08', lado: segmentado(NIVEIS.map(([id, r]) => ({ id, rotulo: r })), est.vars.o08?.opcoes?.veu ?? veuPadraoDe(), 'previaveu', 'Nível na prévia'), corpo: bandeja(strip, { cartao: false }) })
     + secao({ titulo: 'Carimbo', lado: segmentado([{ id: 'linhas', rotulo: 'Só linhas' }, { id: 'cheio', rotulo: 'Fundo cheio' }], carimboDe(), 'carimbo', 'Carimbo padrão'), corpo: '' })
-    + '<div class="ui-nota mk-pd-notas">O fator multiplica a opacidade de cada gradiente do modelo (teto 1). A cor do véu de cada núcleo vem da Marca (Perfil › Marca: Estúdio e Arquitetos ardósia, Objetos grafite, Elaia terra) e não se edita aqui. O padrão escolhido vale para os cards novos; cada card ainda pode trocar no editor.</div>';
+    + '<div class="ui-nota mk-pd-notas">O fator multiplica a opacidade de cada gradiente do modelo (teto 1). A cor do véu de cada núcleo vem da Marca (Perfil › Marca: Estúdio e Arquitetos ardósia, Objetos grafite, Elaia terra); outra cor da paleta se escolhe por modelo (Modelos › Tornar padrão) ou por card, no editor. O nível e a mesclagem escolhidos aqui valem para os véus de cima e de baixo dos cards novos; no editor, cada card ajusta os dois separados.</div>';
 }
 
 const ABAS = [['modelos', 'Modelos', ''], ['texto', 'Estilos de texto', 'texto'], ['espaco', 'Espaçamentos', 'espaco'], ['veu', 'Véu e carimbo', 'veu']];
@@ -417,7 +422,8 @@ function ligar() {
       if (g.startsWith('op:')) { varsDe(est.sel).opcoes[g.slice(3)] = v; conferirTudo(); return desenhar(); }
       if (g.startsWith('txt:')) { const t = varsDe(est.sel).textos; t[g.slice(4)] = { ...(t[g.slice(4)] || {}), estilo: v }; conferirTudo(); return desenhar(); }
       if (g === 'veupadrao') { rascunho.veuPadrao = v; return mudouPadrao({ conferir: false }); }
-      if (g === 'previaveu') { varsDe('o08').opcoes.veu = v; return desenhar(); }
+      if (g === 'veumescla') { rascunho.veuMescla = v; return mudouPadrao({ conferir: false }); }
+      if (g === 'previaveu') { Object.assign(varsDe('o08').opcoes, { veu: v, veuBase: v }); return desenhar(); }
       if (g === 'carimbo') { rascunho.carimbo = v; return mudouPadrao(); }
     }
     const it = ev.target.closest('[data-sel]');

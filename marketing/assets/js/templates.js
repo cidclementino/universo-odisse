@@ -5,7 +5,7 @@
 import { COR, tintaSobre } from './nucleos.js';
 import { mark } from './marks.js';
 import { E, TEXTO_POR_CLASSE, corpoMin, corpoMax, MACROS, MACRO_DA_CLASSE } from './padroes.js';
-import { contatosDe, preenchimentosDe, corDaMarca } from './marca.js';
+import { contatosDe, preenchimentosDe, corDaMarca, paletaDaMarca } from './marca.js';
 
 // Todo espaçamento vem de padroes.js (E.bloco, E.proximo…). Nenhum valor solto nos modelos.
 export const LARG = 1080;
@@ -45,6 +45,40 @@ export const OP_CARIMBO = { k: 'carimbo', rot: 'Carimbo', valores: [['linhas', '
 // já usa (Padrão = como o modelo foi desenhado). Só aparece no painel quando o card desenha algum véu.
 export const FATOR_VEU = { sem: 0, leve: 0.5, padrao: 1, forte: 1.4 };
 export const OP_VEU = { k: 'veu', rot: 'Véu', valores: [['sem', 'Sem'], ['leve', 'Leve'], ['padrao', 'Padrão'], ['forte', 'Forte']], padrao: 'padrao' };
+// O véu de cima (e o do meio) e o de baixo se ajustam separados: nível, cor e mesclagem de cada um.
+// Chaves no card: veu · veuCor · veuMescla (cima/meio) e veuBase · veuBaseCor · veuBaseMescla (baixo).
+// Cards antigos só têm `veu`, que valia para os dois: o de baixo herda o nível de cima enquanto não tiver o seu.
+export const MESCLAS = [['normal', 'Normal'], ['multiply', 'Multiplicar'], ['overlay', 'Sobrepor'], ['soft-light', 'Luz suave']];
+export const VEU_PADRAO = { cor: 'nucleo', mescla: 'normal' };
+const LADOS_VEU = {
+  topo: { nivel: 'veu', cor: 'veuCor', mescla: 'veuMescla' },
+  base: { nivel: 'veuBase', cor: 'veuBaseCor', mescla: 'veuBaseMescla' },
+};
+export const CHAVES_VEU = Object.values(LADOS_VEU).flatMap((l) => Object.values(l));
+/** Opções de cor do véu: a do núcleo e as cores da paleta da Marca. */
+const coresDoVeu = (n) => [['nucleo', 'Do núcleo', n.veu], ...paletaDaMarca().map((c) => [c.id, c.nome, c.valor])];
+/** Lista de opções do véu de um card, só para os véus que o modelo desenha (veus = { topo, meio, base }). */
+export function opcoesDoVeu(veus, n) {
+  const l = [];
+  const lado = (id, grupo) => {
+    const k = LADOS_VEU[id];
+    l.push({ ...OP_VEU, k: k.nivel, rot: 'Nível', grupo },
+      { k: k.cor, rot: 'Cor', grupo, valores: coresDoVeu(n), padrao: VEU_PADRAO.cor, cor: true, amostras: true },
+      { k: k.mescla, rot: 'Mesclagem', grupo, valores: MESCLAS, padrao: VEU_PADRAO.mescla });
+  };
+  if (veus.topo) lado('topo', veus.base ? 'Véu de cima' : 'Véu');
+  else if (veus.meio) lado('topo', 'Véu');
+  if (veus.base) lado('base', veus.topo || veus.meio ? 'Véu de baixo' : 'Véu');
+  return l;
+}
+/** Nível, cor (hex) e mesclagem de um lado do véu, lidos do card. */
+function veuDoCard(card, n, id) {
+  const o = card.opcoes || {}, k = LADOS_VEU[id];
+  const nivel = o[k.nivel] ?? (id === 'base' ? o.veu : null) ?? OP_VEU.padrao;
+  const cor = o[k.cor] && o[k.cor] !== 'nucleo' ? corDaMarca(o[k.cor])?.valor || n.veu : n.veu;
+  const mescla = MESCLAS.some(([m]) => m === o[k.mescla]) ? o[k.mescla] : VEU_PADRAO.mescla;
+  return { fator: FATOR_VEU[nivel] ?? 1, cor, mescla };
+}
 
 // Preenchimento: a cor que pinta o fundo do card e o carimbo cheio. Existe em todo modelo cujo fundo
 // não é imagem (declaram `preenche(n, op)` com a cor padrão). Opções: as cores de fundo, painel e véu
@@ -100,12 +134,14 @@ export function criarContexto({ card, indice, total, nucleo, globais, modelo, mo
 
   // Preenchimento do card (fundo + carimbo cheio) e a tinta que contrasta com ele
   const f = modelo.preenche ? corDoPreenchimento(ops.fundo, n) || modelo.preenche(n, (k) => ops[k]) : null;
-  // Véu do card: fator sobre a opacidade de cada gradiente (teto 1)
-  const fatorVeu = FATOR_VEU[card.opcoes?.veu] ?? 1;
-  const va = (a) => Math.min(1, a * fatorVeu);
+  // Véu do card: cada lado com o seu fator (sobre a opacidade de cada gradiente, teto 1), cor e mesclagem
+  const VEU = { topo: veuDoCard(card, n, 'topo'), base: veuDoCard(card, n, 'base') };
+  const gradiente = (v, paradas) => (v.fator
+    ? `background:linear-gradient(${paradas.map(([a, p]) => `${hexA(v.cor, Math.min(1, a * v.fator))}${p ? ` ${p}` : ''}`).join(',')})${v.mescla !== 'normal' ? `;mix-blend-mode:${v.mescla}` : ''}`
+    : null);
 
   const t = {
-    n, g, editavel, textos, fichas, veus: 0,
+    n, g, editavel, textos, fichas, veus: { topo: 0, meio: 0, base: 0 },
     f, tinta: f ? tintaSobre(f) : A, filete: f ? regraSobre(f) : regraSobre(COR.papel), // filete: cor das regras sobre o preenchimento
     op: (k) => ops[k],
     tem: (chave) => textoAtivo(chave) && !!String(card.campos?.[chave] ?? '').replace(/<[^>]+>|&nbsp;|\s/g, ''),
@@ -171,18 +207,21 @@ export function criarContexto({ card, indice, total, nucleo, globais, modelo, mo
     regra(x, y, w, cor) { return `<div class="bloco" style="${pos(x, y, w, 1.5)}background:${cor}"></div>`; },
 
     veuTopo(h = 200, a = 0.6, x = 0, w = LARG) {
-      t.veus++;
-      return fatorVeu ? `<div class="bloco" style="${pos(x, 0, w, h)}background:linear-gradient(${hexA(n.veu, va(a))},${hexA(n.veu, 0)})"></div>` : '';
+      t.veus.topo++;
+      const bg = gradiente(VEU.topo, [[a], [0]]);
+      return bg ? `<div class="bloco veu" style="${pos(x, 0, w, h)}${bg}"></div>` : '';
     },
-    /** Véu no meio do card, para texto centralizado sobre imagem inteira. */
+    /** Véu no meio do card, para texto centralizado sobre imagem inteira (ajustado como o véu de cima). */
     veuMeio(a = 0.6) {
-      t.veus++;
-      return fatorVeu ? `<div class="bloco" style="${pos(0, 0, LARG, ALT)}background:linear-gradient(${hexA(n.veu, va(0.25))},${hexA(n.veu, va(a))} 35%,${hexA(n.veu, va(a))} 65%,${hexA(n.veu, va(0.35))})"></div>` : '';
+      t.veus.meio++;
+      const bg = gradiente(VEU.topo, [[0.25], [a, '35%'], [a, '65%'], [0.35]]);
+      return bg ? `<div class="bloco veu" style="${pos(0, 0, LARG, ALT)}${bg}"></div>` : '';
     },
     /** Véu na base; `alt` = altura do canvas (o pin tem 1620). */
     veuBase(h = 340, a = 0.72, x = 0, w = LARG, alt = ALT) {
-      t.veus++;
-      return fatorVeu ? `<div class="bloco" style="${pos(x, alt - h, w, h)}background:linear-gradient(${hexA(n.veu, 0)},${hexA(n.veu, va(a))})"></div>` : '';
+      t.veus.base++;
+      const bg = gradiente(VEU.base, [[0], [a]]);
+      return bg ? `<div class="bloco veu" style="${pos(x, alt - h, w, h)}${bg}"></div>` : '';
     },
 
     /** Carimbo: caixa tripartida no alto, como o carimbo de desenho técnico.
@@ -1172,7 +1211,8 @@ export function estruturaDe({ card, nucleo, globais }) {
   const modelo = modeloDe(nucleo.id, card.modelo);
   const t = criarContexto({ card, indice: 0, total: 2, nucleo, globais, modelo, modo: 'editar', fonteImagem: () => '' });
   modelo.render(t);
-  return { textos: t.textos, fichas: t.fichas, veu: t.veus > 0 };
+  const veus = { topo: t.veus.topo > 0, meio: t.veus.meio > 0, base: t.veus.base > 0 };
+  return { textos: t.textos, fichas: t.fichas, veu: veus.topo || veus.meio || veus.base, veus };
 }
 
 /**
