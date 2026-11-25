@@ -170,10 +170,6 @@
 .card .fluxo.meio { justify-content: center; }
 
 /* Peças editoriais e de trabalho (O-15 a O-19) */
-.card .folha-solta { position: absolute; z-index: 1; box-shadow: 0 2px 0 rgba(0,0,0,.12), 0 24px 48px rgba(0,0,0,.28); }
-.card .folha-capa { position: relative; overflow: hidden; }
+.card .folha-solta { position: absolute; box-shadow: 0 2px 0 rgba(0,0,0,.12), 0 24px 48px rgba(0,0,0,.28); }
 .card .duo { position: absolute; pointer-events: none; }
 .card .caixa-alta { text-transform: uppercase; letter-spacing: .02em; font-weight: 500; }
-.card .arq-grade { display: grid; grid-template-columns: repeat(4, 1fr); column-gap: 24px; row-gap: 40px; justify-items: center; }
-.card .arq-item { display: flex; flex-direction: column; gap: 10px; align-items: center; }
-.card .arq-vaga { border: 1px dashed rgba(46,48,54,.3); }
