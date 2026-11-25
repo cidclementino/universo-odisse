@@ -145,7 +145,6 @@ export function criarContexto({ card, indice, total, nucleo, globais, modelo, mo
     n, g, editavel, textos, fichas, veus: { topo: 0, meio: 0, base: 0 },
     f, tinta: f ? tintaSobre(f) : A, filete: f ? regraSobre(f) : regraSobre(COR.papel), // filete: cor das regras sobre o preenchimento
     op: (k) => ops[k],
-    valor: (chave) => card.campos?.[chave] || ex[chave] || '',
     tem: (chave) => textoAtivo(chave) && !!String(card.campos?.[chave] ?? '').replace(/<[^>]+>|&nbsp;|\s/g, ''),
 
     campo(chave, classe, estilo = '', opc = {}) {
@@ -1072,58 +1071,22 @@ const PIN_POR_ID = Object.fromEntries(PINS.map((m) => [m.id, m]));
 // Editoriais: chão ardósia (ou foto), folha solta com sombra. De trabalho: chão âmbar, folha recortada sem
 // sombra, traço e texto na tinta do fundo. Conteúdo principal no recorte quadrado (180–1260).
 
-const ROMANOS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'];
-// medidas das folhas: capa 3:4 (540 × 720), capa A4 (690 × 976), miniatura do arquivo (162 × 216)
-const FOLHA = { capa: [540, 720], a4: [690, Math.round(690 * Math.SQRT2)], mini: [162, 216] };
-const EX_FOLHA = {
-  elaia: { num: '1', titulo: 'Backrooms,<br>Labirinto<br>Domesticado', serie: 'Elaia · Parte I', cabFolha: 'Elaia — escritos do Odisse', cabDir: 'Arquivo' },
-  padrao: { num: '1', titulo: 'Título<br>da publicação', serie: 'Série · Parte I', cabFolha: 'Escritos do Odisse', cabDir: 'Arquivo' },
-};
+// folha impressa ou página de livro (foto ou digitalização), solta sobre o fundo, com sombra
+const FOLHA = { '3x4': [600, 800], a4: [690, Math.round(690 * Math.SQRT2)], a4d: [920, Math.round(920 / Math.SQRT2)] };
 const O15 = {
   id: 'o15', cod: 'O-15', grupo: 'pecas',
   nome: 'Folha sobre ardósia',
-  desc: 'Peça impressa solta sobre o fundo, com sombra: a capa numerada (3:4 ou A4, centrada no card) ou o arquivo da série (as capas em miniatura; as que faltam ficam tracejadas).',
-  slots: {},
-  opcoes: [
-    op('folha', 'Folha', [['capa', 'Capa 3:4'], ['a4', 'Capa A4'], ['arquivo', 'Arquivo']], 'capa'),
-    op('publicadas', 'Publicadas no arquivo', [1, 2, 3, 4, 5, 6, 7, 8].map((i) => [String(i), String(i)]), '3'),
-  ],
+  desc: 'A imagem de uma folha impressa ou de uma página de livro (foto ou digitalização), solta sobre o fundo ardósia, com sombra, centrada no card: 3:4, A4 em pé ou A4 deitada. A imagem preenche a folha; zoom e posição ajustam o recorte.',
+  slots: { a: 'Folha (foto ou digitalização)' },
+  opcoes: [op('folha', 'Folha', [['3x4', '3:4'], ['a4', 'A4 em pé'], ['a4d', 'A4 deitada']], 'a4')],
   preenche: () => COR.ardosia,
-  exemplo: porNucleo(EX_FOLHA),
+  exemplo: porNucleo({ padrao: {} }),
   render(t) {
-    const tipo = t.op('folha');
-    // capa numerada: número no canto, título no centro (a 40% da altura), série no pé
-    const capa = (w, h, { num, titulo, serie }) => {
-      const k = w / FOLHA.capa[0];
-      return `<div class="folha-capa" style="width:${w}px;height:${h}px;background:${COR.nevoa};color:${COR.grafite}">
-        <div style="position:absolute;left:${28 * k}px;top:${20 * k}px;font-size:${40 * k}px;font-weight:300;line-height:1">${num}</div>
-        <div style="position:absolute;left:0;top:${h * 0.4}px;width:100%;text-align:center">${titulo}</div>
-        <div style="position:absolute;left:0;bottom:${28 * k}px;width:100%;text-align:center">${serie}</div></div>`;
-    };
-    if (tipo !== 'arquivo') {
-      const [w, h] = FOLHA[tipo] || FOLHA.capa, k = w / FOLHA.capa[0];
-      const miolo = capa(w, h, {
-        num: t.campo('num', 'cab-txt', '', { ph: '1' }) || '',
-        titulo: t.campo('titulo', 't-titulo', `font-size:${Math.round(46 * k)}px;line-height:1.02;padding:0 ${Math.round(32 * k)}px`),
-        serie: t.campo('serie', 't-rotulo', `font-size:${Math.round(14 * k)}px`),
-      });
-      return `${t.fundo(t.f)}${t.cab(t.tinta)}
-        <div class="folha-solta" style="${pos((LARG - w) / 2, Math.round((ALT - h) / 2) - 10, w, h)}">${miolo}</div>
-        ${t.selo(t.tinta)}`;
-    }
-    // arquivo: folha de papel nas 12 colunas, cabeçalho com filete e a grade 4 × 2 das capas
-    const n = Number(t.op('publicadas')) || 0, [mw, mh] = FOLHA.mini;
-    const titulo = t.valor('titulo');
-    const itens = Array.from({ length: 8 }, (_, i) => (i < n
-      ? `<div class="arq-item">${capa(mw, mh, { num: i + 1, titulo: `<span class="t-titulo" style="font-size:14px;line-height:1.02">${titulo}</span>`, serie: '' })}<span class="t-rotulo" style="font-size:12px">Parte ${ROMANOS[i]}</span></div>`
-      : `<div class="arq-item"><div class="arq-vaga" style="width:${mw}px;height:${mh}px"></div><span class="t-rotulo" style="font-size:12px;opacity:.5">A publicar</span></div>`)).join('');
-    const y = QUADRO + 200, h = 680;
+    const [w, h] = FOLHA[t.op('folha')] || FOLHA.a4;
+    const x = (LARG - w) / 2, y = Math.round((ALT - h) / 2) - 10;
     return `${t.fundo(t.f)}${t.cab(t.tinta)}
-      <div class="folha-solta" style="${pos(M, y, W12, h)}background:${COR.papel};color:${COR.grafite}">
-        <div style="position:absolute;left:32px;top:28px">${t.campo('cabFolha', 't-rotulo', '', { ph: 'Cabeçalho da folha' })}</div>
-        <div style="position:absolute;right:32px;top:28px">${t.campo('cabDir', 't-rotulo', '')}</div>
-        <div style="position:absolute;left:32px;top:64px;width:${W12 - 64}px;height:1.5px;background:${COR.grafite}"></div>
-        <div class="arq-grade" style="position:absolute;left:32px;top:104px;width:${W12 - 64}px">${itens}</div></div>
+      <div class="folha-solta" style="${pos(x, y, w, h)}background:${COR.papel}"></div>
+      ${t.img('a', x, y, w, h, { fundo: COR.papel })}
       ${t.selo(t.tinta)}`;
   },
 };
