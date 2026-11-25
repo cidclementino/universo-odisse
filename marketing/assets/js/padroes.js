@@ -59,11 +59,11 @@ export const ESPACO = [
   { id: 'assinatura', nome: 'Assinatura', grupo: 'ritmo', v: 32, uso: 'Título ou imagens → assinatura e autoria.' },
   { id: 'bloco', nome: 'Bloco', grupo: 'ritmo', v: 48, uso: 'Entre blocos, sempre o mesmo valor: título → texto, texto → imagem, imagem → texto, texto → ficha, texto → borda do painel.' },
 
-  { id: 'cabecalho', nome: 'Cabeçalho', grupo: 'posicao', v: 38, uso: 'Do topo do card ao texto do cabeçalho (estilo Rótulo). O cabeçalho é um carimbo tripartido (núcleo · tema · contagem), de margem a margem, com a altura de um Bloco, centrado na linha dos pontos (y 50).' },
+  { id: 'cabecalho', nome: 'Cabeçalho', grupo: 'posicao', v: 38, uso: 'Do topo do card ao texto do cabeçalho (estilo Rótulo). O cabeçalho é um carimbo encostado no topo, de lado a lado, com a altura de um Bloco: o tema à esquerda, a partir da margem, e a contagem à direita.' },
   { id: 'quadro', nome: 'Recorte quadrado', grupo: 'posicao', v: 180, uso: 'Do topo e da base ao recorte 1080×1080 do grid do perfil (y 180–1260). O bloco principal de texto e imagem começa e termina dentro dele: nenhum texto passa da linha de 1260.' },
   { id: 'topo', nome: 'Início do conteúdo', grupo: 'posicao', v: 128, uso: 'Do topo do card ao primeiro texto, quando não há imagem no alto.' },
   { id: 'selo', nome: 'Selo do rodapé', grupo: 'posicao', v: 66, uso: 'Da base do card ao centro do selo.' },
-  { id: 'ponto', nome: 'Pontos laterais', grupo: 'posicao', v: 10, uso: 'Diâmetro dos 6 pontos, centrados na margem (26 px da borda), na altura do cabeçalho, do meio do card e do selo.' },
+  { id: 'ponto', nome: 'Pontos laterais', grupo: 'posicao', v: 10, uso: 'Diâmetro dos 4 pontos, centrados na margem (26 px da borda): dois dentro do carimbo, no centro da faixa, e dois na altura do centro do selo.' },
 ];
 
 export const GRUPOS_ESPACO = [
