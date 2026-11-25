@@ -60,21 +60,21 @@
    o resto, à esquerda. Cor e fundo do carimbo inteiro (sem partição): colorirPontos. */
 .card .carimbo {
   position: absolute; z-index: 3;
-  display: grid; grid-template-columns: auto minmax(0, 1fr) auto;
+  display: grid; grid-template-columns: minmax(0, 1fr) auto;
   white-space: nowrap;
 }
+/* encostado no topo, de lado a lado: só o filete de baixo e o que separa o tema da contagem */
 .card .carimbo .cel {
   display: flex; align-items: center; min-width: 0;
   padding: 0 var(--e-proximo);
-  border: 1.5px solid currentColor; border-left-width: 0;
+  border: 0 solid currentColor; border-bottom-width: 1.5px;
   overflow: hidden;
 }
-.card .carimbo .cel.esq { border-left-width: 1.5px; }
-.card .carimbo .cel.meio { justify-content: flex-start; text-align: left; }
-.card .carimbo .cel.dir { justify-content: flex-end; gap: var(--e-proximo); }
+.card .carimbo .cel.meio { justify-content: flex-start; text-align: left; padding-left: var(--e-margem); border-right-width: 1.5px; }
+.card .carimbo .cel.dir { justify-content: flex-end; gap: var(--e-proximo); padding-right: var(--e-margem); }
 .card .carimbo .seta { display: block; flex: none; }
 
-/* Pontos laterais — 3 de cada lado (cor calculada em colorirPontos) */
+/* Pontos — 2 de cada lado: dentro do carimbo e na altura do selo (cor calculada em colorirPontos) */
 .card .ponto { position: absolute; border-radius: 50%; z-index: 4; pointer-events: none; background: #3F4B57; }
 
 /* Linha de contexto da capa: uma linha só */
@@ -168,3 +168,12 @@
 .card .slot-vazio b { font-size: 34px; margin-right: 6px; }
 .card .slot.alvo { box-shadow: inset 0 0 0 6px rgba(60,130,220,.9); }
 .card .fluxo.meio { justify-content: center; }
+
+/* Peças editoriais e de trabalho (O-15 a O-19) */
+.card .folha-solta { position: absolute; z-index: 1; box-shadow: 0 2px 0 rgba(0,0,0,.12), 0 24px 48px rgba(0,0,0,.28); }
+.card .folha-capa { position: relative; overflow: hidden; }
+.card .duo { position: absolute; pointer-events: none; }
+.card .caixa-alta { text-transform: uppercase; letter-spacing: .02em; font-weight: 500; }
+.card .arq-grade { display: grid; grid-template-columns: repeat(4, 1fr); column-gap: 24px; row-gap: 40px; justify-items: center; }
+.card .arq-item { display: flex; flex-direction: column; gap: 10px; align-items: center; }
+.card .arq-vaga { border: 1px dashed rgba(46,48,54,.3); }

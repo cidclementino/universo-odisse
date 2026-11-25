@@ -37,7 +37,8 @@ const pos = (x, y, w, h) =>
 const regraSobre = (fundo) => (tintaSobre(fundo) === COR.branco ? 'rgba(255,255,255,.55)' : 'rgba(63,75,87,.5)');
 const B = COR.branco, A = COR.ardosia;
 // Carimbo do cabeçalho: altura de um Bloco (48), centrado na linha dos pontos (y 50).
-const CARIMBO = { y: E.cabecalho + 12 - E.bloco / 2, h: E.bloco };
+// Carimbo encostado no topo, de lado a lado, com a altura de um Bloco (25/11).
+const CARIMBO = { y: 0, h: E.bloco };
 // Campos que não entram em "Textos": rótulos, legendas, créditos, ficha e avisos.
 const FORA_DOS_TEXTOS = /^(rotulo|legR|legT|fonte|aviso|link|assin|planta|cota|rodape|l\d|f\d+[rv])$/;
 export const OP_CARIMBO = { k: 'carimbo', rot: 'Carimbo', valores: [['linhas', 'Só linhas'], ['cheio', 'Fundo cheio']], padrao: 'linhas' };
@@ -144,6 +145,7 @@ export function criarContexto({ card, indice, total, nucleo, globais, modelo, mo
     n, g, editavel, textos, fichas, veus: { topo: 0, meio: 0, base: 0 },
     f, tinta: f ? tintaSobre(f) : A, filete: f ? regraSobre(f) : regraSobre(COR.papel), // filete: cor das regras sobre o preenchimento
     op: (k) => ops[k],
+    valor: (chave) => card.campos?.[chave] || ex[chave] || '',
     tem: (chave) => textoAtivo(chave) && !!String(card.campos?.[chave] ?? '').replace(/<[^>]+>|&nbsp;|\s/g, ''),
 
     campo(chave, classe, estilo = '', opc = {}) {
@@ -195,7 +197,7 @@ export function criarContexto({ card, indice, total, nucleo, globais, modelo, mo
       const src = im && (im.ref || im.src) ? fonteImagem(card, slot) : null;
       if (src) {
         const ox = im.x ?? 50, oy = im.y ?? 50, z = im.z ?? 1;
-        return `<div ${base}><img src="${src}" alt="" draggable="false" style="object-position:${ox}% ${oy}%;transform-origin:${ox}% ${oy}%;transform:scale(${z})"></div>`;
+        return `<div ${base}><img src="${src}" alt="" draggable="false" style="object-position:${ox}% ${oy}%;transform-origin:${ox}% ${oy}%;transform:scale(${z});${opc.estiloImg || ''}"></div>`;
       }
       if (modo === 'exportar') return opc.opcional ? '' : `<div ${base}></div>`;
       const rotulo = editavel ? `<span class="slot-vazio"><b>+</b> ${esc(modelo.slots?.[slot] || 'Imagem')}</span>` : '';
@@ -224,12 +226,10 @@ export function criarContexto({ card, indice, total, nucleo, globais, modelo, mo
       return bg ? `<div class="bloco veu" style="${pos(x, alt - h, w, h)}${bg}"></div>` : '';
     },
 
-    /** Carimbo: caixa tripartida no alto, como o carimbo de desenho técnico.
-     *  Esquerda o núcleo · meio o tema (nome da publicação; no Elaia, "Escrito por …") ·
-     *  direita a contagem (no post único, o aviso). Centrada na linha dos pontos (y 50),
-     *  de margem a margem: fica a 26 px dos pontos, como os pontos ficam da borda.
-     *  Opção "Carimbo": só linhas ou fundo cheio; a cor de cada célula vem do que está
-     *  sob ela (colorirPontos). Com a legenda no topo, ela desce para baixo do carimbo. */
+    /** Carimbo: faixa encostada no topo, de lado a lado (25/11). À esquerda o tema (nome da publicação;
+     *  no Elaia, "Escrito por …"), a partir da margem; à direita a contagem (no post único, o aviso).
+     *  Os dois pontos de cima ficam dentro dele. Opção "Carimbo": só linhas ou fundo cheio; a cor vem
+     *  do que está sob ele (colorirPontos). Com a legenda no topo, ela desce para baixo do carimbo. */
     cab(corEsq, corDir = corEsq) {
       const nome = g.projeto || '';
       const pre = n.autoria && nome ? `${esc(n.autoria)} ` : '';
@@ -243,10 +243,10 @@ export function criarContexto({ card, indice, total, nucleo, globais, modelo, mo
         const num = `${String(indice + 1).padStart(2, '0')}/${String(total).padStart(2, '0')}`;
         dir = ultimo ? `${SETA_VOLTA}${num}` : `${num}${SETA}`;
       }
-      // As laterais (núcleo e contagem) têm a largura do próprio texto mais o respiro; o tema ocupa o resto,
-      // alinhado à esquerda. O carimbo é inteiro: uma cor só, todo transparente ou todo cheio (colorirPontos).
+      // O tema ocupa o que sobra, alinhado à esquerda; a contagem tem a largura do próprio texto mais o respiro.
+      // O carimbo é inteiro: uma cor só, todo transparente ou todo cheio (colorirPontos).
       const cel = (cls, miolo) => `<div class="cel ${cls}">${miolo}</div>`;
-      let h = `<div class="carimbo t-rotulo" data-fundo="${ops.carimbo}" data-preench="${f || COR.papel}" style="${pos(M, CARIMBO.y, W12, CARIMBO.h)}color:${corEsq}">${cel('esq', esc(n.cabecalho))}${cel('meio', tema)}${cel('dir', dir)}</div>`;
+      let h = `<div class="carimbo t-rotulo" data-fundo="${ops.carimbo}" data-preench="${f || COR.papel}" style="${pos(0, CARIMBO.y, LARG, CARIMBO.h)}color:${corEsq}">${cel('meio', tema)}${cel('dir', dir)}</div>`;
       if (legendaTopo && !unico) {
         const r = t.campo('legR', 't-rotulo', '', { ph: 'Rótulo' });
         const l = t.campo('legT', 't-legenda', `margin-top:${px('justo')}`, { ph: 'Legenda: quem, onde, quando.' });
@@ -1066,7 +1066,160 @@ const P01 = {
 const PINS = [P01];
 const PIN_POR_ID = Object.fromEntries(PINS.map((m) => [m.id, m]));
 
-const UNIVERSAIS = [O01, O02, O03, O04, O05, O06, O07, O08, O09, O10, O11, O12, O13, O14];
+
+// ---------------------------------------------------------------------------
+// PEÇAS EDITORIAIS E DE TRABALHO (25/11)
+// Editoriais: chão ardósia (ou foto), folha solta com sombra. De trabalho: chão âmbar, folha recortada sem
+// sombra, traço e texto na tinta do fundo. Conteúdo principal no recorte quadrado (180–1260).
+
+const ROMANOS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'];
+// medidas das folhas: capa 3:4 (540 × 720), capa A4 (690 × 976), miniatura do arquivo (162 × 216)
+const FOLHA = { capa: [540, 720], a4: [690, Math.round(690 * Math.SQRT2)], mini: [162, 216] };
+const EX_FOLHA = {
+  elaia: { num: '1', titulo: 'Backrooms,<br>Labirinto<br>Domesticado', serie: 'Elaia · Parte I', cabFolha: 'Elaia — escritos do Odisse', cabDir: 'Arquivo' },
+  padrao: { num: '1', titulo: 'Título<br>da publicação', serie: 'Série · Parte I', cabFolha: 'Escritos do Odisse', cabDir: 'Arquivo' },
+};
+const O15 = {
+  id: 'o15', cod: 'O-15', grupo: 'pecas',
+  nome: 'Folha sobre ardósia',
+  desc: 'Peça impressa solta sobre o fundo, com sombra: a capa numerada (3:4 ou A4, centrada no card) ou o arquivo da série (as capas em miniatura; as que faltam ficam tracejadas).',
+  slots: {},
+  opcoes: [
+    op('folha', 'Folha', [['capa', 'Capa 3:4'], ['a4', 'Capa A4'], ['arquivo', 'Arquivo']], 'capa'),
+    op('publicadas', 'Publicadas no arquivo', [1, 2, 3, 4, 5, 6, 7, 8].map((i) => [String(i), String(i)]), '3'),
+  ],
+  preenche: () => COR.ardosia,
+  exemplo: porNucleo(EX_FOLHA),
+  render(t) {
+    const tipo = t.op('folha');
+    // capa numerada: número no canto, título no centro (a 40% da altura), série no pé
+    const capa = (w, h, { num, titulo, serie }) => {
+      const k = w / FOLHA.capa[0];
+      return `<div class="folha-capa" style="width:${w}px;height:${h}px;background:${COR.nevoa};color:${COR.grafite}">
+        <div style="position:absolute;left:${28 * k}px;top:${20 * k}px;font-size:${40 * k}px;font-weight:300;line-height:1">${num}</div>
+        <div style="position:absolute;left:0;top:${h * 0.4}px;width:100%;text-align:center">${titulo}</div>
+        <div style="position:absolute;left:0;bottom:${28 * k}px;width:100%;text-align:center">${serie}</div></div>`;
+    };
+    if (tipo !== 'arquivo') {
+      const [w, h] = FOLHA[tipo] || FOLHA.capa, k = w / FOLHA.capa[0];
+      const miolo = capa(w, h, {
+        num: t.campo('num', 'cab-txt', '', { ph: '1' }) || '',
+        titulo: t.campo('titulo', 't-titulo', `font-size:${Math.round(46 * k)}px;line-height:1.02;padding:0 ${Math.round(32 * k)}px`),
+        serie: t.campo('serie', 't-rotulo', `font-size:${Math.round(14 * k)}px`),
+      });
+      return `${t.fundo(t.f)}${t.cab(t.tinta)}
+        <div class="folha-solta" style="${pos((LARG - w) / 2, Math.round((ALT - h) / 2) - 10, w, h)}">${miolo}</div>
+        ${t.selo(t.tinta)}`;
+    }
+    // arquivo: folha de papel nas 12 colunas, cabeçalho com filete e a grade 4 × 2 das capas
+    const n = Number(t.op('publicadas')) || 0, [mw, mh] = FOLHA.mini;
+    const titulo = t.valor('titulo');
+    const itens = Array.from({ length: 8 }, (_, i) => (i < n
+      ? `<div class="arq-item">${capa(mw, mh, { num: i + 1, titulo: `<span class="t-titulo" style="font-size:14px;line-height:1.02">${titulo}</span>`, serie: '' })}<span class="t-rotulo" style="font-size:12px">Parte ${ROMANOS[i]}</span></div>`
+      : `<div class="arq-item"><div class="arq-vaga" style="width:${mw}px;height:${mh}px"></div><span class="t-rotulo" style="font-size:12px;opacity:.5">A publicar</span></div>`)).join('');
+    const y = QUADRO + 200, h = 680;
+    return `${t.fundo(t.f)}${t.cab(t.tinta)}
+      <div class="folha-solta" style="${pos(M, y, W12, h)}background:${COR.papel};color:${COR.grafite}">
+        <div style="position:absolute;left:32px;top:28px">${t.campo('cabFolha', 't-rotulo', '', { ph: 'Cabeçalho da folha' })}</div>
+        <div style="position:absolute;right:32px;top:28px">${t.campo('cabDir', 't-rotulo', '')}</div>
+        <div style="position:absolute;left:32px;top:64px;width:${W12 - 64}px;height:1.5px;background:${COR.grafite}"></div>
+        <div class="arq-grade" style="position:absolute;left:32px;top:104px;width:${W12 - 64}px">${itens}</div></div>
+      ${t.selo(t.tinta)}`;
+  },
+};
+
+const EX_APRESENTACAO = {
+  padrao: { texto: 'O Odisse é um estúdio de arquitetura e design em João Pessoa, com pesquisa no centro da prática.<br><br>Fundado por Cid Clementino e Nathalia Linhares.' },
+};
+const O16 = {
+  id: 'o16', cod: 'O-16', grupo: 'pecas',
+  nome: 'Texto de apresentação',
+  desc: 'Texto corrido em Corpo 01 sobre o fundo (ardósia), no recorte quadrado, colunas 1–11.',
+  slots: {},
+  preenche: () => COR.ardosia,
+  exemplo: porNucleo(EX_APRESENTACAO),
+  render(t) {
+    return `${t.fundo(t.f)}${t.cab(t.tinta)}
+      ${t.fluxo(M, QUADRO, W(1, 11), FIM - QUADRO, t.tinta, t.campo('texto', 't-citacao', '', { fit: FIM - QUADRO }))}
+      ${t.selo(t.tinta)}`;
+  },
+};
+
+const EX_CITACAO_IMG = {
+  padrao: { citacao: '«Como transformar um espaço indiferenciado em um conjunto de partes reconhecíveis.»' },
+};
+const O17 = {
+  id: 'o17', cod: 'O-17', grupo: 'pecas',
+  nome: 'Citação sobre imagem',
+  desc: 'Citação em caixa alta, branca, sobre a imagem inteira em duotone ardósia (o tratamento do Estúdio), com véu em cima e embaixo. Sem atribuição e sem código.',
+  slots: { a: 'Imagem de fundo' },
+  opcoes: [op('tom', 'Imagem', [['duotone', 'Duotone ardósia'], ['original', 'Cor original']], 'duotone')],
+  exemplo: porNucleo(EX_CITACAO_IMG),
+  render(t) {
+    // duotone por mesclagem: a foto em tons de cinza, o escuro levado ao ardósia (lighten) e o claro à névoa (darken)
+    const duo = t.op('tom') === 'duotone';
+    const tons = duo ? `<div class="duo" style="${pos(0, 0, LARG, ALT)}background:${COR.ardosia};mix-blend-mode:lighten"></div>
+      <div class="duo" style="${pos(0, 0, LARG, ALT)}background:${COR.nevoa};mix-blend-mode:darken"></div>` : '';
+    return `${t.img('a', 0, 0, LARG, ALT, { estiloImg: duo ? 'filter:grayscale(1) contrast(1.12)' : '' })}${tons}
+      ${t.veuTopo(1000, 0.86)}${t.veuBase(380, 0.8)}
+      ${t.cab(B)}
+      ${t.fluxo(M, QUADRO, W12, 600, B, t.campo('citacao', 't-citacao caixa-alta', '', { fit: 600 }))}
+      ${t.selo(B)}`;
+  },
+};
+
+const EX_DESENHO = {
+  padrao: { texto: 'Descrição do desenho: o que ele mostra e como ler.' },
+};
+const O18 = {
+  id: 'o18', cod: 'O-18', grupo: 'pecas',
+  nome: 'Desenho sobre cor',
+  desc: 'Desenho em linha (planta, corte, diagrama) sobre o fundo âmbar, nas 12 colunas, com caixa de texto centrada embaixo (colunas 3–10). O branco do desenho some no fundo (multiplicar).',
+  slots: { a: 'Desenho (fundo branco ou transparente)' },
+  preenche: () => COR.ambar,
+  exemplo: porNucleo(EX_DESENHO),
+  render(t) {
+    const yTxt = 1090;
+    return `${t.fundo(t.f)}${t.cab(t.tinta)}
+      ${t.img('a', M, QUADRO - 40, W12, yTxt - E.bloco - (QUADRO - 40), { contain: true, estiloImg: 'mix-blend-mode:multiply' })}
+      ${t.fluxo(X(3), yTxt, W(3, 10), FIM - yTxt, t.tinta, t.campo('texto', 't-texto', 'text-align:center'))}
+      ${t.selo(t.tinta)}`;
+  },
+};
+
+const EX_PAGINA = {
+  padrao: {
+    titulo: 'A conversa com <u>Cid Clementino</u> e <u>Nathalia Linhares</u> [Odisse], em [local], em [data].',
+    legR: 'Tema da conversa', pergunta: '[pergunta]', texto: 'Nome: [resposta corrida, que segue no próximo card].', rodape: '02',
+  },
+};
+const PAGINA = { y0: 96, y1: 1296 };   // a folha vai de um Bloco abaixo do carimbo até acima do selo
+const O19 = {
+  id: 'o19', cod: 'O-19', grupo: 'pecas',
+  nome: 'Página recortada',
+  desc: 'Folha de papel sobre o fundo âmbar, sangrando pela borda. Abertura: a folha começa na coluna 2 e sangra à direita, com o texto de abertura. Corrida: espelhada, com rótulo, pergunta recuada, resposta e número da página.',
+  slots: {},
+  opcoes: [op('pagina', 'Página', [['abertura', 'Abertura'], ['corrida', 'Corrida']], 'abertura')],
+  preenche: () => COR.ambar,
+  exemplo: porNucleo(EX_PAGINA),
+  render(t) {
+    const tin = A, h = PAGINA.y1 - PAGINA.y0;
+    if (t.op('pagina') !== 'corrida') {
+      return `${t.fundo(t.f)}${t.painel(X(2), PAGINA.y0, LARG - X(2), h, COR.papel)}${t.cab(t.tinta)}
+        ${t.fluxo(X(3), QUADRO, W(3, 11), FIM - QUADRO, tin, t.campo('titulo', 't-citacao', '', { fit: FIM - QUADRO }))}
+        ${t.selo(t.tinta)}`;
+    }
+    const larg = LARG - X(2);
+    return `${t.fundo(t.f)}${t.painel(0, PAGINA.y0, larg, h, COR.papel)}${t.cab(t.tinta)}
+      ${t.fluxo(M, QUADRO - 40, W(1, 10), 40, tin, t.campo('legR', 't-legenda', 'text-align:right'))}
+      ${t.fluxo(X(4), QUADRO + 60, W(4, 10), 180, tin, t.campo('pergunta', 't-texto'))}
+      ${t.fluxo(M, QUADRO + 250, W(1, 10), FIM - QUADRO - 250 - 64, tin, t.campo('texto', 't-texto', 'text-align:justify;hyphens:auto', { fit: FIM - QUADRO - 314 }))}
+      ${t.fluxo(M, PAGINA.y1 - 64, W(1, 4), 40, tin, t.campo('rodape', 't-legenda'))}
+      ${t.selo(t.tinta)}`;
+  },
+};
+
+const UNIVERSAIS = [O01, O02, O03, O04, O05, O06, O07, O08, O09, O10, O11, O12, O13, O14, O15, O16, O17, O18, O19];
 const UNIV_POR_ID = Object.fromEntries(UNIVERSAIS.map((m) => [m.id, m]));
 
 /** Cards de versões anteriores → universal + opções equivalentes (a aparência não muda). */
@@ -1216,12 +1369,12 @@ export function estruturaDe({ card, nucleo, globais }) {
 }
 
 /**
- * Seis pontos: três de cada lado, centrados na margem, alinhados ao centro do cabeçalho,
- * ao meio do card e ao centro do selo. A cor é definida em colorirPontos (ajustarLayout).
+ * Quatro pontos (25/11): dois dentro do carimbo, na altura do centro da faixa, e dois na altura do centro
+ * do selo; todos centrados na margem. A cor é definida em colorirPontos (ajustarLayout).
  */
 function pontos() {
   const d = E.ponto;
-  const ys = [E.cabecalho + 12, ALT / 2, ALT - E.selo]; // 12 = metade da linha do Rótulo (20 × 1,2)
+  const ys = [CARIMBO.y + CARIMBO.h / 2, ALT - E.selo];
   const xs = [M / 2, LARG - M / 2];
   return xs.flatMap((x) => ys.map((y) => `<div class="ponto" style="${pos(x - d / 2, y - d / 2, d, d)}"></div>`)).join('');
 }
@@ -1321,6 +1474,7 @@ export const GRUPOS = [
   ['capa', 'Capas'],
   ['corpo', 'Corpo'],
   ['fechamento', 'Fechamento'],
+  ['pecas', 'Peças editoriais e de trabalho'],
   ['unico', 'Posts únicos'],
   ['pin', 'Pins'],
 ];
