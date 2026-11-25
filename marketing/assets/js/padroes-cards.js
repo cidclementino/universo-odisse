@@ -7,7 +7,7 @@
 //     opcoes:  { <chave do modelo>: { <opção>: <valor> } },          padrão das opções de cada modelo
 //     textos:  { <chave do modelo>: { <texto>: { estilo, ativo } } }, estilo e liga/desliga padrão de cada texto
 //     veu:     { leve, padrao, forte },                              fator de cada nível do véu
-//     veuPadrao, carimbo,                                            véu e carimbo dos cards novos
+//     veuPadrao, veuMescla, carimbo,                                 nível e mesclagem do véu e carimbo dos cards novos
 //     texto:   { <estilo>: { tamanho, peso, entrelinha, tracking } } } estilos de texto
 //
 // Valem na hora: nomes, fatores do véu e estilos de texto (mudam o desenho de todos os cards). Valem só para os
@@ -18,7 +18,7 @@ import * as local from './store.js';
 import * as nuvem from './nuvem.js';
 import { TEXTO, cssDosPadroes } from './padroes.js';
 import { ORDEM_NUCLEOS } from './nucleos.js';
-import { CATALOGO, modelosDo, FATOR_VEU, OP_VEU, OP_CARIMBO } from './templates.js';
+import { CATALOGO, modelosDo, FATOR_VEU, OP_VEU, OP_CARIMBO, VEU_PADRAO } from './templates.js';
 
 const CHAVE = 'padroes-cards';
 
@@ -40,11 +40,12 @@ export const ORIGINAL = {
   nomes: Object.fromEntries(ENTRADAS.map((e) => [e.chave, e.m.nome])),
   veu: { leve: FATOR_VEU.leve, padrao: FATOR_VEU.padrao, forte: FATOR_VEU.forte },
   veuPadrao: OP_VEU.padrao,
+  veuMescla: VEU_PADRAO.mescla,
   carimbo: OP_CARIMBO.padrao,
   texto: Object.fromEntries(TEXTO.map((t) => [t.id, { tamanho: structuredClone(t.tamanho), peso: t.peso, entrelinha: t.entrelinha, tracking: t.tracking }])),
 };
 
-export const vazio = () => ({ versao: 1, nomes: {}, opcoes: {}, textos: {}, veu: {}, veuPadrao: null, carimbo: null, texto: {} });
+export const vazio = () => ({ versao: 1, nomes: {}, opcoes: {}, textos: {}, veu: {}, veuPadrao: null, veuMescla: null, carimbo: null, texto: {} });
 let cfg = vazio();
 export const atual = () => cfg;
 
@@ -56,6 +57,7 @@ export function normalizar(c) {
   for (const k of ['opcoes', 'textos']) for (const [ch, v] of Object.entries(n[k])) if (!ENTRADA[ch] || !v || !Object.keys(v).length) delete n[k][ch];
   for (const [k, v] of Object.entries(n.veu)) if (!(k in ORIGINAL.veu) || typeof v !== 'number' || v === ORIGINAL.veu[k]) delete n.veu[k];
   if (n.veuPadrao === ORIGINAL.veuPadrao) n.veuPadrao = null;
+  if (n.veuMescla === ORIGINAL.veuMescla) n.veuMescla = null;
   if (n.carimbo === ORIGINAL.carimbo) n.carimbo = null;
   for (const [k, v] of Object.entries(n.texto)) if (!ORIGINAL.texto[k] || JSON.stringify({ ...ORIGINAL.texto[k], ...v }) === JSON.stringify(ORIGINAL.texto[k])) delete n.texto[k];
   return n;
@@ -83,7 +85,8 @@ export const restaurar = () => aplicarAosModulos(cfg);
 export function padraoInicial(nucleoId, modeloId) {
   const opcoes = {};
   if (cfg.carimbo) opcoes.carimbo = cfg.carimbo;
-  if (cfg.veuPadrao) opcoes.veu = cfg.veuPadrao;
+  if (cfg.veuPadrao) Object.assign(opcoes, { veu: cfg.veuPadrao, veuBase: cfg.veuPadrao });
+  if (cfg.veuMescla) Object.assign(opcoes, { veuMescla: cfg.veuMescla, veuBaseMescla: cfg.veuMescla });
   Object.assign(opcoes, cfg.opcoes[chaveDe(nucleoId, modeloId)] || {});
   const textos = structuredClone(cfg.textos[chaveDe(nucleoId, modeloId)] || {});
   return { opcoes, textos };

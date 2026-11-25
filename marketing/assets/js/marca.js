@@ -83,6 +83,11 @@ export function corDaMarca(id) {
   return (dados.paleta || []).find((c) => c.id === id) || RESERVA.paleta.find((c) => c.id === id) || null;
 }
 
+/** Paleta inteira da Marca: [{ id, nome, valor }]. */
+export function paletaDaMarca() {
+  return (dados.paleta?.length ? dados.paleta : RESERVA.paleta).filter((c) => /^#[0-9a-f]{6}$/i.test(c.valor || ''));
+}
+
 /** Cores de preenchimento do núcleo, na ordem fundo → painel → véu, sem repetir: [{ id, nome, valor }].
  *  O preenchimento colore o fundo do card e o carimbo cheio. */
 export function preenchimentosDe(nucleoId) {
